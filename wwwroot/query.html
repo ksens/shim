@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>SciDB Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+ <link href="css/bootstrap.css" rel="stylesheet">
+ <style type="text/css">
+   body {
+     padding-top: 60px;
+     padding-bottom: 40px;
+   }
+ </style>
+ <link href="css/bootstrap-responsive.css" rel="stylesheet">
+ <!-- Fav and touch icons -->
+ <link rel="apple-touch-icon-precomposed" href="favicon.png">
+ <link rel="shortcut icon" href="favicon.ico">
+</head>
+
+<body>
+
+  <div class="navbar navbar-inverse navbar-fixed-top">
+    <div class="navbar-inner">
+      <div class="container">
+        <a class="btn btn-navbar" data-toggle="collapse" data-target=".nav-collapse">
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </a>
+        <a class="brand" href="index.html">SciDB</a>
+        <div class="nav-collapse collapse">
+          <ul class="nav">
+            <li><a href="index.html">Dashboard</a></li>
+            <li class="active"><a href="query.html">Interactive Query</a></li>
+            <li><a href="help.html">Help</a></li>
+          </ul>
+          <div class="pull-right">
+            <ul class="nav">
+            <li><a href="http://paradigm4.com">http://paradigm4.com</a>
+            <ul>
+          </div>
+        </div><!--/.nav-collapse -->
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+
+<textarea rows="4" id="query" style="width:100%">
+</textarea>
+<br/>
+<div>
+ <div style="Float:left;width:60%">
+  <button id="exq" onclick="execute_query(1);">Execute and return result</button>
+  <button id="exqn" onclick="execute_query(0);">Execute</button>
+  <button id="upl" onclick="do_upload();" disabled=true>Upload file...</button>
+  <button id="can" onclick="cancel();" disabled=true>Cancel</button>
+ </div>
+ <div style="Float:left;width:1%"></div>
+ <div style="Float:left;width:39%;text-align:right">
+  Max number of lines to return: 
+  <select id="numlines">
+  <option value="20">20</option>
+  <option value="100">100</option>
+  <option value="1000000">1000000</option>
+  </select>
+ </div>
+</div>
+
+<br/><br/>
+<div id="result" style="overflow-x: auto;">
+</div>
+
+</div> <!-- /container -->
+
+  <script src="js/jquery.min.js"></script>
+  <script src="js/bootstrap.js"></script>
+  <script src="js/scidb.js"></script>
+
+</body>
+</html>

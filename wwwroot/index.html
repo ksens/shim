@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>SciDB Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+ <link href="css/bootstrap.css" rel="stylesheet">
+ <style type="text/css">
+   body {
+     padding-top: 60px;
+     padding-bottom: 40px;
+   }
+   .allgreen
+   {
+     color: #007700;
+   }
+   .instances
+   {
+     -moz-column-count:3; /* Firefox */
+     -webkit-column-count:3; /* Safari and Chrome */
+     column-count:3;
+     -moz-column-gap:40px; /* Firefox */
+     -webkit-column-gap:40px; /* Safari and Chrome */
+     column-gap:40px;
+     color: #007700;
+     font-family: "Lucida Console", Courier, monospace;
+     font-weight: 900;
+   }
+ </style>
+ <link href="css/bootstrap-responsive.css" rel="stylesheet">
+ <!-- Fav and touch icons -->
+ <link rel="apple-touch-icon-precomposed" href="img/favicon.png">
+ <link rel="shortcut icon" href="img/favicon.ico">
+</head>
+
+<body>
+
+  <div class="navbar navbar-inverse navbar-fixed-top">
+    <div class="navbar-inner">
+      <div class="container">
+        <a class="btn btn-navbar" data-toggle="collapse" data-target=".nav-collapse">
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </a>
+        <a class="brand" href="index.html">SciDB</a>
+        <div class="nav-collapse collapse">
+          <ul class="nav">
+            <li class="active"><a href="index.html">Dashboard</a></li>
+            <li><a href="query.html">Interactive Query</a></li>
+            <li><a href="help.html">Help</a></li>
+          </ul>
+          <div class="pull-right">
+            <ul class="nav">
+            <li><a href="http://paradigm4.com">http://paradigm4.com</a>
+            <ul>
+          </div>
+<!--
+          <form class="navbar-form pull-right">
+            <input class="span2" type="text" placeholder="Email">
+            <input class="span2" type="password" placeholder="Password">
+            <button type="submit" class="btn">Sign in</button>
+          </form>
+-->
+        </div><!--/.nav-collapse -->
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+
+    <div id="scidb_dash" > </div>
+<br/><br/><hr/>
+<div>
+  <a class="btn btn-danger" href="">Stop SciDB</a>
+  <div class="btn-group">
+    <a class="btn btn-success dropdown-toggle" data-toggle="dropdown" href="#">Start SciDB  <span class="caret"></span></a>
+    <ul id="startmenu" class="dropdown-menu">
+    </ul>
+  </div>
+  <a class="btn" onclick="doedit();" href="#">Edit SciDB config &raquo;</a>
+  <a class="btn" href="#">View Log</a>
+  <div class="pull-right">
+    <a id="savebtn" class="btn" href="#">Save SciDB config</a>
+    <a id="closebtn" class="btn" onclick="doclose();" href="#">Close</a>
+  </div>
+</div>
+<br/><br/>
+<div>
+<textarea id="configini" style="width:100%" rows="50"></textarea>
+</div>
+
+
+    <footer>
+      <br/><br/><p>&copy; Paradigm4 2013</p>
+    </footer>
+
+  </div> <!-- /container -->
+
+  <script src="js/jquery.min.js"></script>
+  <script src="js/bootstrap.js"></script>
+  <script src="js/index.js"></script>
+
+</body>
+</html>
