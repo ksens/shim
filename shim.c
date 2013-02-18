@@ -696,13 +696,39 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
 void
 stopscidb (struct mg_connection *conn, const struct mg_request_info *ri)
 {
+  int k;
+  char var[MAX_VARLEN];
+  char cmd[2 * MAX_VARLEN];
+  k = strlen (ri->query_string);
+  mg_get_var (ri->query_string, k, "db", var, MAX_VARLEN);
+  snprintf(cmd, 2*MAX_VARLEN, "scidb.py stopall %s", var);
+  k = system(cmd);
+  if(k<0)
+    respond(conn, plain, 404, 0, NULL);
+  else
+    respond(conn, plain, 200, 0, NULL);
 }
 
 void
 startscidb (struct mg_connection *conn, const struct mg_request_info *ri)
 {
+  int k;
+  char var[MAX_VARLEN];
+  char cmd[2 * MAX_VARLEN];
+  k = strlen (ri->query_string);
+  mg_get_var (ri->query_string, k, "db", var, MAX_VARLEN);
+  snprintf(cmd, 2*MAX_VARLEN, "scidb.py startall %s", var);
+  k = system(cmd);
+  if(k<0)
+    respond(conn, plain, 404, 0, NULL);
+  else
+    respond(conn, plain, 200, 0, NULL);
 }
 
+void
+getlog (struct mg_connection *conn, const struct mg_request_info *ri)
+{
+}
 
 
 /* Mongoose callbacks; we dispatch URIs to their appropriate
@@ -742,6 +768,8 @@ callback (enum mg_event event, struct mg_connection *conn)
         stopscidb (conn, ri);
       else if (!strcmp (ri->uri, "/start_scidb"))
         startscidb (conn, ri);
+      else if (!strcmp (ri->uri, "/get_log"))
+        getlog(conn, ri);
       else
         {
 // fallback to http file server

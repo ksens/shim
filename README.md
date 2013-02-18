@@ -18,6 +18,6 @@ make
 log4cxx development libraries installed to compile.)
 
 Usage:
-shim [-h] [-d] [-p <http port>] [-r <document root>] [-s <scidb port>]
+shim [-h] [-f] [-p <http port>] [-r <document root>] [-s <scidb port>]
 
-where, -d means run in a background process, -h means help.
+where, -f means run in the foreground (defaults to background), -h means help.
