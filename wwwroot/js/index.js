@@ -4,6 +4,18 @@
   var ports=1239;
   var DEBUG;
 
+  dostartstop = function(x)
+  {
+    $("#stopbtn").attr("disabled","disabled")
+    $("#startbttn").attr("disabled","disabled")
+    $("#bgetlog").attr("disabled","disabled")
+    $("#beditconfig").attr("disabled","disabled")
+    $("#scidb_dash").spin();
+    $.get(x, function(z){location.reload();}).fail(
+             function(z){location.reload();});
+  }
+
+
   getlog = function()
   {
     $("#bgetlog").attr("disabled","disabled")
@@ -36,7 +48,11 @@
         $("#savebtn").show();
         $("#closebtn").show();
       }
-    );
+    ).fail(function(z){
+            $("#bgetlog").attr("disabled",false);
+            $("#beditconfig").attr("disabled",false)
+            $("#scidb_dash").spin(false);
+    });
   }
   doclose = function()
   {
@@ -50,6 +66,8 @@
 
   $(document).ready(function()
   {
+
+
 // Parse the config.ini file for available SciDB configuration names
     $("#configini").hide();
     $("#savebtn").hide();
@@ -63,9 +81,18 @@
             $("#startmenu").append("<li><a href='#'>"+w+"</a></li>");
             $("#stopmenu").append("<li><a href='#'>"+w+"</a></li>");
           });
+
+          $("#startmenu li").click(function() {
+            dostartstop("/start_scidb?db="+$(this).text());
+          });
+          $("#stopmenu li").click(function() {
+            dostartstop("/stop_scidb?db="+$(this).text());
+          });
+
       }
     );
     hello("list('instances')",100);
+
   });
 
 function hello(sq, numlines)

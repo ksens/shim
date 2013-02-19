@@ -1,7 +1,9 @@
 #define _GNU_SOURCE
 #include <stdio.h>
+#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
+#include <libgen.h>
 #include <sys/types.h>
 #include <sys/resource.h>
 #include <sys/stat.h>
@@ -14,8 +16,8 @@
 
 #define MAX_SESSIONS 20         // Maximum number of simultaneous http sessions
 #define MAX_VARLEN 4096         // Static buffer length to hold http query params
-#ifndef MAX_PATH
-#define MAX_PATH 4096
+#ifndef PATH_MAX
+#define PATH_MAX 4096
 #endif
 #define MAX_RETURN_BYTES 10000000
 
@@ -66,6 +68,7 @@ enum mimetype
 session *sessions;              // Fixed pool of web client sessions
 omp_lock_t lock;                // Lock for sessions pool
 char *fdir;
+char *cfgini;
 char SCIDB_HOST[] = "localhost";
 int SCIDB_PORT = 1239;
 
@@ -264,11 +267,11 @@ get_session ()
     {
       if (sessions[j].sessionid < 0)
         {
-          sessions[j].ibuf = (char *) malloc (MAX_PATH);
-          sessions[j].obuf = (char *) malloc (MAX_PATH);
-          snprintf (sessions[j].ibuf, MAX_PATH, "%s/scidb_input_buf_XXXXXX",
+          sessions[j].ibuf = (char *) malloc (PATH_MAX);
+          sessions[j].obuf = (char *) malloc (PATH_MAX);
+          snprintf (sessions[j].ibuf, PATH_MAX, "%s/scidb_input_buf_XXXXXX",
                     fdir);
-          snprintf (sessions[j].obuf, MAX_PATH, "%s/scidb_output_buf_XXXXXX",
+          snprintf (sessions[j].obuf, PATH_MAX, "%s/scidb_output_buf_XXXXXX",
                     fdir);
 // Set up the input buffer
           fd = mkstemp (sessions[j].ibuf);
@@ -698,12 +701,10 @@ stopscidb (struct mg_connection *conn, const struct mg_request_info *ri)
   char cmd[2 * MAX_VARLEN];
   k = strlen (ri->query_string);
   mg_get_var (ri->query_string, k, "db", var, MAX_VARLEN);
+  syslog (LOG_INFO, "stopscidb %s",var);
   snprintf(cmd, 2*MAX_VARLEN, "scidb.py stopall %s", var);
   k = system(cmd);
-  if(k<0)
-    respond(conn, plain, 404, 0, NULL);
-  else
-    respond(conn, plain, 200, 0, NULL);
+  respond(conn, plain, 200, 0, NULL);
 }
 
 void
@@ -714,12 +715,10 @@ startscidb (struct mg_connection *conn, const struct mg_request_info *ri)
   char cmd[2 * MAX_VARLEN];
   k = strlen (ri->query_string);
   mg_get_var (ri->query_string, k, "db", var, MAX_VARLEN);
+  syslog (LOG_INFO, "startscidb %s",var);
   snprintf(cmd, 2*MAX_VARLEN, "scidb.py startall %s", var);
   k = system(cmd);
-  if(k<0)
-    respond(conn, plain, 404, 0, NULL);
-  else
-    respond(conn, plain, 200, 0, NULL);
+  respond(conn, plain, 200, 0, NULL);
 }
 
 /* Return part of the log of the connected SciDB server.
@@ -811,7 +810,7 @@ callback (enum mg_event event, struct mg_connection *conn)
 // Add option to update config.ini and to change scidb port that shim uses
 // to talk to scidb? XXX finish this...
       else if (!strcmp (ri->uri, "/get_config"))
-        mg_send_file (conn, "../etc/config.ini");
+        mg_send_file (conn, cfgini);
       else if (!strcmp (ri->uri, "/stop_scidb"))
         stopscidb (conn, ri);
       else if (!strcmp (ri->uri, "/start_scidb"))
@@ -892,8 +891,9 @@ main (int argc, char **argv)
   options[4] = NULL;
   parse_args (options, argc, argv, &daemonize);
   sessions = (session *) calloc (MAX_SESSIONS, sizeof (session));
-  fdir = (char *) malloc (MAX_PATH);
-  snprintf (fdir, MAX_PATH, TMPDIR);
+  fdir = (char *) calloc (PATH_MAX,0);
+  cfgini = (char *) calloc (PATH_MAX,0);
+  snprintf (fdir, PATH_MAX, TMPDIR);
 
   k = -1;
   if (daemonize > 0)
@@ -910,6 +910,14 @@ main (int argc, char **argv)
           exit (0);
         }
     }
+
+/* We locate the SciDB config.ini assuming that shim is installed in the SciDB
+ * PATH. This is Linux-specific. Although SciDB is presently limited to Linux
+ * anyway, this should really be made portable...
+ */
+  readlink("/proc/self/exe",cfgini,PATH_MAX);
+  cfgini = dirname(cfgini);
+  cfgini = strcat(cfgini, "/../etc/config.ini");
 
   openlog ("shim", LOG_CONS | LOG_NDELAY, LOG_USER);
   omp_init_lock (&lock);
@@ -929,6 +937,8 @@ main (int argc, char **argv)
   omp_destroy_lock (&lock);
   mg_stop (ctx);
   closelog ();
+  free(cfgini);
+  free(fdir);
 
   return 0;
 }
