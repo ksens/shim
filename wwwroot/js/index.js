@@ -7,6 +7,7 @@
   getlog = function()
   {
     $("#bgetlog").attr("disabled","disabled")
+    $("#beditconfig").attr("disabled","disabled")
     $("#configini").show();
     $("#scidb_dash").spin();
 
@@ -16,16 +17,18 @@
         $("#configini").val(data);
         $("#configini").show();
         $("#closebtn").show();
-        $("#bgetlog").attr("disabled",false)
         $("#scidb_dash").spin(false);
       }
     ).fail(function(z){
             $("#bgetlog").attr("disabled",false);
+            $("#beditconfig").attr("disabled",false)
             $("#scidb_dash").spin(false);
     });
   }
   doedit = function()
   {
+    $("#beditconfig").attr("disabled","disabled")
+    $("#bgetlog").attr("disabled","disabled")
     $.get( "/get_config",
       function(data){
         $("#configini").val(data);
@@ -41,6 +44,8 @@
      $("#configini").hide();
      $("#savebtn").hide();
      $("#closebtn").hide();
+     $("#bgetlog").attr("disabled",false)
+     $("#beditconfig").attr("disabled",false)
   }
 
   $(document).ready(function()

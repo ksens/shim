@@ -36,6 +36,7 @@ $.get(
         $("#exq")[0].disabled=false;
         $("#exqn")[0].disabled=false;
         $("#can")[0].disabled=true;
+        $("#querycontainer").spin(false);
      })
      .done(function(z)
      {
@@ -56,6 +57,7 @@ $.get(
              $("#exq")[0].disabled=false;
              $("#exqn")[0].disabled=false;
              $("#can")[0].disabled=true;
+             $("#querycontainer").spin(false);
            }).always(function(z){$.get(rel);});
        }
          $("#exq")[0].disabled=false;
