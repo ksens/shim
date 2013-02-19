@@ -12,7 +12,7 @@
 #include <omp.h>
 #include "mongoose.h"
 
-#define MAX_SESSIONS 10         // Maximum number of simultaneous http sessions
+#define MAX_SESSIONS 20         // Maximum number of simultaneous http sessions
 #define MAX_VARLEN 4096         // Static buffer length to hold http query params
 #ifndef MAX_PATH
 #define MAX_PATH 4096
@@ -268,7 +268,7 @@ get_session ()
           sessions[j].obuf = (char *) malloc (MAX_PATH);
           snprintf (sessions[j].ibuf, MAX_PATH, "%s/scidb_input_buf_XXXXXX",
                     fdir);
-          snprintf (sessions[j].obuf, MAX_PATH, "%s/scidb_output_XXXXXX",
+          snprintf (sessions[j].obuf, MAX_PATH, "%s/scidb_output_buf_XXXXXX",
                     fdir);
 // Set up the input buffer
           fd = mkstemp (sessions[j].ibuf);
@@ -357,9 +357,6 @@ new_session (struct mg_connection *conn)
     {
       syslog (LOG_INFO, "new_session session id=%d ibuf=%s obuf=%s\n",
               sessions[j].sessionid, sessions[j].ibuf, sessions[j].obuf);
-    }
-  if (j > -1)
-    {
       snprintf (buf, MAX_VARLEN, "%d\r\n", sessions[j].sessionid);
       respond (conn, plain, 200, strlen (buf), buf);
     }
@@ -490,7 +487,7 @@ readlines (struct mg_connection *conn, const struct mg_request_info *ri)
       return;
     }
 // Check to see if output bufder is open for reading
-  syslog (LOG_ERR, "readlines opening descriptors\n");
+  syslog (LOG_ERR, "readlines opening buffer\n");
   if (s->pd < 1)
     {
       omp_set_lock (&lock);
@@ -605,7 +602,7 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
   if (strlen (var) > 0)
     rel = atoi (var);
   syslog (LOG_INFO, "execute_query for session id %d\n", id);
-  s = find_session (id);
+  s = find_session(id);
   if (!s)
     {
       syslog (LOG_ERR, "execute_query error Invalid session ID %d\n", id);
@@ -725,9 +722,60 @@ startscidb (struct mg_connection *conn, const struct mg_request_info *ri)
     respond(conn, plain, 200, 0, NULL);
 }
 
+/* Return part of the log of the connected SciDB server.
+ * We run a query to locate the log.
+ */
 void
 getlog (struct mg_connection *conn, const struct mg_request_info *ri)
 {
+  int id;
+  FILE *fp;
+  unsigned long long l;
+  char ERR[MAX_VARLEN];
+  char qry[2*MAX_VARLEN];
+  session *s;
+  ssize_t rd;
+  char *x, *line1, *line = NULL;
+  size_t n;
+  size_t len = 0;
+  id = get_session();
+  if(id<0)
+  {
+    syslog (LOG_ERR, "getlog out of resources");
+    respond(conn, plain, 503, 0, NULL);
+    return;
+  }
+  s = &sessions[id];
+  syslog (LOG_INFO, "getlog session=%d\n", s->sessionid);
+  snprintf(qry, 2*MAX_VARLEN, "save(between(project(list('instances'),instance_path),0,0),'%s',0,'csv')", s->obuf);
+  syslog (LOG_INFO, "getlog query=%s", qry);
+  s->con = scidbconnect (SCIDB_HOST, SCIDB_PORT);
+  l = executeQuery (s->con, qry, 1, ERR);
+  syslog (LOG_INFO, "getlog l=%llu", l);
+  if(l<1) goto bail;
+  fp = fopen(s->obuf, "r");
+  while((rd = getline(&line, &len, fp)) != -1) {}
+  fclose(fp);
+  if(strlen(line)<1)
+  {
+    respond(conn,plain,404,0,NULL);
+  } else
+  {
+    line[strlen(line)]='\0';
+    n = strlen(line) + strlen("/scidb.log");
+    line1 = (char *)calloc(n,0);
+    x = line + 1;
+    strncpy(line1, x, strlen(line)-3);
+    strcat(line1, "/scidb.log");
+    syslog (LOG_INFO, "getlog sending log %s", line1);
+    mg_send_file (conn, line1);
+  }
+  free(line);
+
+bail:
+  omp_set_lock (&lock);
+  cleanup_session (s);
+  omp_unset_lock (&lock);
 }
 
 

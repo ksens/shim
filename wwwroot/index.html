@@ -58,13 +58,6 @@
             <li><a href="http://paradigm4.com">http://paradigm4.com</a>
           </ul>
           </div>
-<!--
-          <form class="navbar-form pull-right">
-            <input class="span2" type="text" placeholder="Email">
-            <input class="span2" type="password" placeholder="Password">
-            <button type="submit" class="btn">Sign in</button>
-          </form>
--->
         </div><!--/.nav-collapse -->
       </div>
     </div>
@@ -72,24 +65,26 @@
 
   <div class="container">
 
-    <div id="scidb_dash" > </div>
+  <div id="scidb_dash"> </div>
 <br/><br/><hr/>
 <div>
-  <a class="btn btn-danger" href="">Stop SciDB</a>
+  <div class="btn-group">
+    <a class="btn btn-danger dropdown-toggle" data-toggle="dropdown" href="#">Stop SciDB  <span class="caret"></span></a>
+    <ul id="stopmenu" class="dropdown-menu"></ul>
+  </div>
   <div class="btn-group">
     <a class="btn btn-success dropdown-toggle" data-toggle="dropdown" href="#">Start SciDB  <span class="caret"></span></a>
-    <ul id="startmenu" class="dropdown-menu">
-    </ul>
+    <ul id="startmenu" class="dropdown-menu"></ul>
   </div>
-  <a class="btn" onclick="doedit();" href="#">Edit SciDB config &raquo;</a>
-  <a class="btn" href="#">View Log</a>
+  <a id="beditconfig" class="btn" onclick="doedit();" href="#">Edit SciDB config &raquo;</a>
+  <a id="bgetlog" class="btn" onclick="getlog();" href="#">View Log</a>
   <div class="pull-right">
     <a id="savebtn" class="btn" href="#">Save SciDB config</a>
     <a id="closebtn" class="btn" onclick="doclose();" href="#">Close</a>
   </div>
 </div>
 <br/><br/>
-<div>
+<div id="textcontainer">
 <textarea id="configini" style="width:100%" rows="50"></textarea>
 </div>
 
@@ -103,6 +98,8 @@
   <script src="js/jquery.min.js"></script>
   <script src="js/bootstrap.js"></script>
   <script src="js/index.js"></script>
+  <script src="js/spin.min.js"></script>
+  <script src="js/spin.js"></script>
 
 </body>
 </html>

@@ -47,38 +47,40 @@
     </div>
   </div>
 
-  <div class="container">
 
-<textarea rows="4" id="query" style="width:95%">
-</textarea>
-<br/>
-<div>
- <div style="Float:left;width:55%">
+<div class="container">
+<div class="row">
+<div class="span12" id="querycontainer">
+<textarea rows="4" id="query" style="width:100%;"> </textarea>
+</div>
+</div>
+
+<div class="row">
+<div class="span8">
   <button id="exq" onclick="execute_query(1);">Execute and return result</button>
   <button id="exqn" onclick="execute_query(0);">Execute</button>
   <button id="upl" onclick="do_upload();" disabled=true>Upload file...</button>
   <button id="can" onclick="cancel();" disabled=true>Cancel</button>
- </div>
- <div style="Float:left;width:1%"></div>
- <div style="Float:left;width:39%;text-align:right">
-  Max number of lines to return: 
+</div>
+<div class="span4">
   <select id="numlines">
-  <option value="20">20</option>
-  <option value="100">100</option>
-  <option value="1000000">1000000</option>
+  <option value="20">Return at most 20 lines.</option>
+  <option value="100">Return at most 100 lines.</option>
+  <option value="1000000">Return at most 1,000,000 lines.</option>
   </select>
- </div>
+</div>
 </div>
 
-<br/><br/>
-<div id="result" style="overflow-x: auto;width:95%;">
+<div id="result" style="overflow-x: auto">
 </div>
 
 </div> <!-- /container -->
 
-  <script src="js/jquery.min.js"></script>
-  <script src="js/bootstrap.js"></script>
-  <script src="js/scidb.js"></script>
+<script src="js/jquery.min.js"></script>
+<script src="js/bootstrap.js"></script>
+<script src="js/scidb.js"></script>
+<script src="js/spin.min.js"></script>
+<script src="js/spin.js"></script>
 
 </body>
 </html>

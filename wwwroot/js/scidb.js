@@ -5,6 +5,7 @@ function cancel()
   cancelled = true;
   $("#result")[0].innerHTML = "<pre>Query cancellation in process...</pre>";
   $.get("/cancel?id="+x);
+  $("#querycontainer").spin(false);
 }
 
 function execute_query(ret)
@@ -14,6 +15,7 @@ function execute_query(ret)
   $("#exqn")[0].disabled=true;
   $("#result")[0].innerHTML = "<pre>Wait...</pre>";
   $("#can")[0].disabled=false;
+  $("#querycontainer").spin();
 
 $.get(
   "/new_session",
@@ -59,6 +61,7 @@ $.get(
          $("#exq")[0].disabled=false;
          $("#exqn")[0].disabled=false;
          $("#can")[0].disabled=true;
+         $("#querycontainer").spin(false);
      })
 
   })
@@ -68,6 +71,7 @@ $.get(
     $("#exq")[0].disabled=false;
     $("#exqn")[0].disabled=false;
     $("#can")[0].disabled=true;
+    $("#querycontainer").spin(false);
   });
 }
 

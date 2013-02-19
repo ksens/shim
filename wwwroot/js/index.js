@@ -2,9 +2,28 @@
 // the config.ini file for a list of valid ports associated with each SciDB
 // cluster ID. XXX Add this...
   var ports=1239;
+  var DEBUG;
 
-var DEBUG;
+  getlog = function()
+  {
+    $("#bgetlog").attr("disabled","disabled")
+    $("#configini").show();
+    $("#scidb_dash").spin();
 
+
+    $.get( "/get_log",
+      function(data){
+        $("#configini").val(data);
+        $("#configini").show();
+        $("#closebtn").show();
+        $("#bgetlog").attr("disabled",false)
+        $("#scidb_dash").spin(false);
+      }
+    ).fail(function(z){
+            $("#bgetlog").attr("disabled",false);
+            $("#scidb_dash").spin(false);
+    });
+  }
   doedit = function()
   {
     $.get( "/get_config",
@@ -37,6 +56,7 @@ var DEBUG;
           {
             w = v.replace("[","").replace("]","");
             $("#startmenu").append("<li><a href='#'>"+w+"</a></li>");
+            $("#stopmenu").append("<li><a href='#'>"+w+"</a></li>");
           });
       }
     );
