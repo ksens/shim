@@ -9,7 +9,7 @@
     $("#stopbtn").attr("disabled","disabled")
     $("#startbttn").attr("disabled","disabled")
     $("#bgetlog").attr("disabled","disabled")
-    $("#beditconfig").attr("disabled","disabled")
+//    $("#beditconfig").attr("disabled","disabled")
     $("#scidb_dash").spin();
     $.get(x, function(z){location.reload();}).fail(
              function(z){location.reload();});
@@ -19,7 +19,7 @@
   getlog = function()
   {
     $("#bgetlog").attr("disabled","disabled")
-    $("#beditconfig").attr("disabled","disabled")
+//    $("#beditconfig").attr("disabled","disabled")
     $("#configini").show();
     $("#scidb_dash").spin();
 
@@ -33,13 +33,13 @@
       }
     ).fail(function(z){
             $("#bgetlog").attr("disabled",false);
-            $("#beditconfig").attr("disabled",false)
+//            $("#beditconfig").attr("disabled",false)
             $("#scidb_dash").spin(false);
     });
   }
   doedit = function()
   {
-    $("#beditconfig").attr("disabled","disabled")
+//    $("#beditconfig").attr("disabled","disabled")
     $("#bgetlog").attr("disabled","disabled")
     $.get( "/get_config",
       function(data){
@@ -50,7 +50,7 @@
       }
     ).fail(function(z){
             $("#bgetlog").attr("disabled",false);
-            $("#beditconfig").attr("disabled",false)
+//            $("#beditconfig").attr("disabled",false)
             $("#scidb_dash").spin(false);
     });
   }
@@ -61,36 +61,34 @@
      $("#savebtn").hide();
      $("#closebtn").hide();
      $("#bgetlog").attr("disabled",false)
-     $("#beditconfig").attr("disabled",false)
+//     $("#beditconfig").attr("disabled",false)
   }
 
   $(document).ready(function()
   {
 
-
-// Parse the config.ini file for available SciDB configuration names
     $("#configini").hide();
     $("#savebtn").hide();
     $("#closebtn").hide();
-    $.get( "/get_config",
-      function(data){
-        clusters=jQuery.grep(data.split("\n"), function(n,i) {return(n.match(/\[.*\]/));})
-        $.each(clusters, function(i,v)
-          {
-            w = v.replace("[","").replace("]","");
-            $("#startmenu").append("<li><a href='#'>"+w+"</a></li>");
-            $("#stopmenu").append("<li><a href='#'>"+w+"</a></li>");
-          });
-
-          $("#startmenu li").click(function() {
-            dostartstop("/start_scidb?db="+$(this).text());
-          });
-          $("#stopmenu li").click(function() {
-            dostartstop("/stop_scidb?db="+$(this).text());
-          });
-
-      }
-    );
+// Parse the config.ini file for available SciDB configuration names
+//    $.get( "/get_config",
+//      function(data){
+//        clusters=jQuery.grep(data.split("\n"), function(n,i) {return(n.match(/\[.*\]/));})
+//        $.each(clusters, function(i,v)
+//          {
+//            w = v.replace("[","").replace("]","");
+//            $("#startmenu").append("<li><a href='#'>"+w+"</a></li>");
+//            $("#stopmenu").append("<li><a href='#'>"+w+"</a></li>");
+//          });
+//
+//          $("#startmenu li").click(function() {
+//            dostartstop("/start_scidb?db="+$(this).text());
+//          });
+//          $("#stopmenu li").click(function() {
+//            dostartstop("/stop_scidb?db="+$(this).text());
+//          });
+//      }
+//    );
     hello("list('instances')",100);
 
   });

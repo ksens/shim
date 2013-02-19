@@ -12,6 +12,13 @@ shim:
 
 install:
 	cp shim "$(SCIDB)/bin"
+	mkdir -p /var/lib/shim
+	cp -aR wwwroot /var/lib/shim/
+	chmod -R 755 /var/lib/shim
+
+uninstall:
+	rm -f "$(SCIDB)/bin/shim"
+	rm -rf /var/lib/shim
 
 clean:
 	rm -f *.o *.so shim

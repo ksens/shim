@@ -151,7 +151,7 @@ find_session (int id)
 void
 cleanup_session (session * s)
 {
-  syslog (LOG_INFO, "cleanup_session releasing %d\n", s->sessionid);
+  syslog (LOG_INFO, "cleanup_session releasing %d", s->sessionid);
   s->sessionid = -1;            // -1 indicates availability
   s->queryid = 0;
   if (s->pd > 0)
@@ -164,7 +164,7 @@ cleanup_session (session * s)
     }
   if (s->obuf)
     {
-      syslog (LOG_INFO, "cleanup_sessn unlinking %s\n", s->obuf);
+      syslog (LOG_INFO, "cleanup_sessn unlinking %s", s->obuf);
       unlink (s->obuf);
       free (s->obuf);
       s->obuf = NULL;
@@ -181,11 +181,11 @@ release_session (struct mg_connection *conn, const struct mg_request_info *ri,
 {
   int id, k;
   char var1[MAX_VARLEN];
-  syslog (LOG_INFO, "release_session\n");
+  syslog (LOG_INFO, "release_session");
   if (!ri->query_string)
     {
       respond (conn, plain, 400, 0, NULL);
-      syslog (LOG_ERR, "readbytes error invalid http query\n");
+      syslog (LOG_ERR, "readbytes error invalid http query");
       return;
     }
   k = strlen (ri->query_string);
@@ -214,7 +214,7 @@ cancel_query (struct mg_connection *conn, const struct mg_request_info *ri)
   if (!ri->query_string)
     {
       respond (conn, plain, 400, 0, NULL);
-      syslog (LOG_ERR, "cancel_query error invalid http query\n");
+      syslog (LOG_ERR, "cancel_query error invalid http query");
       return;
     }
   k = strlen (ri->query_string);
@@ -223,7 +223,7 @@ cancel_query (struct mg_connection *conn, const struct mg_request_info *ri)
   session *s = find_session (id);
   if (s && s->queryid > 0)
     {
-      syslog (LOG_INFO, "cancel_query %d %llu\n", id, s->queryid);
+      syslog (LOG_INFO, "cancel_query %d %llu", id, s->queryid);
       omp_set_lock (&lock);
       if (s->con)
         {
@@ -233,7 +233,7 @@ cancel_query (struct mg_connection *conn, const struct mg_request_info *ri)
           if (!can_con)
             {
               syslog (LOG_ERR,
-                      "cancel_query error could not connect to SciDB\n");
+                      "cancel_query error could not connect to SciDB");
               omp_unset_lock (&lock);
               respond (conn, plain, 503,
                        strlen ("Could not connect to SciDB"),
@@ -245,7 +245,7 @@ cancel_query (struct mg_connection *conn, const struct mg_request_info *ri)
           snprintf (var1, MAX_VARLEN, "cancel(%llu)", s->queryid);
           memset (SERR, 0, MAX_VARLEN);
           executeQuery (can_con, var1, 1, SERR);
-          syslog (LOG_INFO, "cancel_query %s\n", SERR);
+          syslog (LOG_INFO, "cancel_query %s", SERR);
           scidbdisconnect (can_con);
         }
       omp_unset_lock (&lock);
@@ -320,7 +320,7 @@ upload (struct mg_connection *conn, const struct mg_request_info *ri)
   if (!ri->query_string)
     {
       respond (conn, plain, 400, 0, NULL);
-      syslog (LOG_INFO, "readbytes error invalid http query\n");
+      syslog (LOG_INFO, "readbytes error invalid http query");
       return;
     }
   k = strlen (ri->query_string);
@@ -355,10 +355,10 @@ new_session (struct mg_connection *conn)
 {
   char buf[MAX_VARLEN];
   int j = get_session ();
-  syslog (LOG_INFO, "new_session %d\n", j);
+  syslog (LOG_INFO, "new_session %d", j);
   if (j > -1)
     {
-      syslog (LOG_INFO, "new_session session id=%d ibuf=%s obuf=%s\n",
+      syslog (LOG_INFO, "new_session session id=%d ibuf=%s obuf=%s",
               sessions[j].sessionid, sessions[j].ibuf, sessions[j].obuf);
       snprintf (buf, MAX_VARLEN, "%d\r\n", sessions[j].sessionid);
       respond (conn, plain, 200, strlen (buf), buf);
@@ -388,17 +388,17 @@ readbytes (struct mg_connection *conn, const struct mg_request_info *ri)
   if (!ri->query_string)
     {
       respond (conn, plain, 400, 0, NULL);
-      syslog (LOG_ERR, "readbytes error invalid http query\n");
+      syslog (LOG_ERR, "readbytes error invalid http query");
       return;
     }
-  syslog (LOG_INFO, "readbytes querystring %s\n", ri->query_string);
+  syslog (LOG_INFO, "readbytes querystring %s", ri->query_string);
   k = strlen (ri->query_string);
   mg_get_var (ri->query_string, k, "id", var, MAX_VARLEN);
   id = atoi (var);
   s = find_session (id);
   if (!s)
     {
-      syslog (LOG_INFO, "readbytes session error\n");
+      syslog (LOG_INFO, "readbytes session error");
       respond (conn, plain, 404, 0, NULL);
       return;
     }
@@ -410,7 +410,7 @@ readbytes (struct mg_connection *conn, const struct mg_request_info *ri)
       omp_unset_lock (&lock);
       if (s->pd < 1)
         {
-          syslog (LOG_ERR, "readbytes error opening output buffer\n");
+          syslog (LOG_ERR, "readbytes error opening output buffer");
           respond (conn, plain, 500, 0, NULL);
           return;
         }
@@ -442,7 +442,7 @@ readbytes (struct mg_connection *conn, const struct mg_request_info *ri)
     }
 
   l = (int) read (s->pd, buf, n);
-  syslog (LOG_INFO, "readbytes  read %d n=%d\n", l, n);
+  syslog (LOG_INFO, "readbytes  read %d n=%d", l, n);
   if (l < 0)
     {
       free (buf);
@@ -472,11 +472,11 @@ readlines (struct mg_connection *conn, const struct mg_request_info *ri)
   char *lbuf, *buf, *p;
   struct pollfd pfd;
   char var[MAX_VARLEN];
-  syslog (LOG_INFO, "readlines\n");
+  syslog (LOG_INFO, "readlines");
   if (!ri->query_string)
     {
       respond (conn, plain, 400, 0, NULL);
-      syslog (LOG_ERR, "readlines error invalid http query\n");
+      syslog (LOG_ERR, "readlines error invalid http query");
       return;
     }
   k = strlen (ri->query_string);
@@ -486,11 +486,11 @@ readlines (struct mg_connection *conn, const struct mg_request_info *ri)
   if (!s)
     {
       respond (conn, plain, 404, 0, NULL);
-      syslog (LOG_ERR, "readlines error invalid session\n");
+      syslog (LOG_ERR, "readlines error invalid session");
       return;
     }
 // Check to see if output bufder is open for reading
-  syslog (LOG_ERR, "readlines opening buffer\n");
+  syslog (LOG_ERR, "readlines opening buffer");
   if (s->pd < 1)
     {
       omp_set_lock (&lock);
@@ -501,7 +501,7 @@ readlines (struct mg_connection *conn, const struct mg_request_info *ri)
       if (s->pd < 1 || !s->pf)
         {
           respond (conn, plain, 500, 0, NULL);
-          syslog (LOG_ERR, "readlines error opening output buffer\n");
+          syslog (LOG_ERR, "readlines error opening output buffer");
           return;
         }
     }
@@ -512,7 +512,7 @@ readlines (struct mg_connection *conn, const struct mg_request_info *ri)
   if (n < 1)
     {
       respond (conn, plain, 414, strlen ("Invalid n"), "Invalid n");
-      syslog (LOG_ERR, "readlines invalid n\n");
+      syslog (LOG_ERR, "readlines invalid n");
       return;
     }
 
@@ -555,7 +555,7 @@ readlines (struct mg_connection *conn, const struct mg_request_info *ri)
   free (lbuf);
   if (t == 0)
     {
-      syslog (LOG_INFO, "readlines EOF\n");
+      syslog (LOG_INFO, "readlines EOF");
       respond (conn, plain, 410, 0, NULL);      // gone--i.e. EOF
     }
   else
@@ -594,7 +594,7 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
     {
       respond (conn, plain, 400, strlen ("Invalid http query"),
                "Invalid http query");
-      syslog (LOG_ERR, "execute_query error invalid http query string\n");
+      syslog (LOG_ERR, "execute_query error invalid http query string");
       return;
     }
   k = strlen (ri->query_string);
@@ -604,11 +604,11 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
   mg_get_var (ri->query_string, k, "release", var, MAX_VARLEN);
   if (strlen (var) > 0)
     rel = atoi (var);
-  syslog (LOG_INFO, "execute_query for session id %d\n", id);
+  syslog (LOG_INFO, "execute_query for session id %d", id);
   s = find_session(id);
   if (!s)
     {
-      syslog (LOG_ERR, "execute_query error Invalid session ID %d\n", id);
+      syslog (LOG_ERR, "execute_query error Invalid session ID %d", id);
       respond (conn, plain, 404, strlen ("Invalid session ID"),
                "Invalid session ID");
       return;                   // check for valid session
@@ -625,10 +625,10 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
 
   if (!s->con)
     s->con = scidbconnect (SCIDB_HOST, SCIDB_PORT);
-  syslog (LOG_INFO, "execute_query s->con = %p %s\n", s->con, qry);
+  syslog (LOG_INFO, "execute_query s->con = %p %s", s->con, qry);
   if (!s->con)
     {
-      syslog (LOG_ERR, "execute_query error could not connect to SciDB\n");
+      syslog (LOG_ERR, "execute_query error could not connect to SciDB");
       respond (conn, plain, 503, strlen ("Could not connect to SciDB"),
                "Could not connect to SciDB");
       omp_set_lock (&lock);
@@ -637,13 +637,13 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
       return;
     }
 
-  syslog (LOG_INFO, "execute_query connected\n");
+  syslog (LOG_INFO, "execute_query connected");
   prepare_query (&pq, s->con, qry, 1, SERR);
   l = pq.queryid;
-  syslog (LOG_INFO, "execute_query scidb queryid = %llu\n", l);
+  syslog (LOG_INFO, "execute_query scidb queryid = %llu", l);
   if (l < 1 || !pq.queryresult)
     {
-      syslog (LOG_ERR, "execute_query error %s\n", SERR);
+      syslog (LOG_ERR, "execute_query error %s", SERR);
       respond (conn, plain, 500, strlen (SERR), SERR);
       omp_set_lock (&lock);
       if (s->con)
@@ -661,7 +661,7 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
     l = execute_prepared_query (s->con, &pq, 1, SERR);
   if (l < 1)
     {
-      syslog (LOG_ERR, "execute_prepared_query error %s\n", SERR);
+      syslog (LOG_ERR, "execute_prepared_query error %s", SERR);
       respond (conn, plain, 500, strlen (SERR), SERR);
       omp_set_lock (&lock);
       if (s->con)
@@ -674,14 +674,14 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
   if (s->con)
     completeQuery (l, s->con, SERR);
 
-  syslog (LOG_INFO, "execute_query %d done, disconnecting\n", s->sessionid);
+  syslog (LOG_INFO, "execute_query %d done, disconnecting", s->sessionid);
   omp_set_lock (&lock);
   if (s->con)
     scidbdisconnect (s->con);
   s->con = NULL;
   if (rel > 0)
     {
-      syslog (LOG_INFO, "execute_query releasing HTTP session %d\n",
+      syslog (LOG_INFO, "execute_query releasing HTTP session %d",
               s->sessionid);
       cleanup_session (s);
     }
@@ -745,7 +745,7 @@ getlog (struct mg_connection *conn, const struct mg_request_info *ri)
     return;
   }
   s = &sessions[id];
-  syslog (LOG_INFO, "getlog session=%d\n", s->sessionid);
+  syslog (LOG_INFO, "getlog session=%d", s->sessionid);
   snprintf(qry, 2*MAX_VARLEN, "save(between(project(list('instances'),instance_path),0,0),'%s',0,'csv')", s->obuf);
   syslog (LOG_INFO, "getlog query=%s", qry);
   s->con = scidbconnect (SCIDB_HOST, SCIDB_PORT);
@@ -789,7 +789,7 @@ callback (enum mg_event event, struct mg_connection *conn)
 
   if (event == MG_NEW_REQUEST)
     {
-      syslog (LOG_INFO, "callback URI %s\nQUERY %s\n", ri->uri,
+      syslog (LOG_INFO, "callback for %s/%s", ri->uri,
               ri->query_string);
 // CLIENT API
       if (!strcmp (ri->uri, "/new_session"))
@@ -811,10 +811,10 @@ callback (enum mg_event event, struct mg_connection *conn)
 // to talk to scidb? XXX finish this...
       else if (!strcmp (ri->uri, "/get_config"))
         mg_send_file (conn, cfgini);
-      else if (!strcmp (ri->uri, "/stop_scidb"))
-        stopscidb (conn, ri);
-      else if (!strcmp (ri->uri, "/start_scidb"))
-        startscidb (conn, ri);
+//      else if (!strcmp (ri->uri, "/stop_scidb"))
+//        stopscidb (conn, ri);
+//      else if (!strcmp (ri->uri, "/start_scidb"))
+//        startscidb (conn, ri);
       else if (!strcmp (ri->uri, "/get_log"))
         getlog(conn, ri);
       else
@@ -849,9 +849,9 @@ parse_args (char **options, int argc, char **argv, int *daemonize)
         case 'h':
           printf
             ("Usage:\nshim [-h] [-d] [-p <http port>] [-r <document root>] [-s <scidb port>]\n");
-          printf ("Specify -f to run in the foreground.");
+          printf ("Specify -f to run in the foreground.\nDefault http port is 8080.\nDefault SciDB port is 1239.\nDefault document root is /var/lib/shim/wwwroot.\n");
           printf
-            ("Start up shim and look at /api.html from a browser for help with the API.\n\n");
+            ("Start up shim and view http://localhost:8080/api.html from a browser for help with the API.\n\n");
           exit (0);
           break;
         case 'f':
@@ -888,7 +888,7 @@ main (int argc, char **argv)
   options[0] = "listening_ports";
   options[1] = DEFAULT_HTTP_PORT;
   options[2] = "document_root";
-  options[3] = ".";
+  options[3] = "/var/lib/shim/wwwroot";
   options[4] = NULL;
   parse_args (options, argc, argv, &daemonize);
   sessions = (session *) calloc (MAX_SESSIONS, sizeof (session));
@@ -937,7 +937,7 @@ main (int argc, char **argv)
 
   ctx = mg_start (&callback, NULL, (const char **) options);
   syslog (LOG_INFO,
-          "SciDB HTTP service started on port(s) %s with web root [%s]\ntalking to SciDB on port %d\n",
+          "SciDB HTTP service started on port(s) %s with web root [%s], talking to SciDB on port %d",
           mg_get_option (ctx, "listening_ports"),
           mg_get_option (ctx, "document_root"), SCIDB_PORT);
 
