@@ -1,3 +1,4 @@
+* Add a service wrapper
 * Add a signal handler to clean up temporary files and disconnect clients
   on SIGTERM before exiting.
 * finish the control API, which is partially disabled until authenticationi s
