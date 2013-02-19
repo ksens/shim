@@ -881,8 +881,9 @@ parse_args (char **options, int argc, char **argv, int *daemonize)
 int
 main (int argc, char **argv)
 {
-  int j, k, daemonize = 1;
+  int j, k, l, daemonize = 1;
   struct mg_context *ctx;
+  struct rlimit resLimit = {0};
   char *options[5];
   options[0] = "listening_ports";
   options[1] = DEFAULT_HTTP_PORT;
@@ -905,6 +906,14 @@ main (int argc, char **argv)
           fprintf (stderr, "fork error: service terminated.\n");
           exit (1);
         case 0:
+/* Close all open file descriptors */
+          resLimit.rlim_max = 0;
+          getrlimit(RLIMIT_NOFILE, &resLimit);
+          l = resLimit.rlim_max;
+          for(j=0;j<l;j++) (void) close(j);
+          j = open("/dev/null",O_RDWR); /* stdin */
+          dup(j); /* stdout */
+          dup(j); /* stderr */
           break;
         default:
           exit (0);
