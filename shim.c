@@ -811,7 +811,7 @@ callback (enum mg_event event, struct mg_connection *conn)
 // Add option to update config.ini and to change scidb port that shim uses
 // to talk to scidb? XXX finish this...
       else if (!strcmp (ri->uri, "/get_config"))
-        mg_send_file (conn, "./config.ini");
+        mg_send_file (conn, "../etc/config.ini");
       else if (!strcmp (ri->uri, "/stop_scidb"))
         stopscidb (conn, ri);
       else if (!strcmp (ri->uri, "/start_scidb"))

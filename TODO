@@ -1,5 +1,5 @@
 * Add a signal handler to clean up temporary files and disconnect clients
   on SIGTERM before exiting.
-* Control API.
+* finish the control API.
 * Add authentication, at least for the control API.
 * https (available already in mongoose, need to hook up)

@@ -10,5 +10,8 @@ shim:
 	$(CXX) $(INC) -fpic -g -c client.cpp -o client.o
 	$(CC) -Wall $(CFLAGS) $(INC) -o shim shim.c mongoose.c client.o $(LIBS)
 
+install:
+	cp shim "$(SCIDB)/bin"
+
 clean:
 	rm -f *.o *.so shim
