@@ -469,7 +469,7 @@ readlines (struct mg_connection *conn, const struct mg_request_info *ri)
   ssize_t l;
   size_t m, t, v;
   session *s;
-  char *lbuf, *buf, *p;
+  char *lbuf, *buf, *p, *tmp;
   struct pollfd pfd;
   char var[MAX_VARLEN];
   syslog (LOG_INFO, "readlines");
@@ -489,7 +489,7 @@ readlines (struct mg_connection *conn, const struct mg_request_info *ri)
       syslog (LOG_ERR, "readlines error invalid session");
       return;
     }
-// Check to see if output bufder is open for reading
+// Check to see if output buffer is open for reading
   syslog (LOG_ERR, "readlines opening buffer");
   if (s->pd < 1)
     {
@@ -521,7 +521,20 @@ readlines (struct mg_connection *conn, const struct mg_request_info *ri)
   m = MAX_VARLEN;
   v = m * n;                    // Output buffer size
   lbuf = (char *) malloc (m);
+  if(!lbuf)
+  {
+    respond (conn, plain, 500, strlen("Out of memory"), "Out of memory");
+    syslog (LOG_ERR, "readlines out of memory");
+    return;
+  }
   buf = (char *) malloc (v);
+  if(!buf)
+  {
+    free(lbuf);
+    respond (conn, plain, 500, strlen("Out of memory"), "Out of memory");
+    syslog (LOG_ERR, "readlines out of memory");
+    return;
+  }
   while (k < n)
     {
       memset (lbuf, 0, m);
@@ -544,7 +557,18 @@ readlines (struct mg_connection *conn, const struct mg_request_info *ri)
       if (t + l > v)
         {
           v = 2 * v;
-          buf = realloc (buf, v);
+          tmp = realloc (buf, v);
+          if(!tmp)
+          {
+            free(lbuf);
+            free(buf);
+            respond (conn, plain, 500, strlen("Out of memory"), "Out of memory");
+            syslog (LOG_ERR, "readlines out of memory");
+            return;
+          } else
+          {
+            buf = tmp;
+          }
         }
 // Copy line into buffer
       p = buf + t;

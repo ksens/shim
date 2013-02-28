@@ -5,3 +5,5 @@
   added.
 * Add authentication, at least for the control API.
 * https (available already in mongoose, need to hook up)
+
+# ps axu | grep SciDB | grep dbname | head -n 1 | sed -e s/.*dbname=// | cut -d ' ' -f 1
