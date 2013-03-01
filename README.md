@@ -12,7 +12,7 @@ See the wwwroot/api.html document for the API documentation, or compile and
 start shim running and point a browser to http://localhost:8080/api.html.
 You can also preview the api.html page directly from github at:
 
-[http://htmlpreview.github.com/?https://raw.github.com/Paradigm4/shim/master/wwwroot/api.html][]
+[Paradigm4/shim/master/wwwroot/api.html](http://htmlpreview.github.com/?https://raw.github.com/Paradigm4/shim/master/wwwroot/api.html)
 
 
 The wwwroot directory also includes an example simple javascript client.
