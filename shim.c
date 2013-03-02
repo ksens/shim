@@ -25,12 +25,11 @@
 #define DEFAULT_HTTP_PORT "8080"
 #endif
 
+// Should we make the TMPDIR a runtime option (probably yes)?
 #ifndef TMPDIR
 #define TMPDIR "/tmp"           // Temporary location for I/O buffers
 #endif
-
-#define DEBUG
-//#undef DEBUG
+#define PIDFILE "/var/run/shim.pid"
 
 // Minimalist SciDB client API from client.cpp -------------------------------
 void *scidbconnect (const char *host, int port);
@@ -48,9 +47,7 @@ unsigned long long execute_prepared_query (void *, struct prep *, int,
                                            char *);
 // End of mimimalist SciDB client API -----------------------------------------
 
-/* A session consists of client I/O buffers, and an optional SciDB
- * query ID.
- */
+/* A session consists of client I/O buffers, and an optional SciDB query ID. */
 typedef struct
 {
   int sessionid;                // session identifier
@@ -67,8 +64,7 @@ enum mimetype
 
 session *sessions;              // Fixed pool of web client sessions
 omp_lock_t lock;                // Lock for sessions pool
-char *fdir;
-char *cfgini;
+char *cfgini;                   // Path to scidb config.ini
 char SCIDB_HOST[] = "localhost";
 int SCIDB_PORT = 1239;
 
@@ -164,7 +160,7 @@ cleanup_session (session * s)
     }
   if (s->obuf)
     {
-      syslog (LOG_INFO, "cleanup_sessn unlinking %s", s->obuf);
+      syslog (LOG_INFO, "cleanup_session unlinking %s", s->obuf);
       unlink (s->obuf);
       free (s->obuf);
       s->obuf = NULL;
@@ -270,12 +266,19 @@ get_session ()
           sessions[j].ibuf = (char *) malloc (PATH_MAX);
           sessions[j].obuf = (char *) malloc (PATH_MAX);
           snprintf (sessions[j].ibuf, PATH_MAX, "%s/scidb_input_buf_XXXXXX",
-                    fdir);
+                    TMPDIR);
           snprintf (sessions[j].obuf, PATH_MAX, "%s/scidb_output_buf_XXXXXX",
-                    fdir);
+                    TMPDIR);
 // Set up the input buffer
           fd = mkstemp (sessions[j].ibuf);
-          chmod (sessions[j].ibuf, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+// We need to make it so that whoever runs scidb can R/W to this file.
+// Since, in general, we don't know who is running scidb (anybody can),
+// and, in general, shim runs as a service we have a mismatch. Right now,
+// we set it so that anyone can write to these to work around this. But
+// really, these files should be owned by the scidb user. Hmmm.
+// (See also below for output buffer.)
+          chmod (sessions[j].ibuf,
+                 S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
           if (fd > 0)
             close (fd);
           else
@@ -286,6 +289,8 @@ get_session ()
 // Set up the output buffer
           sessions[j].pd = 0;
           fd = mkstemp (sessions[j].obuf);
+          chmod (sessions[j].obuf,
+                 S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
           if (fd > 0)
             close (fd);
           else
@@ -521,20 +526,20 @@ readlines (struct mg_connection *conn, const struct mg_request_info *ri)
   m = MAX_VARLEN;
   v = m * n;                    // Output buffer size
   lbuf = (char *) malloc (m);
-  if(!lbuf)
-  {
-    respond (conn, plain, 500, strlen("Out of memory"), "Out of memory");
-    syslog (LOG_ERR, "readlines out of memory");
-    return;
-  }
+  if (!lbuf)
+    {
+      respond (conn, plain, 500, strlen ("Out of memory"), "Out of memory");
+      syslog (LOG_ERR, "readlines out of memory");
+      return;
+    }
   buf = (char *) malloc (v);
-  if(!buf)
-  {
-    free(lbuf);
-    respond (conn, plain, 500, strlen("Out of memory"), "Out of memory");
-    syslog (LOG_ERR, "readlines out of memory");
-    return;
-  }
+  if (!buf)
+    {
+      free (lbuf);
+      respond (conn, plain, 500, strlen ("Out of memory"), "Out of memory");
+      syslog (LOG_ERR, "readlines out of memory");
+      return;
+    }
   while (k < n)
     {
       memset (lbuf, 0, m);
@@ -558,17 +563,19 @@ readlines (struct mg_connection *conn, const struct mg_request_info *ri)
         {
           v = 2 * v;
           tmp = realloc (buf, v);
-          if(!tmp)
-          {
-            free(lbuf);
-            free(buf);
-            respond (conn, plain, 500, strlen("Out of memory"), "Out of memory");
-            syslog (LOG_ERR, "readlines out of memory");
-            return;
-          } else
-          {
-            buf = tmp;
-          }
+          if (!tmp)
+            {
+              free (lbuf);
+              free (buf);
+              respond (conn, plain, 500, strlen ("Out of memory"),
+                       "Out of memory");
+              syslog (LOG_ERR, "readlines out of memory");
+              return;
+            }
+          else
+            {
+              buf = tmp;
+            }
         }
 // Copy line into buffer
       p = buf + t;
@@ -629,7 +636,7 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
   if (strlen (var) > 0)
     rel = atoi (var);
   syslog (LOG_INFO, "execute_query for session id %d", id);
-  s = find_session(id);
+  s = find_session (id);
   if (!s)
     {
       syslog (LOG_ERR, "execute_query error Invalid session ID %d", id);
@@ -725,10 +732,10 @@ stopscidb (struct mg_connection *conn, const struct mg_request_info *ri)
   char cmd[2 * MAX_VARLEN];
   k = strlen (ri->query_string);
   mg_get_var (ri->query_string, k, "db", var, MAX_VARLEN);
-  syslog (LOG_INFO, "stopscidb %s",var);
-  snprintf(cmd, 2*MAX_VARLEN, "scidb.py stopall %s", var);
-  k = system(cmd);
-  respond(conn, plain, 200, 0, NULL);
+  syslog (LOG_INFO, "stopscidb %s", var);
+  snprintf (cmd, 2 * MAX_VARLEN, "scidb.py stopall %s", var);
+  k = system (cmd);
+  respond (conn, plain, 200, 0, NULL);
 }
 
 void
@@ -739,10 +746,10 @@ startscidb (struct mg_connection *conn, const struct mg_request_info *ri)
   char cmd[2 * MAX_VARLEN];
   k = strlen (ri->query_string);
   mg_get_var (ri->query_string, k, "db", var, MAX_VARLEN);
-  syslog (LOG_INFO, "startscidb %s",var);
-  snprintf(cmd, 2*MAX_VARLEN, "scidb.py startall %s", var);
-  k = system(cmd);
-  respond(conn, plain, 200, 0, NULL);
+  syslog (LOG_INFO, "startscidb %s", var);
+  snprintf (cmd, 2 * MAX_VARLEN, "scidb.py startall %s", var);
+  k = system (cmd);
+  respond (conn, plain, 200, 0, NULL);
 }
 
 /* Return part of the log of the connected SciDB server.
@@ -755,45 +762,51 @@ getlog (struct mg_connection *conn, const struct mg_request_info *ri)
   FILE *fp;
   unsigned long long l;
   char ERR[MAX_VARLEN];
-  char qry[2*MAX_VARLEN];
+  char qry[2 * MAX_VARLEN];
   session *s;
   ssize_t rd;
   char *x, *line1, *line = NULL;
   size_t n;
   size_t len = 0;
-  id = get_session();
-  if(id<0)
-  {
-    syslog (LOG_ERR, "getlog out of resources");
-    respond(conn, plain, 503, 0, NULL);
-    return;
-  }
+  id = get_session ();
+  if (id < 0)
+    {
+      syslog (LOG_ERR, "getlog out of resources");
+      respond (conn, plain, 503, 0, NULL);
+      return;
+    }
   s = &sessions[id];
   syslog (LOG_INFO, "getlog session=%d", s->sessionid);
-  snprintf(qry, 2*MAX_VARLEN, "save(between(project(list('instances'),instance_path),0,0),'%s',0,'csv')", s->obuf);
+  snprintf (qry, 2 * MAX_VARLEN,
+            "save(between(project(list('instances'),instance_path),0,0),'%s',0,'csv')",
+            s->obuf);
   syslog (LOG_INFO, "getlog query=%s", qry);
   s->con = scidbconnect (SCIDB_HOST, SCIDB_PORT);
   l = executeQuery (s->con, qry, 1, ERR);
   syslog (LOG_INFO, "getlog l=%llu", l);
-  if(l<1) goto bail;
-  fp = fopen(s->obuf, "r");
-  while((rd = getline(&line, &len, fp)) != -1) {}
-  fclose(fp);
-  if(strlen(line)<1)
-  {
-    respond(conn,plain,404,0,NULL);
-  } else
-  {
-    line[strlen(line)]='\0';
-    n = strlen(line) + strlen("/scidb.log");
-    line1 = (char *)calloc(n,0);
-    x = line + 1;
-    strncpy(line1, x, strlen(line)-3);
-    strcat(line1, "/scidb.log");
-    syslog (LOG_INFO, "getlog sending log %s", line1);
-    mg_send_file (conn, line1);
-  }
-  free(line);
+  if (l < 1)
+    goto bail;
+  fp = fopen (s->obuf, "r");
+  while ((rd = getline (&line, &len, fp)) != -1)
+    {
+    }
+  fclose (fp);
+  if (strlen (line) < 1)
+    {
+      respond (conn, plain, 404, 0, NULL);
+    }
+  else
+    {
+      line[strlen (line)] = '\0';
+      n = strlen (line) + strlen ("/scidb.log");
+      line1 = (char *) calloc (n, 0);
+      x = line + 1;
+      strncpy (line1, x, strlen (line) - 3);
+      strcat (line1, "/scidb.log");
+      syslog (LOG_INFO, "getlog sending log %s", line1);
+      mg_send_file (conn, line1);
+    }
+  free (line);
 
 bail:
   omp_set_lock (&lock);
@@ -813,8 +826,7 @@ callback (enum mg_event event, struct mg_connection *conn)
 
   if (event == MG_NEW_REQUEST)
     {
-      syslog (LOG_INFO, "callback for %s/%s", ri->uri,
-              ri->query_string);
+      syslog (LOG_INFO, "callback for %s/%s", ri->uri, ri->query_string);
 // CLIENT API
       if (!strcmp (ri->uri, "/new_session"))
         new_session (conn);
@@ -840,7 +852,7 @@ callback (enum mg_event event, struct mg_connection *conn)
 //      else if (!strcmp (ri->uri, "/start_scidb"))
 //        startscidb (conn, ri);
       else if (!strcmp (ri->uri, "/get_log"))
-        getlog(conn, ri);
+        getlog (conn, ri);
       else
         {
 // fallback to http file server
@@ -873,7 +885,8 @@ parse_args (char **options, int argc, char **argv, int *daemonize)
         case 'h':
           printf
             ("Usage:\nshim [-h] [-d] [-p <http port>] [-r <document root>] [-s <scidb port>]\n");
-          printf ("Specify -f to run in the foreground.\nDefault http port is 8080.\nDefault SciDB port is 1239.\nDefault document root is /var/lib/shim/wwwroot.\n");
+          printf
+            ("Specify -f to run in the foreground.\nDefault http port is 8080.\nDefault SciDB port is 1239.\nDefault document root is /var/lib/shim/wwwroot.\n");
           printf
             ("Start up shim and view http://localhost:8080/api.html from a browser for help with the API.\n\n");
           exit (0);
@@ -907,7 +920,8 @@ main (int argc, char **argv)
 {
   int j, k, l, daemonize = 1;
   struct mg_context *ctx;
-  struct rlimit resLimit = {0};
+  struct rlimit resLimit = { 0 };
+  char pbuf[MAX_VARLEN];
   char *options[5];
   options[0] = "listening_ports";
   options[1] = DEFAULT_HTTP_PORT;
@@ -916,10 +930,9 @@ main (int argc, char **argv)
   options[4] = NULL;
   parse_args (options, argc, argv, &daemonize);
   sessions = (session *) calloc (MAX_SESSIONS, sizeof (session));
-  fdir = (char *) calloc (PATH_MAX,0);
-  cfgini = (char *) calloc (PATH_MAX,0);
-  snprintf (fdir, PATH_MAX, TMPDIR);
+  cfgini = (char *) calloc (PATH_MAX, 0);
 
+/* Daemonize */
   k = -1;
   if (daemonize > 0)
     {
@@ -932,25 +945,35 @@ main (int argc, char **argv)
         case 0:
 /* Close all open file descriptors */
           resLimit.rlim_max = 0;
-          getrlimit(RLIMIT_NOFILE, &resLimit);
+          getrlimit (RLIMIT_NOFILE, &resLimit);
           l = resLimit.rlim_max;
-          for(j=0;j<l;j++) (void) close(j);
-          j = open("/dev/null",O_RDWR); /* stdin */
-          dup(j); /* stdout */
-          dup(j); /* stderr */
+          for (j = 0; j < l; j++)
+            (void) close (j);
+          j = open ("/dev/null", O_RDWR);       /* stdin */
+          dup (j);              /* stdout */
+          dup (j);              /* stderr */
           break;
         default:
           exit (0);
         }
     }
 
+/* Write out my PID */
+  j = open (PIDFILE, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+  if (j > 0)
+    {
+      snprintf (pbuf, MAX_VARLEN, "%d", (int) getpid ());
+      write (j, pbuf, strlen (pbuf));
+      close (j);
+    }
+
 /* We locate the SciDB config.ini assuming that shim is installed in the SciDB
  * PATH. This is Linux-specific. Although SciDB is presently limited to Linux
  * anyway, this should really be made portable...
  */
-  readlink("/proc/self/exe",cfgini,PATH_MAX);
-  cfgini = dirname(cfgini);
-  cfgini = strcat(cfgini, "/../etc/config.ini");
+  readlink ("/proc/self/exe", cfgini, PATH_MAX);
+  cfgini = dirname (cfgini);
+  cfgini = strcat (cfgini, "/../etc/config.ini");
 
   openlog ("shim", LOG_CONS | LOG_NDELAY, LOG_USER);
   omp_init_lock (&lock);
@@ -970,8 +993,7 @@ main (int argc, char **argv)
   omp_destroy_lock (&lock);
   mg_stop (ctx);
   closelog ();
-  free(cfgini);
-  free(fdir);
+  free (cfgini);
 
   return 0;
 }
