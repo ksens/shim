@@ -194,7 +194,9 @@ between(A, 3, 7)
 
 <a class="op" name="build"></a><h2 >build</h2>
 <i>build(array | schema, expression)</i>
-<p/>Create a single-attribute array or schema definition with values defined by the expression. The array dimensions must be bounded.
+<p/>Create a single-attribute array with values defined by the expression. If an array is supplied,
+it's schema will be used (that is, the first argument is either explicitly or implicitly a schema).
+The schema dimensions must have explicit bounds indicated.
 <br/>
 <div class="x">
 build(&lt;x:double&gt;[i=1:10,10,0],sqrt(i))
@@ -206,7 +208,10 @@ build(A,sqrt(i))
 
 <a class="op" name="build_sparse"></a><h2 >build_sparse</h2>
 <i>build_sparse(array | schema, expression, boolean_expression)</i>
-<p/>Create a single-attribute sparse array or schema definition with values defined by the expression in coordinate locations that satisfy the boolean expression. Array dimensions must be bounded.
+<p/>Create a sparse single-attribute array with values defined by the expression in coordinate locations
+that satisfy the boolean expression involving the dimension indices. If an array is supplied,
+it's schema will be used (that is, the first argument is either explicitly or implicitly a schema).
+The schema dimensions must have explicit bounds indicated.
 <br/>
 <div class="x">
 build_sparse(&lt;x:double&gt;[i=1:10,10,0], i, double(i)/2 = i/2)
