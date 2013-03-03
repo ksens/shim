@@ -63,8 +63,8 @@ enum mimetype
 { html, plain, binary };
 
 session *sessions;              // Fixed pool of web client sessions
+char *docroot;
 omp_lock_t lock;                // Lock for sessions pool
-char *cfgini;                   // Path to scidb config.ini
 char SCIDB_HOST[] = "localhost";
 int SCIDB_PORT = 1239;
 
@@ -826,7 +826,7 @@ callback (enum mg_event event, struct mg_connection *conn)
 
   if (event == MG_NEW_REQUEST)
     {
-      syslog (LOG_INFO, "callback for %s/%s", ri->uri, ri->query_string);
+      syslog (LOG_INFO, "callback for %s%s", ri->uri, ri->query_string);
 // CLIENT API
       if (!strcmp (ri->uri, "/new_session"))
         new_session (conn);
@@ -843,10 +843,6 @@ callback (enum mg_event event, struct mg_connection *conn)
       else if (!strcmp (ri->uri, "/cancel"))
         cancel_query (conn, ri);
 // CONTROL API
-// Add option to update config.ini and to change scidb port that shim uses
-// to talk to scidb? XXX finish this...
-      else if (!strcmp (ri->uri, "/get_config"))
-        mg_send_file (conn, cfgini);
 //      else if (!strcmp (ri->uri, "/stop_scidb"))
 //        stopscidb (conn, ri);
 //      else if (!strcmp (ri->uri, "/start_scidb"))
@@ -857,9 +853,9 @@ callback (enum mg_event event, struct mg_connection *conn)
         {
 // fallback to http file server
           if (!strcmp (ri->uri, "/"))
-            snprintf (buf, MAX_VARLEN, "./wwwroot/index.html");
+            snprintf (buf, MAX_VARLEN, "%s/index.html",docroot);
           else
-            snprintf (buf, MAX_VARLEN, "./wwwroot%s", ri->uri);
+            snprintf (buf, MAX_VARLEN, "%s/%s", docroot,ri->uri);
           mg_send_file (conn, buf);
         }
 
@@ -929,8 +925,8 @@ main (int argc, char **argv)
   options[3] = "/var/lib/shim/wwwroot";
   options[4] = NULL;
   parse_args (options, argc, argv, &daemonize);
+  docroot = options[3];
   sessions = (session *) calloc (MAX_SESSIONS, sizeof (session));
-  cfgini = (char *) calloc (PATH_MAX, 0);
 
 /* Daemonize */
   k = -1;
@@ -967,14 +963,6 @@ main (int argc, char **argv)
       close (j);
     }
 
-/* We locate the SciDB config.ini assuming that shim is installed in the SciDB
- * PATH. This is Linux-specific. Although SciDB is presently limited to Linux
- * anyway, this should really be made portable...
- */
-  readlink ("/proc/self/exe", cfgini, PATH_MAX);
-  cfgini = dirname (cfgini);
-  cfgini = strcat (cfgini, "/../etc/config.ini");
-
   openlog ("shim", LOG_CONS | LOG_NDELAY, LOG_USER);
   omp_init_lock (&lock);
   for (j = 0; j < MAX_SESSIONS; ++j)
@@ -993,7 +981,6 @@ main (int argc, char **argv)
   omp_destroy_lock (&lock);
   mg_stop (ctx);
   closelog ();
-  free (cfgini);
 
   return 0;
 }

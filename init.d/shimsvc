@@ -53,9 +53,9 @@ case $1 in
             echo "Stopping shim"
             P=$(cat /var/run/shim.pid 2>/dev/null)
             if test -z "${P}"; then
-              killall shim
+              killall shim 2>/dev/null || echo >/dev/null
             else
-              kill $P
+              kill $P 2>/dev/null || echo >/dev/null
             fi
             ;;
 esac
