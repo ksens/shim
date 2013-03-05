@@ -758,60 +758,8 @@ startscidb (struct mg_connection *conn, const struct mg_request_info *ri)
 void
 getlog (struct mg_connection *conn, const struct mg_request_info *ri)
 {
-  int id;
-  FILE *fp;
-  unsigned long long l;
-  char ERR[MAX_VARLEN];
-  char qry[2 * MAX_VARLEN];
-  session *s;
-  ssize_t rd;
-  char *x, *line1, *line = NULL;
-  size_t n;
-  size_t len = 0;
-  id = get_session ();
-  if (id < 0)
-    {
-      syslog (LOG_ERR, "getlog out of resources");
-      respond (conn, plain, 503, 0, NULL);
-      return;
-    }
-  s = &sessions[id];
-  syslog (LOG_INFO, "getlog session=%d", s->sessionid);
-  snprintf (qry, 2 * MAX_VARLEN,
-            "save(between(project(list('instances'),instance_path),0,0),'%s',0,'csv')",
-            s->obuf);
-  syslog (LOG_INFO, "getlog query=%s", qry);
-  s->con = scidbconnect (SCIDB_HOST, SCIDB_PORT);
-  l = executeQuery (s->con, qry, 1, ERR);
-  syslog (LOG_INFO, "getlog l=%llu", l);
-  if (l < 1)
-    goto bail;
-  fp = fopen (s->obuf, "r");
-  while ((rd = getline (&line, &len, fp)) != -1)
-    {
-    }
-  fclose (fp);
-  if (strlen (line) < 1)
-    {
-      respond (conn, plain, 404, 0, NULL);
-    }
-  else
-    {
-      line[strlen (line)] = '\0';
-      n = strlen (line) + strlen ("/scidb.log");
-      line1 = (char *) calloc (n, 0);
-      x = line + 1;
-      strncpy (line1, x, strlen (line) - 3);
-      strcat (line1, "/scidb.log");
-      syslog (LOG_INFO, "getlog sending log %s", line1);
-      mg_send_file (conn, line1);
-    }
-  free (line);
-
-bail:
-  omp_set_lock (&lock);
-  cleanup_session (s);
-  omp_unset_lock (&lock);
+  syslog (LOG_ERR, "getlog XXX write me");
+  respond (conn, plain, 200, strlen("Not implemented"), "Not implemented");
 }
 
 
