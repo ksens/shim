@@ -14,8 +14,8 @@
 #include <omp.h>
 #include "mongoose.h"
 
-#define MAX_SESSIONS 20         // Maximum number of simultaneous http sessions
-#define MAX_VARLEN 4096         // Static buffer length to hold http query params
+#define MAX_SESSIONS 20        // Maximum number of simultaneous http sessions
+#define MAX_VARLEN 4096        // Static buffer length to hold http query params
 #ifndef PATH_MAX
 #define PATH_MAX 4096
 #endif
@@ -516,9 +516,11 @@ readlines (struct mg_connection *conn, const struct mg_request_info *ri)
   n = atoi (var);
   if (n < 1)
     {
-      respond (conn, plain, 414, strlen ("Invalid n"), "Invalid n");
-      syslog (LOG_ERR, "readlines invalid n");
-      return;
+      n = 1000;
+    }
+  if (n*MAX_VARLEN > MAX_RETURN_BYTES)
+    {
+      n = MAX_RETURN_BYTES/MAX_VARLEN;
     }
 
   k = 0;

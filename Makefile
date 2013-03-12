@@ -16,6 +16,7 @@ shim:
 
 install: shim
 	@if test ! -d "$(SCIDB)"; then echo  "Can't find scidb. Maybe try explicitly setting SCIDB variable, for example::\n\nmake SCIDB=/opt/scidb/13.2 install"; exit 1; fi 
+	@if test -x /etc/init.d/shimsvc start; then /etc/init.d/shimsvc stop;fi
 	cp shim "$(SCIDB)/bin"
 	mkdir -p /var/lib/shim
 	cp -aR wwwroot /var/lib/shim/
@@ -24,6 +25,7 @@ install: shim
 
 uninstall: unservice
 	@if test ! -d "$(SCIDB)"; then echo  "Can't find scidb. Maybe try explicitly setting SCIDB variable, for example:\n\nmake SCIDB=/opt/scidb/13.2 uninstall"; exit 1; fi 
+	@if test -x /etc/init.d/shimsvc start; then /etc/init.d/shimsvc stop;fi
 	rm -f "$(SCIDB)/bin/shim"
 	rm -rf /var/lib/shim
 	rm -f /usr/local/share/man/man1/shim.1
