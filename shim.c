@@ -11,10 +11,11 @@
 #include <fcntl.h>
 #include <poll.h>
 #include <unistd.h>
+#include <time.h>
 #include <omp.h>
 #include "mongoose.h"
 
-#define MAX_SESSIONS 20        // Maximum number of simultaneous http sessions
+#define MAX_SESSIONS 2         // Maximum number of simultaneous http sessions
 #define MAX_VARLEN 4096        // Static buffer length to hold http query params
 #ifndef PATH_MAX
 #define PATH_MAX 4096
@@ -30,6 +31,8 @@
 #define TMPDIR "/tmp"           // Temporary location for I/O buffers
 #endif
 #define PIDFILE "/var/run/shim.pid"
+
+#define WEEK 604800 // One week in seconds
 
 // Minimalist SciDB client API from client.cpp -------------------------------
 void *scidbconnect (const char *host, int port);
@@ -50,23 +53,48 @@ unsigned long long execute_prepared_query (void *, struct prep *, int,
 /* A session consists of client I/O buffers, and an optional SciDB query ID. */
 typedef struct
 {
+  omp_lock_t lock;
   int sessionid;                // session identifier
-  unsigned long long queryid;   // <1 indicates no query
+  unsigned long long queryid;   //
   int pd;                       // output buffer file descrptor
   FILE *pf;                     //   and FILE pointer
   char *ibuf;                   // input buffer name
   char *obuf;                   // output buffer name
   void *con;                    // SciDB context
+  time_t time;                  // Time value to help decide on orphan sessions
 } session;
+
+/*
+ * Orphan session detection process
+ * Shim limits the number of simultaneous open sessions. Absent-minded or
+ * malicious clients must be prevented from opening new sessions repeatedly
+ * resulting in denial of service. Shim uses a lazy timeout mechanism to
+ * detect unused sessions and reclaim them. It works like this:
+ *
+ * 1. The session time value is set to the current time when an API event
+ *    finishes.
+ * 2. If a new_session request fails to find any available session slots,
+ *    it inspects the existing session time values for all the sessions,
+ *    computing the difference between current time and the time value.
+ *    If a session time difference exceeds TIMEOUT, then that session is
+ *    cleaned up (cleanup_session), re-initialized, and returned as a
+ *    new session. Queries are not cancelled though.
+ *
+ * Operations that are in-flight but may take an indeterminate amount of
+ * time, for example PUT file uploads or execute_query statements, set their
+ * time value to a point far in the future to protect them from harvesting.
+ * Their time values are set to the current time when such operations complete.
+ *
+ */
 
 enum mimetype
 { html, plain, binary };
 
 session *sessions;              // Fixed pool of web client sessions
 char *docroot;
-omp_lock_t lock;                // Lock for sessions pool
 char SCIDB_HOST[] = "localhost";
 int SCIDB_PORT = 1239;
+omp_lock_t biglock;
 
 
 /*
@@ -89,9 +117,9 @@ void
 respond (struct mg_connection *conn, enum mimetype type, int code, int length,
          char *data)
 {
-  if (code != 200)              // error
+  if (code != 200)   // error
     {
-      if (data)                 // error with data payload (always presented as text/html here)
+      if (data)  // error with data payload (always presented as text/html here)
         {
           mg_printf (conn, "HTTP/1.0 %d ERROR\r\n"
                      "Content-Length: %lu\r\n"
@@ -130,19 +158,17 @@ find_session (int id)
 {
   int j;
   session *ans = NULL;
-  omp_set_lock (&lock);
   for (j = 0; j < MAX_SESSIONS; ++j)
     {
       if (sessions[j].sessionid != id)
         continue;
       ans = &sessions[j];
     }
-  omp_unset_lock (&lock);
   return ans;
 }
 
 /* Cleanup a shim session and reset it to available.
- * Acquire the lock before invoking this routine!
+ * Acquire the session lock before invoking this routine.
  */
 void
 cleanup_session (session * s)
@@ -150,6 +176,7 @@ cleanup_session (session * s)
   syslog (LOG_INFO, "cleanup_session releasing %d", s->sessionid);
   s->sessionid = -1;            // -1 indicates availability
   s->queryid = 0;
+  s->time = 0;
   if (s->pd > 0)
     close (s->pd);
   if (s->ibuf)
@@ -190,9 +217,9 @@ release_session (struct mg_connection *conn, const struct mg_request_info *ri,
   session *s = find_session (id);
   if (s)
     {
-      omp_set_lock (&lock);
+      omp_set_lock (&s->lock);
       cleanup_session (s);
-      omp_unset_lock (&lock);
+      omp_unset_lock (&s->lock);
       if (resp)
         respond (conn, plain, 200, 0, NULL);
     }
@@ -200,6 +227,10 @@ release_session (struct mg_connection *conn, const struct mg_request_info *ri,
     respond (conn, plain, 404, 0, NULL);        // not found
 }
 
+/* Note: cancel_query does not trigger a cleanup_session for the session
+ * corresponding to the query. The client that initiated the original query is
+ * still responsible for session cleanup.
+ */
 void
 cancel_query (struct mg_connection *conn, const struct mg_request_info *ri)
 {
@@ -220,7 +251,7 @@ cancel_query (struct mg_connection *conn, const struct mg_request_info *ri)
   if (s && s->queryid > 0)
     {
       syslog (LOG_INFO, "cancel_query %d %llu", id, s->queryid);
-      omp_set_lock (&lock);
+      omp_set_lock (&s->lock);
       if (s->con)
         {
 // Establish a new SciDB context used to issue the cancel query.
@@ -230,7 +261,7 @@ cancel_query (struct mg_connection *conn, const struct mg_request_info *ri)
             {
               syslog (LOG_ERR,
                       "cancel_query error could not connect to SciDB");
-              omp_unset_lock (&lock);
+              omp_unset_lock (&s->lock);
               respond (conn, plain, 503,
                        strlen ("Could not connect to SciDB"),
                        "Could not connect to SciDB");
@@ -244,7 +275,8 @@ cancel_query (struct mg_connection *conn, const struct mg_request_info *ri)
           syslog (LOG_INFO, "cancel_query %s", SERR);
           scidbdisconnect (can_con);
         }
-      omp_unset_lock (&lock);
+      time(&s->time);
+      omp_unset_lock (&s->lock);
       respond (conn, plain, 200, 0, NULL);
     }
   else
@@ -253,12 +285,17 @@ cancel_query (struct mg_connection *conn, const struct mg_request_info *ri)
 
 /* Find an available session.  If no sessions are available, return -1.
  * Otherwise, initialize I/O buffers and return the session array index.
+ * We acquire the big lock on the session list here--only one thread at
+ * a time is allowed to run this.
+ * We don't bother acquiring the session lock for a new session, the
+ * big lock is sufficient to protect it here, since this is the only
+ * routine that can initialize a new session.
  */
 int
 get_session ()
 {
   int j, fd, id = -1;
-  omp_set_lock (&lock);
+  omp_set_lock (&biglock);
   for (j = 0; j < MAX_SESSIONS; ++j)
     {
       if (sessions[j].sessionid < 0)
@@ -304,7 +341,7 @@ get_session ()
           break;
         }
     }
-  omp_unset_lock (&lock);
+  omp_unset_lock (&biglock);
   return id;
 }
 
@@ -312,7 +349,7 @@ get_session ()
  * POST upload to server-side file defined in the session identified
  * by the 'id' variable in the mg_request_info query string.
  * Respond to the client connection as follows:
- * 200 success, <uploaded filename>\n\n returned in body
+ * 200 success, <uploaded filename>\r\n returned in body
  * 404 session not found
  */
 void
@@ -334,10 +371,14 @@ upload (struct mg_connection *conn, const struct mg_request_info *ri)
   s = find_session (id);
   if (s)
     {
+      omp_set_lock (&s->lock);
+      s->time = time(NULL) + WEEK; // Upload should take less than a week!
       mg_append (conn, s->ibuf);
+      time(&s->time);
       snprintf (buf, MAX_VARLEN, "%s\r\n", s->ibuf);
 // XXX if mg_append fails, report server error too
       respond (conn, plain, 200, strlen (buf), buf);    // XXX report bytes uploaded
+      omp_unset_lock (&s->lock);
     }
   else
     {
@@ -407,16 +448,16 @@ readbytes (struct mg_connection *conn, const struct mg_request_info *ri)
       respond (conn, plain, 404, 0, NULL);
       return;
     }
+  omp_set_lock (&s->lock);
 // Check to see if the output buffer is open for reading, if not do so.
   if (s->pd < 1)
     {
-      omp_set_lock (&lock);
       s->pd = open (s->obuf, O_RDONLY | O_NONBLOCK);
-      omp_unset_lock (&lock);
       if (s->pd < 1)
         {
           syslog (LOG_ERR, "readbytes error opening output buffer");
           respond (conn, plain, 500, 0, NULL);
+          omp_unset_lock (&s->lock);
           return;
         }
     }
@@ -432,7 +473,9 @@ readbytes (struct mg_connection *conn, const struct mg_request_info *ri)
   buf = (char *) malloc (n);
   if (!buf)
     {
+      syslog (LOG_ERR, "readbytes out of memory");
       respond (conn, plain, 507, 0, NULL);
+      omp_unset_lock (&s->lock);
       return;
     }
 
@@ -448,13 +491,16 @@ readbytes (struct mg_connection *conn, const struct mg_request_info *ri)
 
   l = (int) read (s->pd, buf, n);
   syslog (LOG_INFO, "readbytes  read %d n=%d", l, n);
-  if (l < 0)
+  if (l < 0)  // This is just EOF
     {
       free (buf);
       respond (conn, plain, 410, 0, NULL);
+      omp_unset_lock (&s->lock);
       return;
     }
   respond (conn, binary, 200, l, buf);
+  time(&s->time);
+  omp_unset_lock (&s->lock);
   free (buf);
 }
 
@@ -494,19 +540,19 @@ readlines (struct mg_connection *conn, const struct mg_request_info *ri)
       syslog (LOG_ERR, "readlines error invalid session");
       return;
     }
+  omp_set_lock (&s->lock);
 // Check to see if output buffer is open for reading
   syslog (LOG_ERR, "readlines opening buffer");
   if (s->pd < 1)
     {
-      omp_set_lock (&lock);
       s->pd = open (s->obuf, O_RDONLY | O_NONBLOCK);
       if (s->pd > 0)
         s->pf = fdopen (s->pd, "r");
-      omp_unset_lock (&lock);
       if (s->pd < 1 || !s->pf)
         {
           respond (conn, plain, 500, 0, NULL);
           syslog (LOG_ERR, "readlines error opening output buffer");
+          omp_unset_lock (&s->lock);
           return;
         }
     }
@@ -532,6 +578,7 @@ readlines (struct mg_connection *conn, const struct mg_request_info *ri)
     {
       respond (conn, plain, 500, strlen ("Out of memory"), "Out of memory");
       syslog (LOG_ERR, "readlines out of memory");
+      omp_unset_lock (&s->lock);
       return;
     }
   buf = (char *) malloc (v);
@@ -540,6 +587,7 @@ readlines (struct mg_connection *conn, const struct mg_request_info *ri)
       free (lbuf);
       respond (conn, plain, 500, strlen ("Out of memory"), "Out of memory");
       syslog (LOG_ERR, "readlines out of memory");
+      omp_unset_lock (&s->lock);
       return;
     }
   while (k < n)
@@ -572,6 +620,7 @@ readlines (struct mg_connection *conn, const struct mg_request_info *ri)
               respond (conn, plain, 500, strlen ("Out of memory"),
                        "Out of memory");
               syslog (LOG_ERR, "readlines out of memory");
+              omp_unset_lock (&s->lock);
               return;
             }
           else
@@ -594,6 +643,8 @@ readlines (struct mg_connection *conn, const struct mg_request_info *ri)
   else
     respond (conn, plain, 200, t, buf);
   free (buf);
+  time(&s->time);
+  omp_unset_lock (&s->lock);
 }
 
 /* execute_query blocks until the query is complete.
@@ -646,6 +697,7 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
                "Invalid session ID");
       return;                   // check for valid session
     }
+  omp_set_lock (&s->lock);
   memset (var, 0, MAX_VARLEN);
   mg_get_var (ri->query_string, k, "save", save, MAX_VARLEN);
   mg_get_var (ri->query_string, k, "query", var, MAX_VARLEN);
@@ -664,9 +716,8 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
       syslog (LOG_ERR, "execute_query error could not connect to SciDB");
       respond (conn, plain, 503, strlen ("Could not connect to SciDB"),
                "Could not connect to SciDB");
-      omp_set_lock (&lock);
       cleanup_session (s);
-      omp_unset_lock (&lock);
+      omp_unset_lock (&s->lock);
       return;
     }
 
@@ -678,37 +729,32 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
     {
       syslog (LOG_ERR, "execute_query error %s", SERR);
       respond (conn, plain, 500, strlen (SERR), SERR);
-      omp_set_lock (&lock);
       if (s->con)
         scidbdisconnect (s->con);
       s->con = NULL;
       cleanup_session (s);
-      omp_unset_lock (&lock);
+      omp_unset_lock (&s->lock);
       return;
     }
 // Set the queryID for potential future cancel event
-  omp_set_lock (&lock);
   s->queryid = l;
-  omp_unset_lock (&lock);
   if (s->con)
     l = execute_prepared_query (s->con, &pq, 1, SERR);
   if (l < 1)
     {
       syslog (LOG_ERR, "execute_prepared_query error %s", SERR);
       respond (conn, plain, 500, strlen (SERR), SERR);
-      omp_set_lock (&lock);
       if (s->con)
         scidbdisconnect (s->con);
       s->con = NULL;
       cleanup_session (s);
-      omp_unset_lock (&lock);
+      omp_unset_lock (&s->lock);
       return;
     }
   if (s->con)
     completeQuery (l, s->con, SERR);
 
   syslog (LOG_INFO, "execute_query %d done, disconnecting", s->sessionid);
-  omp_set_lock (&lock);
   if (s->con)
     scidbdisconnect (s->con);
   s->con = NULL;
@@ -718,7 +764,7 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
               s->sessionid);
       cleanup_session (s);
     }
-  omp_unset_lock (&lock);
+  omp_unset_lock (&s->lock);
 // Respond to the client
   snprintf (buf, MAX_VARLEN, "%llu", l);        // Return the query ID
   respond (conn, plain, 200, strlen (buf), buf);
@@ -754,9 +800,7 @@ startscidb (struct mg_connection *conn, const struct mg_request_info *ri)
   respond (conn, plain, 200, 0, NULL);
 }
 
-/* Return part of the log of the connected SciDB server.
- * We run a query to locate the log.
- */
+// XXX Write me!
 void
 getlog (struct mg_connection *conn, const struct mg_request_info *ri)
 {
@@ -830,7 +874,7 @@ parse_args (char **options, int argc, char **argv, int *daemonize)
         {
         case 'h':
           printf
-            ("Usage:\nshim [-h] [-d] [-p <http port>] [-r <document root>] [-s <scidb port>]\n");
+            ("Usage:\nshim [-h] [-f] [-p <http port>] [-r <document root>] [-s <scidb port>]\n");
           printf
             ("Specify -f to run in the foreground.\nDefault http port is 8080.\nDefault SciDB port is 1239.\nDefault document root is /var/lib/shim/wwwroot.\n");
           printf
@@ -914,10 +958,11 @@ main (int argc, char **argv)
     }
 
   openlog ("shim", LOG_CONS | LOG_NDELAY, LOG_USER);
-  omp_init_lock (&lock);
+  omp_init_lock (&biglock);
   for (j = 0; j < MAX_SESSIONS; ++j)
     {
       sessions[j].sessionid = -1;
+      omp_init_lock (&sessions[j].lock);
     }
 
   ctx = mg_start (&callback, NULL, (const char **) options);
@@ -928,7 +973,7 @@ main (int argc, char **argv)
 
   for (;;)
     sleep (100);
-  omp_destroy_lock (&lock);
+  omp_destroy_lock (&biglock);
   mg_stop (ctx);
   closelog ();
 

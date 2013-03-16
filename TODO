@@ -8,7 +8,6 @@
 * Maybe this can be used to identify the present DB?:
 # ps axu | grep SciDB | grep dbname | head -n 1 | sed -e s/.*dbname=// | cut -d ' ' -f 1
 
-
 * Improve performance of returned results.
 
 Shim employs a really simple scheme to move results from SciDB to web clients.
