@@ -41,4 +41,3 @@ could make available partial query output immediately to the client via the
 read_lines or read_bytes API calls.
 
 Other approaches could work too. Anyway, this is a TODO item.
-

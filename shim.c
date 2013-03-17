@@ -55,7 +55,7 @@ typedef struct
 {
   omp_lock_t lock;
   int sessionid;                // session identifier
-  unsigned long long queryid;   //
+  unsigned long long queryid;   // SciDB query identifier
   int pd;                       // output buffer file descrptor
   FILE *pf;                     //   and FILE pointer
   char *ibuf;                   // input buffer name
@@ -283,62 +283,71 @@ cancel_query (struct mg_connection *conn, const struct mg_request_info *ri)
     respond (conn, plain, 404, 0, NULL);        // not found
 }
 
+int
+init_session (session * s)
+{
+  int fd;
+  omp_set_lock(&s->lock);
+  s->ibuf = (char *) malloc (PATH_MAX);
+  s->obuf = (char *) malloc (PATH_MAX);
+  snprintf (s->ibuf, PATH_MAX, "%s/scidb_input_buf_XXXXXX", TMPDIR);
+  snprintf (s->obuf, PATH_MAX, "%s/scidb_output_buf_XXXXXX", TMPDIR);
+// Set up the input buffer
+  fd = mkstemp (s->ibuf);
+// XXX We need to make it so that whoever runs scidb can R/W to this file.
+// Since, in general, we don't know who is running scidb (anybody can), and, in
+// general, shim runs as a service we have a mismatch. Right now, we set it so
+// that anyone can write to these to work around this. But really, these files
+// should be owned by the scidb process user. Hmmm.  (See also below for output
+// buffer.)
+  chmod (s->ibuf, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
+  if (fd > 0)
+    close (fd);
+  else
+  {
+    syslog (LOG_ERR, "init_session can't create file");
+    cleanup_session (s);
+    omp_unset_lock(&s->lock);
+    return 0;
+  }
+// Set up the output buffer
+  s->pd = 0;
+  fd = mkstemp (s->obuf);
+  chmod (s->obuf, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
+  if (fd > 0)
+    close (fd);
+  else
+  {
+    syslog (LOG_ERR, "init_session can't create file");
+    cleanup_session (s);
+    omp_unset_lock(&s->lock);
+    return 0;
+  }
+  time(&s->time);
+  s->sessionid = (int) (time(NULL) % 2147483648);
+  omp_unset_lock(&s->lock);
+  return 1;
+}
+
 /* Find an available session.  If no sessions are available, return -1.
  * Otherwise, initialize I/O buffers and return the session array index.
  * We acquire the big lock on the session list here--only one thread at
  * a time is allowed to run this.
- * We don't bother acquiring the session lock for a new session, the
- * big lock is sufficient to protect it here, since this is the only
- * routine that can initialize a new session.
  */
 int
 get_session ()
 {
-  int j, fd, id = -1;
+  int j, id = -1;
   omp_set_lock (&biglock);
   for (j = 0; j < MAX_SESSIONS; ++j)
     {
       if (sessions[j].sessionid < 0)
         {
-          sessions[j].ibuf = (char *) malloc (PATH_MAX);
-          sessions[j].obuf = (char *) malloc (PATH_MAX);
-          snprintf (sessions[j].ibuf, PATH_MAX, "%s/scidb_input_buf_XXXXXX",
-                    TMPDIR);
-          snprintf (sessions[j].obuf, PATH_MAX, "%s/scidb_output_buf_XXXXXX",
-                    TMPDIR);
-// Set up the input buffer
-          fd = mkstemp (sessions[j].ibuf);
-// We need to make it so that whoever runs scidb can R/W to this file.
-// Since, in general, we don't know who is running scidb (anybody can),
-// and, in general, shim runs as a service we have a mismatch. Right now,
-// we set it so that anyone can write to these to work around this. But
-// really, these files should be owned by the scidb user. Hmmm.
-// (See also below for output buffer.)
-          chmod (sessions[j].ibuf,
-                 S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
-          if (fd > 0)
-            close (fd);
-          else
-            {
-              cleanup_session (&sessions[j]);
-              break;
-            }
-// Set up the output buffer
-          sessions[j].pd = 0;
-          fd = mkstemp (sessions[j].obuf);
-          chmod (sessions[j].obuf,
-                 S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
-          if (fd > 0)
-            close (fd);
-          else
-            {
-              cleanup_session (&sessions[j]);
-              break;
-            }
-// OK to go, assign an ID and return this slot.
-          id = j;
-          sessions[j].sessionid = rand ();
-          break;
+          if(init_session(&sessions[j])>0)
+          {
+            id = j;
+            break;
+          }
         }
     }
   omp_unset_lock (&biglock);
@@ -736,8 +745,14 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
       omp_unset_lock (&s->lock);
       return;
     }
-// Set the queryID for potential future cancel event
+/* Set the queryID for potential future cancel event
+ * The time flag is set to a future value to prevent get_session from
+ * declaring this session orphaned while a query is running. This
+ * session cannot be reclaimed until the query finishes, since the
+ * lock is held.
+ */
   s->queryid = l;
+  s->time = time(NULL) + WEEK;
   if (s->con)
     l = execute_prepared_query (s->con, &pq, 1, SERR);
   if (l < 1)
@@ -764,6 +779,7 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
               s->sessionid);
       cleanup_session (s);
     }
+  time(&s->time);
   omp_unset_lock (&s->lock);
 // Respond to the client
   snprintf (buf, MAX_VARLEN, "%llu", l);        // Return the query ID
