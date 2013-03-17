@@ -15,7 +15,7 @@
 #include <omp.h>
 #include "mongoose.h"
 
-#define MAX_SESSIONS 2         // Maximum number of simultaneous http sessions
+#define MAX_SESSIONS 30        // Maximum number of simultaneous http sessions
 #define MAX_VARLEN 4096        // Static buffer length to hold http query params
 #ifndef PATH_MAX
 #define PATH_MAX 4096
@@ -33,6 +33,7 @@
 #define PIDFILE "/var/run/shim.pid"
 
 #define WEEK 604800 // One week in seconds
+#define TIMEOUT 60
 
 // Minimalist SciDB client API from client.cpp -------------------------------
 void *scidbconnect (const char *host, int port);
@@ -338,6 +339,7 @@ int
 get_session ()
 {
   int j, id = -1;
+  time_t t;
   omp_set_lock (&biglock);
   for (j = 0; j < MAX_SESSIONS; ++j)
     {
@@ -350,6 +352,26 @@ get_session ()
           }
         }
     }
+  if(id<0)
+  {
+   time(&t);
+/* Couldn't find any available sessions. Check for orphans. */
+    for (j = 0; j < MAX_SESSIONS; ++j)
+      {
+        if(t - sessions[j].time > TIMEOUT)
+          {
+            syslog (LOG_INFO, "get_session reaping session %d",j);
+            omp_set_lock(&sessions[j].lock);
+            cleanup_session (&sessions[j]);
+            omp_unset_lock(&sessions[j].lock);
+            if(init_session(&sessions[j])>0)
+            {
+              id = j;
+              break;
+            }
+          }
+      }
+  }
   omp_unset_lock (&biglock);
   return id;
 }
