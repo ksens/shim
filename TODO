@@ -1,3 +1,8 @@
+XXX Shim does not work with plugins that require client load of plugin.so.
+The best example of this is timeseries. I'm not sure how to write a SciDB
+client that can use the pluginManager correctly...
+
+
 * Add a signal handler to clean up temporary files and disconnect clients
   on SIGTERM before exiting.
 * finish the control API, which is partially disabled until authentication

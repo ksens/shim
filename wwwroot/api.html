@@ -96,10 +96,10 @@
 
   <div class="container">
 
-<h2>Simple SciDB HTTP Service API</h2>
+<h2>Simple SciDB HTTP API</h2>
 <p>
-The SciDB HTTP Service defines a very simple API over HTTP that clients may use
-to interact with SciDB.  The service API consists of seven URIs (described in
+The SciDB HTTP Service implements a very simple API that clients may use
+to interact with SciDB.  The API consists of seven URIs (described in
 detail below): /new_session, /release_session, /execute_query, /cancel,
 /read_lines, /read_bytes, and /upload_file.
 </p>
@@ -207,8 +207,12 @@ Failure (Invalid session): HTTP 404
 <br/>
 Failure (invalid http query): HTTP 400
 </br>
-<tr><td>NOTE
-<td>500 and 503 errors result in removal of the web session ID and related resources.
+<tr><td>NOTES
+<td>500 and 503 errors result in removal of the web session ID and related resources (thus, release_session
+does not have to be called after such an error). This
+method blocks until the query completes. Do not specifiy the option relase=1 when the save option
+is also set, or output will not be available to read_bytes or read_lines. Instead, explicitly call
+release_session after reading is complete.
 <tr><td>EXAMPLE
 <td>
 http://scidb:8080/execute_query?id=0&amp;query=remove(x)&amp;release=1
@@ -324,7 +328,8 @@ Content-Type: text/plain
 <td>
 <ol>
 <li>Be sure to properly url-encode special characters like the plus sign (+) in the request.
-<li>Iterative requests to read_lines are OK. Use the error code 410 to detect end of file output.
+<li>Iterative requests to read_lines are allowed, and will print at most the next n lines of output.
+Use the 410 error code to detect end of file output.
 </ol>
 
 <tr>
@@ -364,7 +369,8 @@ Content-Type: application/octet-stream
 <tr><td>NOTES
 <td>
 <ol>
-<li>Iterative requests to read_bytes are OK. Use the error code 410 to detect end of file output.
+<li>Iterative requests to read_lines are allowed, and will print at most the next n bytes of output.
+Use the 410 error code to detect the end of output.
 <li>Be sure to properly url-encode special characters in the request.
 </ol>
 
