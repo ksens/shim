@@ -43,5 +43,33 @@ unservice:
 	@if test -n "$$(which chkconfig)"; then chkconfig --del shimsvc;fi
 	rm -rf /etc/init.d/shimsvc
 
+deb-pkg: shim
+	@if test -z "$$(which fpm)"; then echo "Error: Package building requires fpm."; exit 1;fi
+	@if test ! -d "$(SCIDB)"; then echo  "Can't find scidb. Maybe try explicitly setting SCIDB variable, for example::\n\nmake SCIDB=/opt/scidb/13.2 install"; exit 1; fi 
+	mkdir -p pkgroot/$(SCIDB)/bin
+	cp shim "pkgroot/$(SCIDB)/bin"
+	mkdir -p pkgroot/etc/init.d
+	cp init.d/shimsvc pkgroot/etc/init.d
+	mkdir -p pkgroot/var/lib/shim
+	cp -aR wwwroot pkgroot/var/lib/shim/
+	chmod -R 755 pkgroot/var/lib/shim
+	mkdir -p pkgroot/usr/local/share/man/man1
+	@if test -d /usr/local/share/man/man1;then cp man/shim.1 pkgroot/usr/local/share/man/man1/;fi
+	fpm -s dir -t deb -n shim --vendor Paradigm4 --license AGPLv3 -m "<blewis@paradigm4.com>" --url "https://github.com/Paradigm4/shim" --description "Unofficial SciDB HTTP service" --provides "shim" -v $$(basename $(SCIDB)) --after-install init.d/after-install.sh --before-remove init.d/before-remove.sh -C pkgroot opt usr var etc/init.d
+
+rpm-pkg: shim
+	@if test -z "$$(which fpm)"; then echo "Error: Package building requires fpm."; exit 1;fi
+	@if test ! -d "$(SCIDB)"; then echo  "Can't find scidb. Maybe try explicitly setting SCIDB variable, for example::\n\nmake SCIDB=/opt/scidb/13.2 install"; exit 1; fi 
+	mkdir -p pkgroot/$(SCIDB)/bin
+	cp shim "pkgroot/$(SCIDB)/bin"
+	mkdir -p pkgroot/etc/init.d
+	cp init.d/shimsvc pkgroot/etc/init.d
+	mkdir -p pkgroot/var/lib/shim
+	cp -aR wwwroot pkgroot/var/lib/shim/
+	chmod -R 755 pkgroot/var/lib/shim
+	mkdir -p pkgroot/usr/local/share/man/man1
+	@if test -d /usr/local/share/man/man1;then cp man/shim.1 pkgroot/usr/local/share/man/man1/;fi
+	fpm -s dir -t rpm -n shim --vendor Paradigm4 --license AGPLv3 -m "<blewis@paradigm4.com>" --url "https://github.com/Paradigm4/shim" --description "Unofficial SciDB HTTP service" --provides "shim" -v $$(basename $(SCIDB)) --after-install init.d/after-install.sh --before-remove init.d/before-remove.sh -C pkgroot opt usr var etc/init.d
+
 clean:
-	rm -f *.o *.so shim
+	rm -fr *.o *.so shim pkgroot *.rpm *.deb
