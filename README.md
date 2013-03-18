@@ -19,6 +19,7 @@ You can also preview the api.html page directly from github at:
 The wwwroot directory also includes an example simple javascript client.
 
 ##Installation from binary packages
+This is the fastest/easiest way to install this service.
 The author (Bryan Lewis) provides a few pre-built binary packages for SciDB 13.2 on Ubuntu 12.04 here:
 [http://illposed.net/shim_13.2_amd64.deb](http://illposed.net/shim_13.2_amd64.deb)
 ```
@@ -38,6 +39,7 @@ rpm -i shim-13.2-1.x86_64.rpm
 # Uninstall with:
 yum remove shim
 ```
+I will continue to make binary packages available when new versions of SciDB are released.
 
 
 ##Compile and Install from Source
@@ -92,6 +94,5 @@ sudo make SCIDB=/opt/scidb/13.1 uninstall
 ```
 
 
-
 ## Log files
-Shim prints messages to the system log. The syslog file location varies, but can usually be found in /var/log/syslog.
+Shim prints messages to the system log. The syslog file location varies, but can usually be found in /var/log/syslog or /var/log/messages.
