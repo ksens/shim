@@ -26,7 +26,6 @@
 #include <stdio.h>
 #include <fstream>
 #include <algorithm>
-#include <signal.h>
 
 #define MAX_VARLEN 4096
 

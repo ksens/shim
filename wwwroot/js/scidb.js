@@ -1,5 +1,11 @@
 var x=-1;             // Session ID
 var cancelled = false;  // cancel flag
+
+// This fixes a notorious IE 8 bug:
+$.ajaxSetup({
+    cache: false
+});
+
 function cancel()
 {
   cancelled = true;

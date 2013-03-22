@@ -4,6 +4,11 @@
   var ports=1239;
   var DEBUG;
 
+// This fixes a notorious IE 8 bug:
+$.ajaxSetup({
+    cache: false
+});
+
   dostartstop = function(x)
   {
     $("#stopbtn").attr("disabled","disabled")
