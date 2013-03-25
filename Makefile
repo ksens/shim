@@ -15,7 +15,7 @@ shim:
 	$(CC) -Wall $(CFLAGS) $(INC) -o shim shim.c mongoose.c client.o $(LIBS)
 
 install: shim
-	@if test ! -d "$(SCIDB)"; then echo  "Can't find scidb. Maybe try explicitly setting SCIDB variable, for example::\n\nmake SCIDB=/opt/scidb/13.2 install"; exit 1; fi 
+	@if test ! -d "$(SCIDB)"; then echo  "Can't find scidb. Maybe try explicitly setting SCIDB variable, for example::\n\nmake SCIDB=/opt/scidb/13.3 install"; exit 1; fi 
 	@if test -x /etc/init.d/shimsvc start; then /etc/init.d/shimsvc stop;fi
 	cp shim "$(SCIDB)/bin"
 	mkdir -p /var/lib/shim
@@ -24,7 +24,7 @@ install: shim
 	@if test -d /usr/local/share/man/man1;then cp man/shim.1 /usr/local/share/man/man1/;fi
 
 uninstall: unservice
-	@if test ! -d "$(SCIDB)"; then echo  "Can't find scidb. Maybe try explicitly setting SCIDB variable, for example:\n\nmake SCIDB=/opt/scidb/13.2 uninstall"; exit 1; fi 
+	@if test ! -d "$(SCIDB)"; then echo  "Can't find scidb. Maybe try explicitly setting SCIDB variable, for example:\n\nmake SCIDB=/opt/scidb/13.3 uninstall"; exit 1; fi 
 	@if test -x /etc/init.d/shimsvc start; then /etc/init.d/shimsvc stop;fi
 	rm -f "$(SCIDB)/bin/shim"
 	rm -rf /var/lib/shim
@@ -45,7 +45,7 @@ unservice:
 
 deb-pkg: shim
 	@if test -z "$$(which fpm)"; then echo "Error: Package building requires fpm."; exit 1;fi
-	@if test ! -d "$(SCIDB)"; then echo  "Can't find scidb. Maybe try explicitly setting SCIDB variable, for example::\n\nmake SCIDB=/opt/scidb/13.2 install"; exit 1; fi 
+	@if test ! -d "$(SCIDB)"; then echo  "Can't find scidb. Maybe try explicitly setting SCIDB variable, for example::\n\nmake SCIDB=/opt/scidb/13.3 install"; exit 1; fi 
 	mkdir -p pkgroot/$(SCIDB)/bin
 	cp shim "pkgroot/$(SCIDB)/bin"
 	mkdir -p pkgroot/etc/init.d
@@ -59,7 +59,7 @@ deb-pkg: shim
 
 rpm-pkg: shim
 	@if test -z "$$(which fpm)"; then echo "Error: Package building requires fpm."; exit 1;fi
-	@if test ! -d "$(SCIDB)"; then echo  "Can't find scidb. Maybe try explicitly setting SCIDB variable, for example::\n\nmake SCIDB=/opt/scidb/13.2 install"; exit 1; fi 
+	@if test ! -d "$(SCIDB)"; then echo  "Can't find scidb. Maybe try explicitly setting SCIDB variable, for example::\n\nmake SCIDB=/opt/scidb/13.3 install"; exit 1; fi 
 	mkdir -p pkgroot/$(SCIDB)/bin
 	cp shim "pkgroot/$(SCIDB)/bin"
 	mkdir -p pkgroot/etc/init.d
