@@ -63,7 +63,7 @@
 <h2>What is a SciDB operator?</h2>
 
 <p>
-SciDB <i>operators</i> are maps from zero or more input
+SciDB <i>operators</i> map zero or more input
 arguments to a SciDB array. The arguments may be a mix of constant 
 scalar values, scalar-valued functions,
 and SciDB arrays depending on the operator. All
@@ -85,6 +85,18 @@ may provide array input into another operator.
 <div class="x">
 store(build(&lt;x:double&gt;[i=1:10,10,0],i), A)
 adddim(A, k)
+
+</div><br/>
+
+<a class="op" name="aggregate"></a><h2 >aggregate</h2>
+<i>aggregate(array, aggregate_expression1 [as label1] [,aggregate_expression2 as label2, ...] [,dimension1, dimension2, ...])</i>
+<p/>Aggregate values through a SciDB aggregation function, optionally grouped
+by the specified dimensions. See the index for a list of available aggregation
+functions.
+<br/>
+<div class="x">
+store(build(&lt;x:double&gt;[i=1:10,10,0,j=1:5,5,0],i*j), A)
+aggregate(A, avg(x) as mean, j)
 
 </div><br/>
 
@@ -128,6 +140,9 @@ analyze(x)
 <div class="x">
 store(build(&lt;x:double&gt;[i=1:10,10,0],i), A)
 apply(A, y, sqrt(x) + 1)
+
+# To see a list of available scalar functions, run the query:
+list('functions')
 
 </div><br/>
 
@@ -787,10 +802,10 @@ which must be stored in SciDB. The version information includes a sequential
 ID and date/time of update.
 <br/>
 <div class="x">
-store(build_sparse(<x:double>[i=1:10,5,0], sqrt(i), double(i)/2 = i/2),A)
+store(build_sparse(&lt;x:double&gt;[i=1:10,5,0], sqrt(i), double(i)/2 = i/2),A)
 versions(A)
 
-insert(build(<x:double>[i=1:10,5,0],i),A)
+insert(build(&lt;x:double&gt;[i=1:10,5,0],i),A)
 versions(A)
 
 </div><br/>
@@ -805,14 +820,14 @@ dimensions of the array. Each scale argument must be integer-valued
 (type int32).
 <br/>
 <div class="x">
-store(build_sparse(<x:double>[i=1:4,5,0], i, double(i)/2 = i/2),A)
+store(build_sparse(&lt;x:double&gt;[i=1:4,5,0], i, double(i)/2 = i/2),A)
 xgrid(A, 2)
 
 </div><br/>
 The xgrid operator in some cases can be the inverse of the regrid operator:
 <br/><br/>
 <div class="x">
-store(build_sparse(<x:double>[i=1:4,4,0,j=1:4,4,0], i + j, double(j)/2 = j/2 or double(i)/2 = i/2),A)
+store(build_sparse(&lt;x:double&gt;[i=1:4,4,0,j=1:4,4,0], i + j, double(j)/2 = j/2 or double(i)/2 = i/2),A)
 xgrid(A, 2, 2)
 regrid(xgrid(A,2,2), 2, 2, max(x) as x)
 
@@ -826,8 +841,119 @@ regrid(xgrid(A,2,2), 2, 2, max(x) as x)
 
 <!-- AGGREGATES -->
 <br/> <br/> <br/> <br/>
-<h1>SciDB Aggregates</h1>
+<h1>SciDB Aggregation functions</h1>
+<p>
+SciDB <i>aggregates</i> are functions of several values that produce a
+scalar value. They are used together with the <i>aggregate</i>,
+<i>redimension_store</i>, and
+<i>redimension</i> operators to compute data aggregations, optionally
+grouped along specified dimensions.
+</p>
 <hr/>
+
+<a class="ag" name="approxdc"></a><h2>approxdc</h2>
+<i>approxdc(attribute values)</i>
+<p/>
+Approximate distinct count aggregate. The output type will be
+int64, and will be set nullable with a default value of null.
+<br/>
+<div class="x">
+store(build_sparse(&lt;x:double&gt;[i=1:10,5,0], sqrt(i), double(i)/2 = i/2),A)
+aggregate(A,approxdc(x) as distinct)
+
+</div><br/>
+
+<a class="ag" name="avg"></a><h2>avg</h2>
+<i>avg(attribute values)</i>
+<p/>
+Average values of aggregated attribute. The input types must
+be integer, float or real. The output type will be double
+and will be set nullable with a default value of null.
+<br/>
+<div class="x">
+store(build(&lt;x:double&gt;[i=1:10,10,0,j=1:5,5,0],i*j), A)
+aggregate(A, avg(x) as mean, j)
+
+</div><br/>
+
+<a class="ag" name="count"></a><h2>count</h2>
+<i>count(attribute values)</i>
+<p/>
+Aggregated non-empty count of cells. The output type
+will be int64 and set nullable with a default value of null.
+<br/>
+<div class="x">
+store(build(&lt;x:double&gt;[i=1:10,10,0,j=1:5,5,0],i*j), A)
+aggregate(A, count(x) as count, j)
+
+</div><br/>
+
+<a class="ag" name="max"></a><h2>max</h2>
+<i>max(attribute values)</i>
+<p/>
+Maximum of aggregated attribute values. The attribute type must
+be able to be ordered. The output type is the same as the input
+type, but will be nullable with a default value of null.
+<br/>
+<div class="x">
+store(build(&lt;x:double&gt;[i=1:10,10,0,j=1:5,5,0],i*j), A)
+aggregate(A, max(x) as max, j)
+
+</div><br/>
+
+<a class="ag" name="min"></a><h2>min</h2>
+<i>min(attribute values)</i>
+<p/>
+Minium of aggregated attribute values. The attribute type must
+be able to be ordered. The output type is the same as the input
+type, but will be nullable with a default value of null.
+<br/>
+<div class="x">
+store(build(&lt;x:double&gt;[i=1:10,10,0,j=1:5,5,0],i*j), A)
+aggregate(A, min(x) as min, j)
+
+</div><br/>
+
+<a class="ag" name="stdev"></a><h2>stdev</h2>
+<i>stdev(attribute values)</i>
+<p/>
+Standard deviation of the aggregated attribute values. The attribute
+type must be integer, float or double. The output type will be double
+and will be set nullable with a default value of null.
+<br/>
+<div class="x">
+store(build(&lt;x:double&gt;[i=1:10,10,0,j=1:5,5,0],i*j), A)
+aggregate(A, stdev(x) as stdev, j)
+
+</div><br/>
+
+<a class="ag" name="sum"></a><h2>sum</h2>
+<i>sum(attribute values)</i>
+<p/>
+Sum the aggregated attribute values. The input attribute
+type must be integer, float or double. The output type will be double
+for double-valued inputs, float for float-valued inputs, and
+int64 for integer inputs, 
+and will be set nullable with a default value of null.
+<br/>
+<div class="x">
+store(build(&lt;x:double&gt;[i=1:10,10,0,j=1:5,5,0],i*j), A)
+aggregate(A, sum(x) as sum, j)
+
+</div><br/>
+
+<a class="ag" name="var"></a><h2>var</h2>
+<i>var(attribute values)</i>
+<p/>
+Variance of the aggregated attribute values. The attribute
+type must be integer, float or double. The output type will be double
+and will be set nullable with a default value of null.
+<br/>
+<div class="x">
+store(build(&lt;x:double&gt;[i=1:10,10,0,j=1:5,5,0],i*j), A)
+aggregate(A, var(x) as var, j)
+
+</div><br/>
 
 <br/> <br/> <br/> <br/>
 <!-- OTHER -->
@@ -867,7 +993,7 @@ remove(A)
 window.onload = function()
 {
   var a = $(".op");
-  var s = "<a href='scidb.pdf'>Full PDF documentation</a>";
+  var s = "<a href='http://scidb.org/forum'>Full PDF documentation available from the SciDB forum</a>";
   s = s + "<br/><br/><ul id='operators' class='nav nav-list'>";
   s = s + "<li class='nav-header'>Operators</li>";
   for(var j=0;j<a.length;j++)
