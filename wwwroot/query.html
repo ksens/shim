@@ -59,8 +59,9 @@
 <div class="span8">
   <button id="exq" onclick="execute_query(1);">Execute and return result</button>
   <button id="exqn" onclick="execute_query(0);">Execute</button>
-  <button id="upl" onclick="do_upload();" disabled=true>Upload file...</button>
+  <button id="upl" onclick="do_upload();">Upload file...</button>
   <button id="can" onclick="cancel();" disabled=true>Cancel</button>
+  <input type="file" id="fup" name="Upload file..." />
 </div>
 <div class="span4">
   <select id="numlines">
@@ -73,6 +74,7 @@
 
 <div id="result" style="overflow-x: auto">
 </div>
+
 
 </div> <!-- /container -->
 

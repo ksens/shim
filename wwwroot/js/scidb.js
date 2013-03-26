@@ -1,5 +1,9 @@
-var x=-1;             // Session ID
+var x = -1;             // Session ID
 var cancelled = false;  // cancel flag
+
+var FILE;
+var DATA;
+
 
 // This fixes a notorious IE 8 bug:
 $.ajaxSetup({
@@ -83,4 +87,90 @@ $.get(
   });
 }
 
-$(document).ready(function(){$("#query").focus();});
+function csv2scidb(csv, chunksize)
+{
+  var chunk = 0;     // chunk counter
+  var buf   = csv.split("\n");
+  var i = 0;
+  for(var j=0;j < buf.length - 1;j++)
+  {
+    tmp = buf[j];
+    if( (j % chunksize) == 0)
+    {
+      tmp = "{" + chunk + "} [\n(" + tmp + "),";
+      buf[j] = tmp;
+      chunk += 1;
+    }
+    else if( ((j+1) % chunksize) == 0)
+    {
+      tmp = "(" + tmp + ")];";
+      buf[j] = tmp;
+    }
+    else
+    {
+      tmp = "(" + tmp + "),";
+      buf[j] = tmp;
+    }
+  }
+  j = buf.length - 1;
+  tmp = buf[j];
+// Might have trailing \n...
+  if(tmp.length<1) {return(buf.join("\n"))}
+  if( (j % chunksize) == 0)
+  {
+    tmp = "{" + chunk + "} [\n(" + tmp + ")];";
+    buf[j] = tmp;
+  }
+  else
+  {
+    tmp = "(" + tmp + ")];";
+    buf[j] = tmp;
+  }
+  return (buf.join("\n"));
+}
+
+function do_upload()
+{
+  $("#fup").show();
+}
+
+function handleFileSelect(evt) {
+  $("#fup").hide();
+  var files = evt.target.files; // FileList object
+  var f = files[0];
+  var reader = new FileReader();
+
+  // Closure to capture the file information.
+  reader.onload = (function(theFile) {
+    return function(e) {
+        FILE=csv2scidb(e.target.result,10);
+        $.get(
+          "/new_session",
+          function(data){
+            x = parseInt(data); // session ID
+            var rel = "/release_session?id="+x;
+alert(x);
+            var urix = "/upload_file?id="+x
+            $.post(urix,
+              function(data){
+alert(data);
+                var q = encodeURIComponent("load('"+data+"')");
+                var urir = "/execute_query?id="+x+"&query="+q;
+                $.get(urir).always(function(z){$.get(rel);});
+              });
+          });
+    }
+  })(f);
+
+  // Read in the image file as a data URL.
+  reader.readAsText(f);
+}
+
+
+
+$(document).ready(function()
+  {
+    $("#query").focus();
+    $("#fup").hide();
+    document.getElementById('fup').addEventListener('change', handleFileSelect, false);
+  });

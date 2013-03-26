@@ -334,6 +334,28 @@ help('build_sparse')
 
 </div><br/>
 
+<a class="op" name="input"></a><h2 >input</h2>
+<i>input(schema, input_file, instance_id, format)</i>
+<p>
+Load data from a file, creating a new array.
+The <i>schema</i> parameter defines the data schema for the input array.
+The <i>input_file</i> parameter is a file path resolvable on specified instances.
+The <i>instance_id</i> parameter controls which instance(s) load the file as follows:
+<ol>
+<li value="-2"> Load all data using the coordinator instance of the query.
+<li value="-1"> Initiate the load from all instances. That is, the load is distributed to all instances, and the data is loaded concurrently.
+<li value="0"> Load all data using the specified instance ID 0.
+<li value="5"> Load all data using the specified instance ID 5, etc. ...
+</ol>
+The <i>format</i> parameter is a character string specifying the file format--see the full documentation for examples. Set <i>format</i> to an empty character string to indicate default SciDB ASCII format.
+</p>
+<br/>
+<div class="x">
+save(build(&lt;x:double&gt;[i=1:3,3,0,j=1:3,3,0],i+j),'/tmp/example.bin', 0, '(double)')
+input(&lt;v:double&gt;[m=1:3,3,0,n=1:3,3,0],'/tmp/example.bin',-2,'(double)')
+
+</div><br/>
+
 
 <a class="op" name="insert"></a><h2 >insert</h2>
 <i>insert(input, array)</i>
