@@ -52,6 +52,7 @@ unsigned long long execute_prepared_query (void *, struct prep *, int,
 // End of mimimalist SciDB client API -----------------------------------------
 
 /* A session consists of client I/O buffers, and an optional SciDB query ID. */
+int scount;
 typedef struct
 {
   omp_lock_t lock;
@@ -325,7 +326,7 @@ init_session (session * s)
     return 0;
   }
   time(&s->time);
-  s->sessionid = (int) (time(NULL) % 2147483648);
+  s->sessionid = scount++;
   omp_unset_lock(&s->lock);
   return 1;
 }
@@ -959,6 +960,7 @@ main (int argc, char **argv)
   parse_args (options, argc, argv, &daemonize);
   docroot = options[3];
   sessions = (session *) calloc (MAX_SESSIONS, sizeof (session));
+  scount = 0;
 
 /* Daemonize */
   k = -1;
