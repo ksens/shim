@@ -2,10 +2,9 @@ var x = -1;             // Session ID
 var cancelled = false;  // cancel flag
 
 var FILE;
-var DATA;
 
 
-// This fixes a notorious IE 8 bug:
+// This fixes a nasty IE 8 bug (by appending changing query parameters):
 $.ajaxSetup({
     cache: false
 });
@@ -87,9 +86,9 @@ $.get(
   });
 }
 
-function csv2scidb(csv, chunksize)
+function csv2scidb(csv, chunksize, start)
 {
-  var chunk = 0;     // chunk counter
+  var chunk = start;     // chunk counter
   var buf   = csv.split("\n");
   var i = 0;
   for(var j=0;j < buf.length - 1;j++)
@@ -131,38 +130,80 @@ function csv2scidb(csv, chunksize)
 
 function do_upload()
 {
-  $("#fup").show();
+  var gt = />/g;
+  var lt = /</g;
+// Figure out chunking and run csv2scidb
+  var schema = $("#arraySchema").val();
+  var dims = $("#arraySchema").val().replace(/.*=/,"").replace(/]/,"").replace(/:/,",").split(",");
+  var start = parseInt(dims[0]);
+  var chunkSize = parseInt(dims[2]);
+  var CSV = csv2scidb(FILE.replace(/\r/g,""), chunkSize, start);
+  
+  $.get(
+    "/new_session",
+    function(data){
+      x = parseInt(data); // session ID
+      var rel = "/release_session?id="+x;
+      var urix = "/upload_file?id="+x
+
+      var boundary = "--d1f47951faa4";
+      var body = '--' + boundary + '\r\n'
+               + 'Content-Disposition: form-data; name="file"; '
+               + 'filename="data.csv"\r\n'
+               + 'Content-Type: application/octet-stream\r\n\r\n'
+               + CSV + '\r\n'
+               + '--' + boundary + '--';
+      $.ajax({
+        contentType: "multipart/form-data; boundary="+boundary,
+        data: body,
+        type: "POST",
+        url: urix
+      }).done( function (data) {
+          var fn = data.replace(/^[\r\n]+|\.|[\r\n]+$/g, "");
+          var arrayName = $("#arrayName").val();
+          var query = "store(input("+schema+",'"+fn+"',0),"+arrayName+")";
+          var q = encodeURIComponent(query);
+          var urir = "/execute_query?id="+x+"&query="+q+"&release=1";
+          $.get(urir, function(z) {
+                   $("#query")[0].value = "scan(" + arrayName + ")";
+                   $("#result")[0].innerHTML = "<pre>OK</pre>";
+                   execute_query(1);
+                 }).fail(function(z) {
+                 $("#result")[0].innerHTML = "<pre>" +
+                 z.responseText.replace(">","&gt;").replace("<","&lt;")
+                 + "</pre>";
+                 $.get(rel);
+             }).always(function(z){
+                $("#exq")[0].disabled=false;
+                $("#exqn")[0].disabled=false;
+                $("#can")[0].disabled=true;
+                $("#querycontainer").spin(false);
+             });
+      }).fail(function(z){$.get(rel);});
+    });
 }
 
 function handleFileSelect(evt) {
-  $("#fup").hide();
   var files = evt.target.files; // FileList object
   var f = files[0];
   var reader = new FileReader();
-
   // Closure to capture the file information.
   reader.onload = (function(theFile) {
     return function(e) {
-        FILE=csv2scidb(e.target.result,10);
-        $.get(
-          "/new_session",
-          function(data){
-            x = parseInt(data); // session ID
-            var rel = "/release_session?id="+x;
-alert(x);
-            var urix = "/upload_file?id="+x
-            $.post(urix,
-              function(data){
-alert(data);
-                var q = encodeURIComponent("load('"+data+"')");
-                var urir = "/execute_query?id="+x+"&query="+q;
-                $.get(urir).always(function(z){$.get(rel);});
-              });
-          });
+        FILE = e.target.result;
+        var m = (FILE.match(/\n/g)||[]).length;  // lines
+        var n = FILE.substring(0,FILE.indexOf("\n")).split(",").length; // atr
+        var schema = "<";
+        for(var i=0;i<n-1;i++)
+        {
+          schema = schema + String.fromCharCode(97 + i) + ":string, ";
+        }
+        schema = schema + String.fromCharCode(97 + i+1) + ":string>";
+        schema = schema + "[row=0:" + (m-1) + "," + Math.min(m,1000) + ",0]";
+        $("#arraySchema").val(schema);
     }
   })(f);
 
-  // Read in the image file as a data URL.
   reader.readAsText(f);
 }
 
@@ -171,6 +212,8 @@ alert(data);
 $(document).ready(function()
   {
     $("#query").focus();
-    $("#fup").hide();
+    $('input[id=fup]').change(function() {
+      $('#pretty-input').val($(this).val().replace("C:\\fakepath\\", ""));
+    });
     document.getElementById('fup').addEventListener('change', handleFileSelect, false);
   });
