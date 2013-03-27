@@ -14,7 +14,7 @@
 SCIDB_DIR=$(dirname $(dirname $(which scidb) 2>/dev/null) 2>/dev/null)
 if test -z "${SCIDB_DIR}"; then
   if test -d /opt/scidb; then
-    SCIDB_DIR=$(dirname $(dirname $(find /opt/scidb/ -name shim 2>/dev/null) 2>/dev/null) 2>/dev/null)
+    SCIDB_DIR=$(dirname $(dirname $(find /opt/scidb/ -name shim 2>/dev/null | tail -n 1) 2>/dev/null) 2>/dev/null)
 #    SCIDB_DIR=$(ls -t /opt/scidb | head -n 1)
 #    if test -n "${SCIDB_DIR}"; then SCIDB_DIR="/opt/scidb/${SCIDB_DIR}";fi
   fi
