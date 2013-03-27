@@ -877,7 +877,7 @@ grouped along specified dimensions.
 <i>approxdc(attribute values)</i>
 <p/>
 Approximate distinct count aggregate. The output type will be
-int64, and will be set nullable with a default value of null.
+unsigned int64, and will be set nullable with a default value of null.
 <br/>
 <div class="x">
 store(build_sparse(&lt;x:double&gt;[i=1:10,5,0], sqrt(i), double(i)/2 = i/2),A)
@@ -902,7 +902,7 @@ aggregate(A, avg(x) as mean, j)
 <i>count(attribute values)</i>
 <p/>
 Aggregated non-empty count of cells. The output type
-will be int64 and set nullable with a default value of null.
+will be unsigned int64 and set nullable with a default value of null.
 <br/>
 <div class="x">
 store(build(&lt;x:double&gt;[i=1:10,10,0,j=1:5,5,0],i*j), A)
