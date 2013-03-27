@@ -37,9 +37,11 @@ $.ajaxSetup({
         $("#scidb_dash").spin(false);
       }
     ).fail(function(z){
-            $("#bgetlog").attr("disabled",false);
+        $("#bgetlog").attr("disabled",false);
+        $("#configini").hide();
+        $("#closebtn").hide();
 //            $("#beditconfig").attr("disabled",false)
-            $("#scidb_dash").spin(false);
+        $("#scidb_dash").spin(false);
     });
   }
   doedit = function()

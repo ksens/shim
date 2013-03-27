@@ -839,12 +839,12 @@ startscidb (struct mg_connection *conn, const struct mg_request_info *ri)
   respond (conn, plain, 200, 0, NULL);
 }
 
-// XXX Write me!
 void
 getlog (struct mg_connection *conn, const struct mg_request_info *ri)
 {
-  syslog (LOG_ERR, "getlog XXX write me");
-  respond (conn, plain, 200, strlen("Not implemented"), "Not implemented");
+  syslog (LOG_ERR, "getlog");
+  system ("cp `ps axu | grep SciDB | grep \"\\/000\\/0\"  | grep SciDB | head -n 1 | sed -e \"s/SciDB-000.*//\" | sed -e \"s/.* \\//\\//\"`/scidb.log /tmp/.scidb.log");
+  mg_send_file (conn, "/tmp/.scidb.log");
 }
 
 
