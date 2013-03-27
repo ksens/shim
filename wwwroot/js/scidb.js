@@ -17,14 +17,30 @@ function cancel()
   $("#querycontainer").spin(false);
 }
 
+// val must be true/false
+function lockstate(val)
+{
+  if(val)
+  {
+    $("#result")[0].innerHTML = "<pre>Wait...</pre>";
+    $("#querycontainer").spin();
+    $("#exq").addClass("disabled");
+    $("#exqn").addClass("disabled");
+    $("#uplo").addClass("disabled");
+    $("#can").removeClass("disabled");
+  } else {
+    $("#querycontainer").spin(false);
+    $("#exq").removeClass("disabled");
+    $("#exqn").removeClass("disabled");
+    $("#uplo").removeClass("disabled");
+    $("#can").addClass("disabled");
+  }
+}
+
 function execute_query(ret)
 {
   cancelled=false;
-  $("#exq")[0].disabled=true;
-  $("#exqn")[0].disabled=true;
-  $("#result")[0].innerHTML = "<pre>Wait...</pre>";
-  $("#can")[0].disabled=false;
-  $("#querycontainer").spin();
+  lockstate(true);
 
 $.get(
   "/new_session",
@@ -42,10 +58,7 @@ $.get(
      .fail(function(z){$("#result")[0].innerHTML = "<pre>" +
         z.responseText.replace(">","&gt;").replace("<","&lt;")
         + "</pre>";
-        $("#exq")[0].disabled=false;
-        $("#exqn")[0].disabled=false;
-        $("#can")[0].disabled=true;
-        $("#querycontainer").spin(false);
+        lockstate(false);
      })
      .done(function(z)
      {
@@ -63,26 +76,17 @@ $.get(
              var lt = /</g;
              $("#result")[0].innerHTML = "<pre>" + 
                z.replace(gt,"&gt;").replace(lt,"&lt;") + "</pre>";
-             $("#exq")[0].disabled=false;
-             $("#exqn")[0].disabled=false;
-             $("#can")[0].disabled=true;
-             $("#querycontainer").spin(false);
+             lockstate(false);
            }).always(function(z){$.get(rel);});
        }
-         $("#exq")[0].disabled=false;
-         $("#exqn")[0].disabled=false;
-         $("#can")[0].disabled=true;
-         $("#querycontainer").spin(false);
+         lockstate(false);
      })
 
   })
   .fail(function()
   {
     $("#result")[0].innerHTML = "SESSION ERROR!";
-    $("#exq")[0].disabled=false;
-    $("#exqn")[0].disabled=false;
-    $("#can")[0].disabled=true;
-    $("#querycontainer").spin(false);
+    lockstate(false);
   });
 }
 
@@ -137,11 +141,13 @@ function do_upload()
   var dims = $("#arraySchema").val().replace(/.*=/,"").replace(/]/,"").replace(/:/,",").split(",");
   var start = parseInt(dims[0]);
   var chunkSize = parseInt(dims[2]);
-  var CSV = csv2scidb(FILE.replace(/\r/g,""), chunkSize, start);
+  var CSV = csv2scidb(FILE, chunkSize, start);
+//  var CSV = csv2scidb(FILE.replace(/\r/g,""), chunkSize, start);
   
   $.get(
     "/new_session",
     function(data){
+      lockstate(true);
       x = parseInt(data); // session ID
       var rel = "/release_session?id="+x;
       var urix = "/upload_file?id="+x
@@ -174,13 +180,10 @@ function do_upload()
                  + "</pre>";
                  $.get(rel);
              }).always(function(z){
-                $("#exq")[0].disabled=false;
-                $("#exqn")[0].disabled=false;
-                $("#can")[0].disabled=true;
-                $("#querycontainer").spin(false);
+                lockstate(false);
              });
-      }).fail(function(z){$.get(rel);});
-    });
+      }).fail(function(z){$.get(rel); lockstate(false);});
+    }).always(function(z){lockstate(false)});
 }
 
 function handleFileSelect(evt) {
@@ -190,15 +193,25 @@ function handleFileSelect(evt) {
   // Closure to capture the file information.
   reader.onload = (function(theFile) {
     return function(e) {
-        FILE = e.target.result;
-        var m = (FILE.match(/\n/g)||[]).length;  // lines
-        var n = FILE.substring(0,FILE.indexOf("\n")).split(",").length; // atr
-        var schema = "<";
-        for(var i=0;i<n-1;i++)
+        FILE = e.target.result.replace(/\r/g,""); // Windows
+        var firstline = FILE.substring(0,FILE.indexOf("\n"));
+        if($("#header").prop("checked"))
         {
-          schema = schema + String.fromCharCode(97 + i) + ":string, ";
+          FILE = FILE.substring(FILE.indexOf("\n")+1,FILE.length);
         }
-        schema = schema + String.fromCharCode(97 + i+1) + ":string>";
+        var m = (FILE.match(/\n/g)||[]).length;  // lines
+        var n = firstline.split(",").length;     // attributes
+        var attr = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+        if($("#header").prop("checked"))
+        {
+          attr = firstline.split(",");  // header for attribute names
+        }
+        var schema = "<";
+        for(var i=0;i < Math.min(n-1,52); i++)
+        {
+          schema = schema + attr[i] + ":string, ";
+        }
+        schema = schema + attr[i] + ":string>";
         schema = schema + "[row=0:" + (m-1) + "," + Math.min(m,1000) + ",0]";
         $("#arraySchema").val(schema);
     }
@@ -215,5 +228,6 @@ $(document).ready(function()
     $('input[id=fup]').change(function() {
       $('#pretty-input').val($(this).val().replace("C:\\fakepath\\", ""));
     });
+    $("#can").addClass("disabled");
     document.getElementById('fup').addEventListener('change', handleFileSelect, false);
   });

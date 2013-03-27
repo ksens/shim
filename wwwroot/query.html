@@ -16,6 +16,7 @@
      padding-top: 60px;
      padding-bottom: 40px;
    }
+   a.disabled { color:gray; }
  </style>
  <link href="css/bootstrap-responsive.css" rel="stylesheet">
  <!-- HTML5 shim, for IE6-8 support of HTML5 elements -->
@@ -67,10 +68,10 @@
   <button id="exq" onclick="execute_query(1);">Execute and return result</button>
   <button id="exqn" onclick="execute_query(0);">Execute</button>
 -->
-  <a id="exq" class="btn" href="#" onclick="execute_query(1);">Execute and return result</a>
-  <a id="exqn" class="btn" href="#" onclick="execute_query(0);">Execute</a>
-  <a class="btn" data-toggle="modal" href="#fileModal" onclick="$('#fileModal').modal();">Upload file...</a>
-  <a id="can" class="btn" href="#" onclick="cancel();" disabled=true>Cancel</a>
+  <a id="exq" class="btn" href="#" onclick="if(!$('#exq').hasClass('disabled')) execute_query(1);">Execute and return result</a>
+  <a id="exqn" class="btn" href="#" onclick="if(!$('#exqn').hasClass('disabled')) execute_query(0);">Execute</a>
+  <a id="uplo" class="btn" data-toggle="modal" href="#fileModal" onclick="if(!$('#uplo').hasClass('disabled')) $('#fileModal').modal();">Upload file...</a>
+  <a id="can" class="btn" href="#" onclick="if(!$('#can').hasClass('disabled')) cancel();">Cancel</a>
 </div>
 <div class="span4">
   <select id="numlines">
@@ -92,12 +93,17 @@
     <h3>Upload CSV data</h3>
   </div>
   <div class="modal-body">
+<label class="checkbox">
+  <input id="header" type="checkbox" value="" checked>
+  The CSV file contains a header line.
+</label>
+<br/>
     <table style="width:100%;">
     <tr><td style="width:22%;">File</td><td>
     <input id="fup" name="a_f" type="file" class="hide ie_show" />
 <div class="input-append ie_hide">
-  <input id="pretty-input" class="input-large" type="text" onclick="$('input[id=fup]').click();">
-  <a class="btn" onclick="$('input[id=fup]').click();">Browse</a>
+  <input id="pretty-input" class="input-large" type="text" readonly onclick="$('#fup').val('');$('input[id=fup]').click();">
+  <a class="btn" onclick="$('#ifup').val('');$('input[id=fup]').click();">Browse</a>
 </div>
     </td></tr><tr><td style="width:22%;">Array schema</td><td>
     <input style="width:95%;" id="arraySchema" name="a_s" type="text" value="" placeholder="Array schema"/>
@@ -105,8 +111,10 @@
     <input style="width:95%;" id="arrayName" name="a_n" type="text" value="" placeholder="Array name"/>
     </td></tr></table>
 <br/>
-<p><i>Edit the schema as required after selecting your CSV file. The file must not have a header line.</i>
-</p>
+<ul>
+<li><i>Edit the schema as required after selecting your CSV file.</i>
+<li><i>The following link shows a small example file (Fisher's iris data). Save the file locally first, then select it above: </i><a href="http://illposed.net/iris.csv" target="_blank">http://illposed.net/iris.csv</a>
+</ul>
   </div>
   <div class="modal-footer">
     <a href="#" class="btn primary" data-dismiss="modal">Cancel</a>
