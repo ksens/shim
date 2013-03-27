@@ -14,9 +14,9 @@
 SCIDB_DIR=$(dirname $(dirname $(which scidb) 2>/dev/null) 2>/dev/null)
 if test -z "${SCIDB_DIR}"; then
   if test -d /opt/scidb; then
-    SCIDB_DIR=$(ls /opt/scidb | tail -n 1)
-    if test -n "${SCIDB_DIR}"; then SCIDB_DIR="/opt/scidb/${SCIDB_DIR}";fi
-    echo "Warning, guessing SciDB directory ${SCIDB_DIR}" 2>&1
+    SCIDB_DIR=$(dirname $(dirname $(find /opt/scidb/ -name shim 2>/dev/null) 2>/dev/null) 2>/dev/null)
+#    SCIDB_DIR=$(ls -t /opt/scidb | head -n 1)
+#    if test -n "${SCIDB_DIR}"; then SCIDB_DIR="/opt/scidb/${SCIDB_DIR}";fi
   fi
   if test -z "${SCIDB_DIR}"; then
     echo "Error, can't find SciDB, is it in the PATH?" 2>&1
@@ -38,7 +38,7 @@ case $1 in
             if test -z "${P}"; then
               killall shim
             else
-              kill $P
+              kill $P 2>/dev/null || echo "Couldn't kill process $P (privilege error?)"
             fi
             echo "Starting shim"
             "${SHIM}"
@@ -55,7 +55,7 @@ case $1 in
             if test -z "${P}"; then
               killall shim 2>/dev/null || echo >/dev/null
             else
-              kill $P 2>/dev/null || echo >/dev/null
+              kill $P 2>/dev/null || echo "Couldn't kill process $P (privilege error?)"
             fi
             ;;
 esac

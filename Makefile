@@ -14,9 +14,23 @@ shim:
 	$(CXX) $(INC) -fpic -g -c client.cpp -o client.o
 	$(CC) -Wall $(CFLAGS) $(INC) -o shim shim.c mongoose.c client.o $(LIBS)
 
+help:
+	@echo "make shim      (compile and link)"
+	@echo
+	@echo "The remaining options may require setting the SCIDB environment"
+	@echo "variable to the path of the target SciDB installation. For example,"
+	@echo "make SCIDB=/opt/scidb/13.3  install"
+	@echo
+	@echo "make install   (install program and files)"
+	@echo "make uninstall (remove program and files)"
+	@echo "make service   (install a Debian or RHEL init.d-style service, shimsvc)"
+	@echo "make unservice (terminate and remove installed service)"
+	@echo "make deb-pkg   (create a binary Ubuntu/Debian package, requires fpm)"
+	@echo "make rpm-pkg   (create a binary RHEL package, requires fpm)"
+
 install: shim
 	@if test ! -d "$(SCIDB)"; then echo  "Can't find scidb. Maybe try explicitly setting SCIDB variable, for example::\n\nmake SCIDB=/opt/scidb/13.3 install"; exit 1; fi 
-	@if test -x /etc/init.d/shimsvc start; then /etc/init.d/shimsvc stop;fi
+	@if test -x /etc/init.d/shimsvc; then /etc/init.d/shimsvc stop;fi
 	cp shim "$(SCIDB)/bin"
 	mkdir -p /var/lib/shim
 	cp -aR wwwroot /var/lib/shim/
@@ -25,7 +39,7 @@ install: shim
 
 uninstall: unservice
 	@if test ! -d "$(SCIDB)"; then echo  "Can't find scidb. Maybe try explicitly setting SCIDB variable, for example:\n\nmake SCIDB=/opt/scidb/13.3 uninstall"; exit 1; fi 
-	@if test -x /etc/init.d/shimsvc start; then /etc/init.d/shimsvc stop;fi
+	@if test -x /etc/init.d/shimsvc; then /etc/init.d/shimsvc stop;fi
 	rm -f "$(SCIDB)/bin/shim"
 	rm -rf /var/lib/shim
 	rm -f /usr/local/share/man/man1/shim.1
