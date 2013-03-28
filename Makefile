@@ -1,5 +1,5 @@
 ifeq ($(SCIDB),) 
-  X := $(shell which scidb)
+  X := $(shell which scidb 2>/dev/null)
   ifneq ($(X),)
     X := $(shell dirname ${X})
     SCIDB := $(shell dirname ${X})
@@ -39,7 +39,7 @@ install: shim
 
 uninstall: unservice
 	@if test ! -d "$(SCIDB)"; then echo  "Can't find scidb. Maybe try explicitly setting SCIDB variable, for example:\n\nmake SCIDB=/opt/scidb/13.3 uninstall"; exit 1; fi 
-	@if test -x /etc/init.d/shimsvc; then /etc/init.d/shimsvc stop;fi
+	- @if test -x /etc/init.d/shimsvc; then /etc/init.d/shimsvc stop;fi
 	rm -f "$(SCIDB)/bin/shim"
 	rm -rf /var/lib/shim
 	rm -f /usr/local/share/man/man1/shim.1
@@ -47,18 +47,18 @@ uninstall: unservice
 service: install
 	cp init.d/shimsvc /etc/init.d
 	chmod 0755 /etc/init.d/shimsvc
-	@if test -n "$$(which update-rc.d)"; then update-rc.d shimsvc defaults;fi
-	@if test -n "$$(which chkconfig)"; then chkconfig --add shimsvc && chkconfig shimsvc on;fi
+	@if test -n "$$(which update-rc.d 2>/dev/null)"; then update-rc.d shimsvc defaults;fi
+	@if test -n "$$(which chkconfig 2>/dev/null)"; then chkconfig --add shimsvc && chkconfig shimsvc on;fi
 	/etc/init.d/shimsvc start
 
 unservice:
 	@if test -f /etc/init.d/shimsvc; then /etc/init.d/shimsvc stop; fi
-	@if test -n "$$(which update-rc.d)"; then sudo update-rc.d -f shimsvc remove;fi
-	@if test -n "$$(which chkconfig)"; then chkconfig --del shimsvc;fi
+	- @if test -n "$$(which update-rc.d 2>/dev/null)"; then sudo update-rc.d -f shimsvc remove;fi
+	- @if test -n "$$(which chkconfig 2>/dev/null)"; then chkconfig --del shimsvc;fi
 	rm -rf /etc/init.d/shimsvc
 
 deb-pkg: shim
-	@if test -z "$$(which fpm)"; then echo "Error: Package building requires fpm."; exit 1;fi
+	@if test -z "$$(which fpm 2>/dev/null)"; then echo "Error: Package building requires fpm."; exit 1;fi
 	@if test ! -d "$(SCIDB)"; then echo  "Can't find scidb. Maybe try explicitly setting SCIDB variable, for example::\n\nmake SCIDB=/opt/scidb/13.3 install"; exit 1; fi 
 	mkdir -p pkgroot/$(SCIDB)/bin
 	cp shim "pkgroot/$(SCIDB)/bin"
@@ -72,7 +72,7 @@ deb-pkg: shim
 	fpm -s dir -t deb -n shim --vendor Paradigm4 --license AGPLv3 -m "<blewis@paradigm4.com>" --url "https://github.com/Paradigm4/shim" --description "Unofficial SciDB HTTP service" --provides "shim" -v $$(basename $(SCIDB)) --after-install init.d/after-install.sh --before-remove init.d/before-remove.sh -C pkgroot opt usr var etc/init.d
 
 rpm-pkg: shim
-	@if test -z "$$(which fpm)"; then echo "Error: Package building requires fpm."; exit 1;fi
+	@if test -z "$$(which fpm 2>/dev/null)"; then echo "Error: Package building requires fpm."; exit 1;fi
 	@if test ! -d "$(SCIDB)"; then echo  "Can't find scidb. Maybe try explicitly setting SCIDB variable, for example::\n\nmake SCIDB=/opt/scidb/13.3 install"; exit 1; fi 
 	mkdir -p pkgroot/$(SCIDB)/bin
 	cp shim "pkgroot/$(SCIDB)/bin"
