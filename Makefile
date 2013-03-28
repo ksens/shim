@@ -58,7 +58,7 @@ unservice:
 	rm -rf /etc/init.d/shimsvc
 
 deb-pkg: shim
-	@if test -z "$$(which fpm 2>/dev/null)"; then echo "Error: Package building requires fpm."; exit 1;fi
+	@if test -z "$$(which fpm 2>/dev/null)"; then echo "Error: Package building requires fpm, try running gem install fpm."; exit 1;fi
 	@if test ! -d "$(SCIDB)"; then echo  "Can't find scidb. Maybe try explicitly setting SCIDB variable, for example::\n\nmake SCIDB=/opt/scidb/13.3 install"; exit 1; fi 
 	mkdir -p pkgroot/$(SCIDB)/bin
 	cp shim "pkgroot/$(SCIDB)/bin"
@@ -72,7 +72,7 @@ deb-pkg: shim
 	fpm -s dir -t deb -n shim --vendor Paradigm4 --license AGPLv3 -m "<blewis@paradigm4.com>" --url "https://github.com/Paradigm4/shim" --description "Unofficial SciDB HTTP service" --provides "shim" -v $$(basename $(SCIDB)) --after-install init.d/after-install.sh --before-remove init.d/before-remove.sh -C pkgroot opt usr var etc/init.d
 
 rpm-pkg: shim
-	@if test -z "$$(which fpm 2>/dev/null)"; then echo "Error: Package building requires fpm."; exit 1;fi
+	@if test -z "$$(which fpm 2>/dev/null)"; then echo "Error: Package building requires fpm, try running gem install fpm."; exit 1;fi
 	@if test ! -d "$(SCIDB)"; then echo  "Can't find scidb. Maybe try explicitly setting SCIDB variable, for example::\n\nmake SCIDB=/opt/scidb/13.3 install"; exit 1; fi 
 	mkdir -p pkgroot/$(SCIDB)/bin
 	cp shim "pkgroot/$(SCIDB)/bin"
