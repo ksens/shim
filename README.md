@@ -34,7 +34,7 @@ and for SciDB 13.3 on RHEL/Centos 6.3 here:
 [http://illposed.net/shim-13.3-1.x86_64.rpm](http://illposed.net/shim-13.3-1.x86_64.rpm)
 ```
 # Install with:
-rpm -i shim-13.2-1.x86_64.rpm
+rpm -i shim-13.3-1.x86_64.rpm
 # shim depends on libgomp. If installation fails, install libgomp and try again:
 yum install libgomp
 
