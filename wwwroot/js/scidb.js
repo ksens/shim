@@ -92,7 +92,7 @@ $.get(
 
 function csv2scidb(csv, chunksize, start)
 {
-  var chunk = start;     // chunk counter
+  var chunk = 0;     // chunk counter
   var buf   = csv.split("\n");
   var i = 0;
   for(var j=0;j < buf.length - 1;j++)
@@ -100,7 +100,7 @@ function csv2scidb(csv, chunksize, start)
     tmp = buf[j];
     if( (j % chunksize) == 0)
     {
-      tmp = "{" + chunk + "} [\n(" + tmp + "),";
+      tmp = "{" + (start + chunk*chunksize) + "} [\n(" + tmp + "),";
       buf[j] = tmp;
       chunk += 1;
     }
@@ -121,7 +121,7 @@ function csv2scidb(csv, chunksize, start)
   if(tmp.length<1) {return(buf.join("\n"))}
   if( (j % chunksize) == 0)
   {
-    tmp = "{" + chunk + "} [\n(" + tmp + ")];";
+    tmp = "{" + (start + chunk*chunksize) + "} [\n(" + tmp + ")];";
     buf[j] = tmp;
   }
   else
