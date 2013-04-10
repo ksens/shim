@@ -56,16 +56,16 @@ make
 sudo make install
 
 # Or, if SCIDB is not in the PATH, can set a Make variable SCIDB that points
-# to the SCIDB home directory, for example for version 13.1:
+# to the SCIDB home directory, for example for version 13.3:
 
-make SCIDB=/opt/scidb/13.2
-sudo make SCIDB=/opt/scidb/13.2 install
+make SCIDB=/opt/scidb/13.3
+sudo make SCIDB=/opt/scidb/13.3 install
 
 ```
 ### Optionally install as a service
 You can install shim as a system service so that it just runs all the time with:
 ```
-sudo make SCIDB=/opt/scidb/13.2 service
+sudo make SCIDB=/opt/scidb/13.3 service
 ```
 If you install shim as a service and want to change its default options, for example the default HTTP port or port to talk to SciDB on, you'll need to edit the /etc/init.d/shimsvc file. See the discussion of command line parameters below.
 ### Optionally build deb or rpm packages
@@ -92,7 +92,7 @@ If you installed the service version, then you can control when shim is running 
 ## Uninstall
 We explicitly define our SCIDB home directory for Make in the example below:
 ```
-sudo make SCIDB=/opt/scidb/13.1 uninstall
+sudo make SCIDB=/opt/scidb/13.3 uninstall
 ```
 
 
