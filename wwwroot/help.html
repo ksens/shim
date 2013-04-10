@@ -583,7 +583,7 @@ argument must correspond to an integer-valued (of type int64) dimension, or be
 values begin at the same starting values as the input array, counting
 sequentially up to the total number of grid divisions in each dimension.
 <br/><br/>
-The example produces a 5x5 array that sums values and computes the maximum value over 2x2 blocks from the input array.
+The example produces a 5x5 array that sums values and computes the maximum value over 3x2 blocks from the input array.
 <div class="x">
 store(build(&lt;x:double&gt;[i=2:10,10,0,j=1:10,10,0],10*double(random())/2147483647 + 1),A)
 regrid(A, 3, 2, sum(x) as sum, max(x) as max)
