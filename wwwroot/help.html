@@ -574,15 +574,17 @@ redimension_store(build(&lt;x:string&gt;[i=1:10,10,0],'x'+string(i/2)), A)
 
 <a class="op" name="regrid"></a><h2 >regrid</h2>
 <i>regrid(array, grid_1[, grid2[, ...]], aggregate1[, aggregate2[, ...]])</i>
-<p/>
+<br/>
+<p>
 Create an array that partitions the cells in the input array into blocks, and
 for each block, apply an aggregate operation over the values in the block.
-Regrid may only be applued to int64 integer dimensions. That means each grid
+Regrid may only be applied to int64 integer dimensions. That means each grid
 argument must correspond to an integer-valued (of type int64) dimension, or be
 1 (implying no aggregation over that dimension). The output array dimension
 values begin at the same starting values as the input array, counting
 sequentially up to the total number of grid divisions in each dimension.
-<br/><br/>
+</p>
+<br/>
 The example produces a 5x5 array that sums values and computes the maximum value over 3x2 blocks from the input array.
 <div class="x">
 store(build(&lt;x:double&gt;[i=2:10,10,0,j=1:10,10,0],10*double(random())/2147483647 + 1),A)
