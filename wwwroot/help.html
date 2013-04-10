@@ -580,12 +580,20 @@ for each block, apply an aggregate operation over the values in the block.
 Regrid may only be applued to int64 integer dimensions. That means each grid
 argument must correspond to an integer-valued (of type int64) dimension, or be
 1 (implying no aggregation over that dimension). The output array dimension
-values are scaled by the grid values.
+values begin at the same starting values as the input array, counting
+sequentially up to the total number of grid divisions in each dimension.
 <br/><br/>
 The example produces a 5x5 array that sums values and computes the maximum value over 2x2 blocks from the input array.
 <div class="x">
-store(build(&lt;x:double&gt;[i=1:10,10,0,j=1:10,10,0],10*double(random())/2147483647 + 1),A)
-regrid(A, 2, 2, sum(x) as sum, max(x) as max)
+store(build(&lt;x:double&gt;[i=2:10,10,0,j=1:10,10,0],10*double(random())/2147483647 + 1),A)
+regrid(A, 3, 2, sum(x) as sum, max(x) as max)
+
+# Recover original dimension values along the regridded data:
+apply(
+  regrid(A, 3, 2, sum(x) as sum, max(x) as max),
+  i_original, 2 + (i-2)*3,
+  j_original, 1 + (j-1)*2
+)
 
 </div><br/>
 
