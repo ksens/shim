@@ -327,8 +327,10 @@ Content-Type: text/plain
 <tr><td>NOTES
 <td>
 <ol>
+<li>Set n=0 to download the entire output buffer.
 <li>Be sure to properly url-encode special characters like the plus sign (+) in the request.
-<li>Iterative requests to read_lines are allowed, and will print at most the next n lines of output.
+<li>When n&gt;0, iterative requests to read_lines are allowed,
+and will return at most the next n lines of output.
 Use the 410 error code to detect end of file output.
 </ol>
 

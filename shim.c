@@ -540,8 +540,10 @@ readbytes (struct mg_connection *conn, const struct mg_request_info *ri)
 
 /* Read ascii lines from a query result on the query pipe.
  * The mg_request_info must contain the keys:
- * n=<max number of lines to read>
- * id=<session id>
+ * n = <max number of lines to read>
+ *     Set n to zero to just return all the data. n>0 allows
+ *     repeat calls to this function to iterate through data n lines at a time
+ * id = <session id>
  * Writes at most n lines back to the client or a 419 error if something
  * went wrong or end of file.
  */
@@ -572,9 +574,20 @@ readlines (struct mg_connection *conn, const struct mg_request_info *ri)
       syslog (LOG_ERR, "readlines error invalid session");
       return;
     }
+// Retrieve max number of lines to read
+  mg_get_var (ri->query_string, k, "n", var, MAX_VARLEN);
+  n = atoi (var);
+// Check to see if client wants the whole file at once, if so return it.
   omp_set_lock (&s->lock);
+  if(n<1)
+  {
+    syslog (LOG_INFO, "readlines returning entire buffer");
+    mg_send_file (conn, s->obuf);
+    omp_unset_lock (&s->lock);
+    return;
+  }
 // Check to see if output buffer is open for reading
-  syslog (LOG_ERR, "readlines opening buffer");
+  syslog (LOG_INFO, "readlines opening buffer");
   if (s->pd < 1)
     {
       s->pd = open (s->obuf, O_RDONLY | O_NONBLOCK);
@@ -589,13 +602,6 @@ readlines (struct mg_connection *conn, const struct mg_request_info *ri)
         }
     }
   memset (var, 0, MAX_VARLEN);
-// Retrieve max number of lines to read
-  mg_get_var (ri->query_string, k, "n", var, MAX_VARLEN);
-  n = atoi (var);
-  if (n < 1)
-    {
-      n = 1000;
-    }
   if (n*MAX_VARLEN > MAX_RETURN_BYTES)
     {
       n = MAX_RETURN_BYTES/MAX_VARLEN;
