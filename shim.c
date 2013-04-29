@@ -747,7 +747,7 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
   s = find_session (id);
   if (!s)
     {
-      free(querybuf);
+      free(qrybuf);
       free(qry);
       syslog (LOG_ERR, "execute_query error Invalid session ID %d", id);
       respond (conn, plain, 404, strlen ("Invalid session ID"),
@@ -757,7 +757,7 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
   omp_set_lock (&s->lock);
   memset (var, 0, MAX_VARLEN);
   mg_get_var (ri->query_string, k, "save", save, MAX_VARLEN);
-  mg_get_var (ri->query_string, k, "query", qrybuf, MAX_VARLEN);
+  mg_get_var (ri->query_string, k, "query", qrybuf, k);
 // If save is indicated, modify query
   if (strlen (save) > 0)
     snprintf (qry, k + MAX_VARLEN, "save(%s,'%s',0,'%s')", qrybuf, s->obuf,
