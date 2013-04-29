@@ -709,7 +709,7 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
   char buf[MAX_VARLEN];
   char save[MAX_VARLEN];
   char SERR[MAX_VARLEN];
-  char qry[3 * MAX_VARLEN];
+  char *qrybuf, *qry;
   struct prep pq;               // prepared query storage
 
   if (!ri->query_string)
@@ -720,6 +720,23 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
       return;
     }
   k = strlen (ri->query_string);
+  qrybuf = (char *)malloc(k);
+  if (!qrybuf)
+    {
+      syslog (LOG_ERR, "execute_query error out of memory");
+      respond (conn, plain, 404, strlen ("Out of memory"),
+               "Out of memory");
+      return;
+    }
+  qry = (char *)malloc(k + MAX_VARLEN);
+  if (!qry)
+    {
+      free(qrybuf);
+      syslog (LOG_ERR, "execute_query error out of memory");
+      respond (conn, plain, 404, strlen ("Out of memory"),
+               "Out of memory");
+      return;
+    }
   mg_get_var (ri->query_string, k, "id", var, MAX_VARLEN);
   id = atoi (var);
   memset (var, 0, MAX_VARLEN);
@@ -730,6 +747,8 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
   s = find_session (id);
   if (!s)
     {
+      free(querybuf);
+      free(qry);
       syslog (LOG_ERR, "execute_query error Invalid session ID %d", id);
       respond (conn, plain, 404, strlen ("Invalid session ID"),
                "Invalid session ID");
@@ -738,19 +757,21 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
   omp_set_lock (&s->lock);
   memset (var, 0, MAX_VARLEN);
   mg_get_var (ri->query_string, k, "save", save, MAX_VARLEN);
-  mg_get_var (ri->query_string, k, "query", var, MAX_VARLEN);
+  mg_get_var (ri->query_string, k, "query", qrybuf, MAX_VARLEN);
 // If save is indicated, modify query
   if (strlen (save) > 0)
-    snprintf (qry, 3 * MAX_VARLEN, "save(%s,'%s',0,'%s')", var, s->obuf,
+    snprintf (qry, k + MAX_VARLEN, "save(%s,'%s',0,'%s')", qrybuf, s->obuf,
               save);
   else
-    snprintf (qry, 3 * MAX_VARLEN, "%s", var);
+    snprintf (qry, k + MAX_VARLEN, "%s", qrybuf);
 
   if (!s->con)
     s->con = scidbconnect (SCIDB_HOST, SCIDB_PORT);
   syslog (LOG_INFO, "execute_query s->con = %p %s", s->con, qry);
   if (!s->con)
     {
+      free(qry);
+      free(qrybuf);
       syslog (LOG_ERR, "execute_query error could not connect to SciDB");
       respond (conn, plain, 503, strlen ("Could not connect to SciDB"),
                "Could not connect to SciDB");
@@ -765,6 +786,8 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
   syslog (LOG_INFO, "execute_query scidb queryid = %llu", l);
   if (l < 1 || !pq.queryresult)
     {
+      free(qry);
+      free(qrybuf);
       syslog (LOG_ERR, "execute_query error %s", SERR);
       respond (conn, plain, 500, strlen (SERR), SERR);
       if (s->con)
@@ -786,6 +809,8 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
     l = execute_prepared_query (s->con, &pq, 1, SERR);
   if (l < 1)
     {
+      free(qry);
+      free(qrybuf);
       syslog (LOG_ERR, "execute_prepared_query error %s", SERR);
       respond (conn, plain, 500, strlen (SERR), SERR);
       if (s->con)
@@ -798,6 +823,8 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
   if (s->con)
     completeQuery (l, s->con, SERR);
 
+  free(qry);
+  free(qrybuf);
   syslog (LOG_INFO, "execute_query %d done, disconnecting", s->sessionid);
   if (s->con)
     scidbdisconnect (s->con);
