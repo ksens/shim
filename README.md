@@ -9,6 +9,8 @@ Note: libscidbclient.so must be in shim's library path. This may entail setting
 LD_LIBRARY_PATH=/opt/scidb/<whatever>/lib  before running shim.  You don't have
 to worry about that if you install and run shim as a service.
 
+Note: Shim queries are limited to at most 1,000,000 characters.
+
 See the wwwroot/api.html document for the API documentation, or compile and
 start shim running and point a browser to http://localhost:8080/api.html.
 You can also preview the api.html page directly from github at:
