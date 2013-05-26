@@ -180,6 +180,18 @@ attributes(A)
 
 </div><br/>
 
+<a class="op" name="average"></a><h2 >avg</h2>
+<i>avg(array[, attribute[, dimension1[, dimension2, ...]]])</i>
+<p/>Create an array that returns the average of the first
+listed attribute in the array,
+or just the average of values in a specified attribute,
+optionally grouped along one or more dimensions.
+<br/>
+<div class="x">
+avg(build(&lt;x:double&gt;[i=1:10,5,0,j=1:10,10,0], sin((double(i*j)/100))),x,i)
+
+</div><br/>
+
 
 <a class="op" name="avg_rank"></a><h2 >avg_rank</h2>
 <i>avg_rank(array[, attribute[, dimension1[, dimension2, ...]]])</i>
@@ -236,6 +248,11 @@ build_sparse(A, i, double(i)/2 = i/2)
 
 </div><br/>
 
+<a class="op" name="cancel"></a><h2 >cancel</h2>
+<i>cancel(query id)</i>
+<p/>Cancel the specified active query id.
+<br/>
+
 
 <a class="op" name="cast"></a><h2 >cast</h2>
 <i>cast(array, array | schema)</i>
@@ -260,33 +277,44 @@ must have the same starting index, chunk size and overlap. All other dimensions
 and attributes must match exactly.
 <br/>
 <div class="x">
-store(build(&lt;x:double&gt;[i=0:3,4,0,j=0:2,1,0],1),array1)
-store(build(&lt;x:double&gt;[i=0:1,4,0,j=0:2,1,0],2),array2)
-concat(array1,array2)
+concat(build(&lt;x:double&gt;[i=0:3,4,0,j=0:2,1,0],1),
+       build(&lt;x:double&gt;[i=0:1,4,0,j=0:2,1,0],2))
 
 </div><br/>
 
+
+<a class="op" name="count"></a><h2 >count</h2>
+<i>count(array)</i>
+<p/>
+Count the number of non-empty cells in an array.
+<br/>
+<div class="x">
+count(build_sparse(&lt;v:double&gt;[i=1:10,10,0],i,i/2 = i/2.0))
+
+</div><br/>
 
 <a class="op" name="cross"></a><h2 >cross</h2>
 <i>cross(array1, array2)</i>
 <p/>Create the cross product of two arrays.
 <br/>
 <div class="x">
-store(build(&lt;x:double&gt;[i=1:10,5,0,j=0:2,1,0],1), A)
-cross(A, build(&lt;y:double&gt;[k=1:5,5,0],2))
+cross(build(&lt;x:double&gt;[i=1:10,5,0,j=0:2,1,0],1), 
+      build(&lt;y:double&gt;[k=1:5,5,0],2))
 
 </div><br/>
 
 
 <a class="op" name="cross_join"></a><h2 >cross_join</h2>
-<i>cross_join(array1, array2[, dimension1, dimension2[, dimension3, dimension4, ...]])
+<i>cross_join(array1 [as label1], array2 [as label2] [, dimension1, dimension2[, dimension3, dimension4, ...]])
 </i>
-<p/>Create the cross-product array of two arrays with equality predicates applied to
-pairs of dimensions. The arrays must have int64 dimension types.
+<p/>
+Create the cross-product array of two arrays with equality predicates applied to
+pairs of dimensions. The arrays must have int64 dimension types. Use the
+'as' keyword to label arrays for reference within the query (see the example).
 <br/>
 <div class="x">
-store(build(&lt;x:double&gt;[i=1:10,5,0,j=0:2,1,0],1), A)
-cross_join(A, build(&lt;y:double&gt;[i=1:10,5,0],2) as B, A.i, B.i)
+cross_join(build(&lt;x:double&gt;[i=1:10,5,0,j=0:2,1,0],1) as A,
+           build(&lt;y:double&gt;[i=1:10,5,0],2) as B, A.i, B.i)
 
 </div><br/>
 
@@ -311,6 +339,15 @@ store(build(&lt;x:double&gt;[i=1:10,5,0,j=0:2,1,0],1), A)
 dimensions(A)
 </div><br/>
 
+<a class="op" name="echo"></a><h2 >echo</h2>
+<i>echo('string')</i>
+<p/>Create a single-cell array that contains the string in a single attribute named 'text.' The dimension name is set to 'i.'
+<br/>
+<div class="x">
+echo('Hello SciDB')
+
+</div><br/>
+
 <a class="op" name="filter"></a><h2 >filter</h2>
 <i>filter(array, boolean_expression)</i>
 <p/>Create an array of the same shape as the specified array that copies cells that
@@ -325,7 +362,7 @@ filter(A, x + i < 10)
 
 
 <a class="op" name="help"></a><h2 >help</h2>
-<i>help(operator_name)</i>
+<i>help('operator_name')</i>
 <p/>Create an array that describes how to use the specified operator name
 (specified as a string value).
 <br/>
@@ -466,9 +503,8 @@ min(build(&lt;x:double&gt;[i=1:10,5,0], sin(i)))
 <p/>Create the matrix product array from conformable, two-dimensional input arrays.  The input arrays must each have a single attribute and bounded dimensions. The optinal parameter is a string value indicating either 'sparse' 'dense' or 'auto' code paths, defaulting to 'auto.' The array attributes value types must have scalar multiplication defined.
 <br/>
 <div class="x">
-store(build(&lt;val:double&gt;[i=0:2,3,0,j=0:1,2,0],sin(i+j)),A)
-store(build(&lt;val:double&gt;[i=0:1,2,0,j=0:1,2,0],cos(i+j)),B)
-multiply(A,B)
+multiply(build(&lt;val:double&gt;[i=0:2,3,0,j=0:1,2,0],sin(i+j)),
+         build(&lt;val:double&gt;[i=0:1,2,0,j=0:1,2,0],cos(i+j)))
 
 </div><br/>
 
@@ -480,8 +516,7 @@ attribute, by dividing by the square root of the sum of the squares of the
 attribute values in the input array.
 <br/>
 <div class="x">
-store(build(&lt;val:double&gt;[i=0:10,10,0],cos(i/3)), A)
-normalize(A)
+normalize(build(&lt;val:double&gt;[i=0:10,10,0],cos(i/3)))
 
 </div><br/>
 
@@ -1025,6 +1060,15 @@ aggregate(A, var(x) as var, j)
 <i>cancel(query_id)</i>
 <p/>Cancel a query. Nothing is returned.
 <br/>
+
+<a class="op" name="load_library"></a><h2 >load_library</h2>
+<i>load_library('plugin_name')</i>
+<p/>Load a SciDB plugin.
+<br/>
+<div class="x">
+load_library('dense_linear_algebra')
+
+</div><br/>
 
 <a class="other" name="remove"></a><h2 >remove</h2>
 <i>remove(array)</i>
