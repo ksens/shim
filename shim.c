@@ -497,8 +497,13 @@ readbytes (struct mg_connection *conn, const struct mg_request_info *ri)
 // Retrieve max number of bytes to read
   mg_get_var (ri->query_string, k, "n", var, MAX_VARLEN);
   n = atoi (var);
-  if (n < 0)
-    n = MAX_VARLEN;
+  if (n < 1)
+  {
+    syslog (LOG_INFO, "readbytes returning entire buffer");
+    mg_send_file (conn, s->obuf);
+    omp_unset_lock (&s->lock);
+    return;
+  }
   if (n > MAX_RETURN_BYTES)
     n = MAX_RETURN_BYTES;
 
