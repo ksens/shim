@@ -210,7 +210,7 @@ release_session (struct mg_connection *conn, const struct mg_request_info *ri,
   if (!ri->query_string)
     {
       respond (conn, plain, 400, 0, NULL);
-      syslog (LOG_ERR, "readbytes error invalid http query");
+      syslog (LOG_ERR, "release_session error invalid http query");
       return;
     }
   k = strlen (ri->query_string);
@@ -394,7 +394,7 @@ upload (struct mg_connection *conn, const struct mg_request_info *ri)
   if (!ri->query_string)
     {
       respond (conn, plain, 400, 0, NULL);
-      syslog (LOG_INFO, "readbytes error invalid http query");
+      syslog (LOG_INFO, "upload error invalid http query");
       return;
     }
   k = strlen (ri->query_string);
