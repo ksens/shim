@@ -49,7 +49,7 @@ I will continue to make binary packages available when new versions of SciDB are
 ##Compile and Install from Source
 Note that because shim is a SciDB client it needs the boost, log4cpp and log4cxx development libraries installed to compile. We illustrate installation of Ubuntu build dependencies below:
 ```
-sudo apt-get install liblog4cpp5-dev liblog4cxx10-dev libboost-dev rubygems
+sudo apt-get install liblog4cpp5-dev liblog4cxx10-dev libboost-dev libboost-system-dev rubygems
 gem install fpm
 ```
 Once the build dependencies are install, build shim with:
