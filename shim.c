@@ -33,7 +33,7 @@
 #define PIDFILE "/var/run/shim.pid"
 
 #define WEEK 604800 // One week in seconds
-#define TIMEOUT 60
+#define TIMEOUT 60 // Timeout before a session is declared orphaned and reaped
 
 // Minimalist SciDB client API from client.cpp -------------------------------
 void *scidbconnect (const char *host, int port);
