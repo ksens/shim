@@ -9,17 +9,6 @@ $.ajaxSetup({
     cache: false
 });
 
-  dostartstop = function(x)
-  {
-    $("#stopbtn").attr("disabled","disabled")
-    $("#startbttn").attr("disabled","disabled")
-    $("#bgetlog").attr("disabled","disabled")
-//    $("#beditconfig").attr("disabled","disabled")
-    $("#scidb_dash").spin();
-    $.get(x, function(z){location.reload();}).fail(
-             function(z){location.reload();});
-  }
-
 
   getlog = function()
   {
@@ -77,27 +66,7 @@ $.ajaxSetup({
     $("#configini").hide();
     $("#savebtn").hide();
     $("#closebtn").hide();
-// Parse the config.ini file for available SciDB configuration names
-//    $.get( "/get_config",
-//      function(data){
-//        clusters=jQuery.grep(data.split("\n"), function(n,i) {return(n.match(/\[.*\]/));})
-//        $.each(clusters, function(i,v)
-//          {
-//            w = v.replace("[","").replace("]","");
-//            $("#startmenu").append("<li><a href='#'>"+w+"</a></li>");
-//            $("#stopmenu").append("<li><a href='#'>"+w+"</a></li>");
-//          });
-//
-//          $("#startmenu li").click(function() {
-//            dostartstop("/start_scidb?db="+$(this).text());
-//          });
-//          $("#stopmenu li").click(function() {
-//            dostartstop("/stop_scidb?db="+$(this).text());
-//          });
-//      }
-//    );
-    hello("list('instances')",100);
-
+    hello("list('instances')",0);
   });
 
 function hello(sq, numlines)
@@ -118,6 +87,7 @@ $.get(
         $.get(urir,
           function(z)
           {
+            $.get(rel);
             var gt = />/g;
             var lt = /</g;
             result = result + z.replace(gt,"&gt;").replace(lt,"&lt;");
@@ -130,12 +100,20 @@ $.get(
               if(i>0 && v.length>0)
               {
                 x = v.split(",");
-                s = s+x[0].match(/".*"/)[0].replace(/"/g,"")+" "+x[1] + "<br/>";
+                y = x[0].match(/".*"/);
+                if(!(y==null))
+                {
+                  s = s+y[0].replace(/"/g,"")+" "+x[1] + "<br/>";
+                }
+                y = x[0].match(/'.*'/);
+                if(!(y==null))
+                {
+                  s = s+y[0].replace(/'/g,"")+" "+x[1] + "<br/>";
+                }
               }
             });
             s = s + "</div>";
             $("#scidb_dash")[0].innerHTML = s;
-            $.get(rel);
           })
       }).fail(function(z)
              {
