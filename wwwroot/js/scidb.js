@@ -157,7 +157,8 @@ function do_upload()
                + 'Content-Disposition: form-data; name="file"; '
                + 'filename="data.csv"\r\n'
                + 'Content-Type: application/octet-stream\r\n\r\n'
-               + CSV + '\r\n'
+//               + CSV + '\r\n'
+               + FILE + '\r\n'
                + '--' + boundary + '--';
       $.ajax({
         contentType: "multipart/form-data; boundary="+boundary,
