@@ -17,6 +17,7 @@
 
 #define MAX_SESSIONS 30        // Maximum number of simultaneous http sessions
 #define MAX_VARLEN 4096        // Static buffer length to hold http query params
+#define LCSV_MAX 16384
 #ifndef PATH_MAX
 #define PATH_MAX 4096
 #endif
@@ -97,6 +98,7 @@ char *docroot;
 char SCIDB_HOST[] = "localhost";
 int SCIDB_PORT = 1239;
 omp_lock_t biglock;
+char *BASEPATH;
 
 
 /*
@@ -445,6 +447,76 @@ new_session (struct mg_connection *conn)
     {
       respond (conn, plain, 503, 0, NULL);      // out of resources
     }
+}
+
+/* Load an uploaded CSV file with loadcsv */
+void
+loadcsv (struct mg_connection *conn, const struct mg_request_info *ri)
+{
+  int id, k, e, n;
+  session *s;
+  char var[MAX_VARLEN];
+  char schema[MAX_VARLEN];
+  char buf[MAX_VARLEN];
+  char arrayname[MAX_VARLEN];
+  char cmd[LCSV_MAX];
+  if (!ri->query_string)
+    {
+      respond (conn, plain, 400, 0, NULL);
+      syslog (LOG_ERR, "loadcsv error invalid http query");
+      return;
+    }
+  syslog (LOG_INFO, "loadcsv querystring %s", ri->query_string);
+  k = strlen (ri->query_string);
+  mg_get_var (ri->query_string, k, "id", var, MAX_VARLEN);
+  id = atoi (var);
+  s = find_session (id);
+  if (!s)
+    {
+      syslog (LOG_INFO, "loadcsv session error");
+      respond (conn, plain, 404, 0, NULL);
+      return;
+    }
+  omp_set_lock (&s->lock);
+// Check to see if the upload buffer is open for reading, if not do so.
+  if (s->pd < 1)
+    {
+      s->pd = open (s->ibuf, O_RDONLY | O_NONBLOCK);
+      if (s->pd < 1)
+        {
+          syslog (LOG_ERR, "loadcsv error opening upload buffer");
+          respond (conn, plain, 500, 0, NULL);
+          omp_unset_lock (&s->lock);
+          return;
+        }
+    }
+// Retrieve the schema
+  memset (schema, 0, MAX_VARLEN);
+  mg_get_var (ri->query_string, k, "schema", schema, MAX_VARLEN);
+// Retrieve the new array name
+  memset (arrayname, 0, MAX_VARLEN);
+  mg_get_var (ri->query_string, k, "name", arrayname, MAX_VARLEN);
+// Retrieve the number of header lines
+  memset (var, 0, MAX_VARLEN);
+  mg_get_var (ri->query_string, k, "head", var, MAX_VARLEN);
+  n = atoi (var);
+// Retrieve the number of errors allowed
+  memset (var, 0, MAX_VARLEN);
+  mg_get_var (ri->query_string, k, "err", var, MAX_VARLEN);
+  e = atoi (var);
+  snprintf(cmd,LCSV_MAX, "%s/csv2scidb  -s %d < %s > %s.scidb; %s/iquery -naq 'remove(%s)'; %s/iquery -naq 'create_array(%s,%s)'; %s/iquery -naq \"store(input(%s,'%s.scidb',0),%s)\";rm -f %s.scidb", BASEPATH, n, s->ibuf, s->ibuf, BASEPATH, arrayname, BASEPATH, arrayname, schema, BASEPATH, schema, s->ibuf, arrayname, s->ibuf);
+// It's a bummer, but I can't get loadcsv.py to work!
+//  snprintf(cmd,LCSV_MAX, "%s/loadcsv.py -i %s -n %d -e %d -a %s -s \"%s\"", BASEPATH, s->ibuf, n, e, arrayname, schema);
+  syslog (LOG_INFO, "loadcsv cmd: %s",cmd);
+  n = system(cmd);
+  syslog (LOG_INFO, "loadcsv result: %d",n);
+  syslog (LOG_INFO, "loadcsv releasing HTTP session %d",
+              s->sessionid);
+  cleanup_session (s);
+  omp_unset_lock (&s->lock);
+// Respond to the client
+  snprintf (buf, MAX_VARLEN, "%d", n);
+  respond (conn, plain, 200, strlen (buf), buf);
 }
 
 
@@ -911,6 +983,8 @@ callback (enum mg_event event, struct mg_connection *conn)
         readbytes (conn, ri);
       else if (!strcmp (ri->uri, "/execute_query"))
         execute_query (conn, ri);
+      else if (!strcmp (ri->uri, "/loadcsv"))
+        loadcsv (conn, ri);
       else if (!strcmp (ri->uri, "/cancel"))
         cancel_query (conn, ri);
 // CONTROL API
@@ -1000,6 +1074,8 @@ main (int argc, char **argv)
   sessions = (session *) calloc (MAX_SESSIONS, sizeof (session));
   scount = 0;
 
+  BASEPATH = dirname(argv[0]);
+
 /* Daemonize */
   k = -1;
   if (daemonize > 0)
@@ -1017,9 +1093,9 @@ main (int argc, char **argv)
           l = resLimit.rlim_max;
           for (j = 0; j < l; j++)
             (void) close (j);
-          j = open ("/dev/null", O_RDWR);       /* stdin */
-          dup (j);              /* stdout */
-          dup (j);              /* stderr */
+          j = open ("/dev/null", O_RDWR); 
+          dup (j);
+          dup (j);
           break;
         default:
           exit (0);
