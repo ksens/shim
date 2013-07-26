@@ -68,10 +68,10 @@
   <button id="exq" onclick="execute_query(1);">Execute and return result</button>
   <button id="exqn" onclick="execute_query(0);">Execute</button>
 -->
-  <a id="exq" class="btn" href="#" onclick="if(!$('#exq').hasClass('disabled')) execute_query(1);">Execute and return result</a>
-  <a id="exqn" class="btn" href="#" onclick="if(!$('#exqn').hasClass('disabled')) execute_query(0);">Execute</a>
-  <a id="uplo" class="btn" data-toggle="modal" href="#fileModal" onclick="if(!$('#uplo').hasClass('disabled')) $('#fileModal').modal();">Upload file...</a>
-  <a id="can" class="btn" href="#" onclick="if(!$('#can').hasClass('disabled')) cancel();">Cancel</a>
+  <a id="exq" class="btn btn-primary" href="#" onclick="if(!$('#exq').hasClass('disabled')) execute_query(1);">Execute and return result</a>
+  <a id="exqn" class="btn btn-primary" href="#" onclick="if(!$('#exqn').hasClass('disabled')) execute_query(0);">Execute</a>
+  <a id="uplo" class="btn btn-primary" data-toggle="modal" href="#fileModal" onclick="if(!$('#uplo').hasClass('disabled')) $('#fileModal').modal();">Upload file...</a>
+  <a id="can" class="btn btn-danger" href="#" onclick="if(!$('#can').hasClass('disabled')) cancel();">Cancel</a>
 </div>
 <div class="span4">
   <select id="numlines">
@@ -124,8 +124,8 @@
 </ul>
   </div>
   <div class="modal-footer">
-    <a href="#" class="btn primary" data-dismiss="modal">Cancel</a>
-    <a href="#" onclick="do_upload();" class="btn primary" data-dismiss="modal">OK</a>
+    <a href="#" class="btn btn-primary" data-dismiss="modal">Cancel</a>
+    <a href="#" onclick="do_upload();" class="btn btn-primary" data-dismiss="modal">OK</a>
   </div>
 </div>
 
