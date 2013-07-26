@@ -22,21 +22,23 @@ The wwwroot directory also includes an example simple javascript client.
 
 ##Installation from binary packages
 This is the fastest/easiest way to install this service.
-The author (Bryan Lewis) provides a few pre-built binary packages for SciDB 13.3 on Ubuntu 12.04 here:
+The author (Bryan Lewis) provides a few pre-built binary packages for SciDB 13.3 and 13.6 on Ubuntu 12.04 here:
 [http://illposed.net/shim_13.3_amd64.deb](http://illposed.net/shim_13.3_amd64.deb)
+[http://illposed.net/shim_13.6_amd64.deb](http://illposed.net/shim_13.6_amd64.deb)
 ```
 # Install with:
-sudo gdebi shim_13.3_amd64.deb
+sudo gdebi shim_13.6_amd64.deb
 
 # Uninstall with:
 apt-get remove shim
 ```
 
-and for SciDB 13.3 on RHEL/Centos 6.3 here:
+and for SciDB 13.3 and SciDB13.6 on RHEL/Centos 6.3 here:
 [http://illposed.net/shim-13.3-1.x86_64.rpm](http://illposed.net/shim-13.3-1.x86_64.rpm)
+[http://illposed.net/shim-13.6-1.x86_64.rpm](http://illposed.net/shim-13.6-1.x86_64.rpm)
 ```
 # Install with:
-rpm -i shim-13.3-1.x86_64.rpm
+rpm -i shim-13.6-1.x86_64.rpm
 # shim depends on libgomp. If installation fails, install libgomp and try again:
 yum install libgomp
 
