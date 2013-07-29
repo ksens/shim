@@ -184,10 +184,18 @@ function handleFileSelect(evt) {
 
 $("#query").keyup(function (event)
 {
- if (event.keyCode == 13 && event.shiftKey)
- {
-   execute_query(1);
-   event.stopPropagation();
+  if (event.keyCode == 13 && event.shiftKey)
+  {
+    event.preventDefault();
+    event.stopPropagation();
+    execute_query(1);
+   }
+});
+$("#query").keypress(function (event)
+{
+  if (event.keyCode == 13 && event.shiftKey)
+  {
+    return false;
   }
 });
 
