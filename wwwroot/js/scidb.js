@@ -166,7 +166,7 @@ function handleFileSelect(evt) {
         var attr = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
         if($("#header").prop("checked"))
         {
-          attr = firstline.split(",");  // header for attribute names
+          attr = firstline.replace(/"/g,"").split(",");  // header for attribute names
         }
         var schema = "<";
         for(var i=0;i < Math.min(n-1,52); i++)
