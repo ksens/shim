@@ -10,6 +10,7 @@ to worry about that if you install and run shim as a service.
 
 Note: Shim queries are limited to at most 1,000,000 characters.
 
+## HTTP API documentation
 See the wwwroot/api.html document for the API documentation, or compile and
 start shim running and point a browser to http://localhost:8080/api.html.
 You can also preview the api.html page directly from github at:
@@ -34,7 +35,7 @@ sudo gdebi shim_13.6_amd64.deb
 apt-get remove shim
 ```
 
-and for SciDB 13.3 and SciDB13.6 on RHEL/Centos 6.3 here:
+and for SciDB 13.3 and SciDB13.6 on RHEL/Centos 6 here:
 
 * [http://illposed.net/shim-13.3-1.x86_64.rpm](http://illposed.net/shim-13.3-1.x86_64.rpm)
 * [http://illposed.net/shim-13.6-1.x86_64.rpm](http://illposed.net/shim-13.6-1.x86_64.rpm)
