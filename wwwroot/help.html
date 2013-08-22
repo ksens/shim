@@ -762,10 +762,20 @@ slice(A, i, 2)
 
 <a class="op" name="sort"></a><h2 >sort</h2>
 <i>sort(array, attribute [asc | desc][, attribute [asc | desc][, ...]][, chunk_size])</i>
-<p/>Create an array containing a sorted representation of the input array by attribute values, optionally specifying ascending or
-descending order and output chunk size. The output array is one-dimensional
-with integer dimension "n" (don't use sort on an input array attribute named "n").
-<br/>
+<p/>
+<p>
+Create an array containing a sorted representation of the input array by
+attribute values, optionally specifying ascending or descending order and
+output chunk size. The output array is one-dimensional with a single signed
+int64 dimension "n" (don't use sort on an input array attribute named "n"
+or you will get a name collsion!).
+<p>
+If you don't specify an output array chunk size, then the output will have
+a chunk size equal to the extent of the data or one million, whichever is
+smaller.
+</p><p>
+The sorted output array will have zero chunk overlap.
+</p>
 <div class="x">
 store(build(&lt;x:double&gt;[i=1:10,10,0],10*double(random())/2147483647 + 1),A)
 store(apply(A, s, 'x' + string(x)), B)
