@@ -736,13 +736,15 @@ scan(A)
 
 
 <a class="op" name="show"></a><h2 >show</h2>
-<i>show(array | schema)</i>
-<p/>Create an array containing the schema of the specified stored
-array or schema.
+<i>show(array | schema | SciDB query expression[, 'afl'])</i>
+<p/>
+Create an array containing the schema of the specified stored
+array, schema or SciDB query expression. When a SciDB query is
+specified, use the optional 'afl' argument if the query is in
+AFL format. The default assumes queries are in AQL format.
 <br/>
 <div class="x">
-store(build(&lt;x:double&gt;[i=1:3,3,0,j=1:3,3,0],i+j),A)
-show(A)
+show('sort(build(&lt;x:double&gt;[i=1:3,3,0],random()))', 'afl')
 
 </div><br/>
 
