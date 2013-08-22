@@ -816,15 +816,20 @@ sum(A)
 
 <a class="op" name="subarray"></a><h2 >subarray</h2>
 <i>subarray(array, low_coord1[, low_coord2[, ...]], high_coord1[, high_coord2[, ...]])</i>
-<p/>Create an array containing a clipped, rectilinear subset of the
+<p/>
+<p>
+Create an array containing a clipped, rectilinear subset of the
 input array. The coordinates specified must, in order, indicate the
 low boundaries in each array dimension, followed by the high boundaries
-in each array dimension.
+in each array dimension. Use the value <i>null</i> for a low or high coordinate
+to use the minimum and maximum coordinate values of the array.
+</p><p>
 Integer dimensions coordinates in the output array are changed to start
-at zero. (Mapped non-integer coordinates are not changed.) The upper
-dimension bounds of the output array vary depending on the input and
-possibly the chunk size. For now, it's best to explicitly check the
-output array dimension bounds.
+at zero. (Mapped non-integer coordinates are not changed.) Upper dimension
+bounds are adjusted to contain the extent of the data. This means that
+each output coordinate axis of subarray are limited to a 62-bit unsigned
+integer range.
+</p>
 <br/>
 <div class="x">
 store(build(&lt;x:double&gt;[i=1:10,10,0,j=1:10,10,0],10*double(random())/2147483647 + 1),A)
