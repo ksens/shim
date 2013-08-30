@@ -24,7 +24,7 @@
 #define MAX_RETURN_BYTES 10000000
 
 #ifndef DEFAULT_HTTP_PORT
-#define DEFAULT_HTTP_PORT "8080"
+#define DEFAULT_HTTP_PORT "8080,8083s"
 #endif
 
 // Should we make the TMPDIR a runtime option (probably yes)?
@@ -960,16 +960,14 @@ getlog (struct mg_connection *conn, const struct mg_request_info *ri)
 /* Mongoose generic begin_request callback; we dispatch URIs to their
  * appropriate handlers.
  */
-//static void *
-//callback (enum mg_event event, struct mg_connection *conn)
 static int 
 begin_request_handler(struct mg_connection *conn)
 {
   char buf[MAX_VARLEN];
   const struct mg_request_info *ri = mg_get_request_info (conn);
 
-//  if (event == MG_NEW_REQUEST)
-//    {
+syslog (LOG_INFO, "SSL %d", ri->is_ssl);
+
   syslog (LOG_INFO, "callback for %s%s", ri->uri, ri->query_string);
 // CLIENT API
   if (!strcmp (ri->uri, "/new_session"))
@@ -1007,11 +1005,6 @@ begin_request_handler(struct mg_connection *conn)
 
 // Mark as processed by returning non-null value.
   return 1;
-//    }
-//  else
-//    {
-//     return NULL;
-//    }
 }
 
 

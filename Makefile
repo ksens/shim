@@ -86,4 +86,4 @@ rpm-pkg: shim
 	fpm -s dir -t rpm -n shim --vendor Paradigm4 --license AGPLv3 -m "<blewis@paradigm4.com>" --url "https://github.com/Paradigm4/shim" --description "Unofficial SciDB HTTP service" --provides "shim" -v $$(basename $(SCIDB)) --after-install init.d/after-install.sh --before-remove init.d/before-remove.sh -C pkgroot opt usr var etc/init.d
 
 clean:
-	rm -fr *.o *.so shim pkgroot *.rpm *.deb
+	rm -fr *.o *.so shim pkgroot *.rpm *.deb *.crt *.key *.pem
