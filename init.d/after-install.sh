@@ -9,8 +9,8 @@ chmod 0755 /etc/init.d/shimsvc
 mkdir -p /var/lib/shim
 openssl req -new -newkey rsa:4096 -days 3650 -nodes -x509 -subj "/C=US/ST=MA/L=Waltham/O=Paradigm4/CN=$(hostname)" -keyout /var/lib/shim/ssl_cert.pem 2>/dev/null >> /var/lib/shim/ssl_cert.pem
 if test $? -ne 0; then
-  echo "SSL certificate generation failed (openssl not found)"
-  echo "" > /var/lib/shim/ssl_cert.pem
+  echo "SSL certificate generation failed (openssl not found): TLS disabled."
+  rm -f /var/lib/shim/ssl_cert.pem
 fi
 if test -n "$(which update-rc.d)"; then
 # Ubuntu

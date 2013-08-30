@@ -443,9 +443,30 @@ HTTP session is released.
 </table>
 </div>
 
+<br/>
+<h2>API Reference</h2>
+ * Orphan session detection process
+ * Shim limits the number of simultaneous open sessions. Absent-minded or
+ * malicious clients must be prevented from opening new sessions repeatedly
+ * resulting in denial of service. Shim uses a lazy timeout mechanism to
+ * detect unused sessions and reclaim them. It works like this:
+ *
+ * 1. The session time value is set to the current time when an API event
+ *    finishes.
+ * 2. If a new_session request fails to find any available session slots,
+ *    it inspects the existing session time values for all the sessions,
+ *    computing the difference between current time and the time value.
+ *    If a session time difference exceeds TIMEOUT, then that session is
+ *    cleaned up (cleanup_session), re-initialized, and returned as a
+ *    new session. Queries are not cancelled though.
+ *
+ * Operations that are in-flight but may take an indeterminate amount of
+ * time, for example PUT file uploads or execute_query statements, set their
+ * time value to a point far in the future to protect them from harvesting.
+ * Their time values are set to the current time when such operations complete.
 
 
-  </table>
+
 
 
     <footer>

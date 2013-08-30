@@ -15,8 +15,8 @@
 #include <omp.h>
 #include "mongoose.h"
 
-#define MAX_SESSIONS 30        // Maximum number of simultaneous http sessions
-#define MAX_VARLEN 4096        // Static buffer length to hold http query params
+#define MAX_SESSIONS 30         // Maximum number of simultaneous http sessions
+#define MAX_VARLEN 4096         // Static buffer length to hold http query params
 #define LCSV_MAX 16384
 #ifndef PATH_MAX
 #define PATH_MAX 4096
@@ -33,8 +33,8 @@
 #endif
 #define PIDFILE "/var/run/shim.pid"
 
-#define WEEK 604800 // One week in seconds
-#define TIMEOUT 60 // Timeout before a session is declared orphaned and reaped
+#define WEEK 604800             // One week in seconds
+#define TIMEOUT 60              // Timeout before a session is declared orphaned and reaped
 
 // Minimalist SciDB client API from client.cpp -------------------------------
 void *scidbconnect (const char *host, int port);
@@ -121,9 +121,9 @@ void
 respond (struct mg_connection *conn, enum mimetype type, int code, int length,
          char *data)
 {
-  if (code != 200)   // error
+  if (code != 200)              // error
     {
-      if (data)  // error with data payload (always presented as text/html here)
+      if (data)                 // error with data payload (always presented as text/html here)
         {
           mg_printf (conn, "HTTP/1.0 %d ERROR\r\n"
                      "Content-Length: %lu\r\n"
@@ -279,7 +279,7 @@ cancel_query (struct mg_connection *conn, const struct mg_request_info *ri)
           syslog (LOG_INFO, "cancel_query %s", SERR);
           scidbdisconnect (can_con);
         }
-      time(&s->time);
+      time (&s->time);
       omp_unset_lock (&s->lock);
       respond (conn, plain, 200, 0, NULL);
     }
@@ -291,7 +291,7 @@ int
 init_session (session * s)
 {
   int fd;
-  omp_set_lock(&s->lock);
+  omp_set_lock (&s->lock);
   s->ibuf = (char *) malloc (PATH_MAX);
   s->obuf = (char *) malloc (PATH_MAX);
   snprintf (s->ibuf, PATH_MAX, "%s/scidb_input_buf_XXXXXX", TMPDIR);
@@ -308,12 +308,12 @@ init_session (session * s)
   if (fd > 0)
     close (fd);
   else
-  {
-    syslog (LOG_ERR, "init_session can't create file");
-    cleanup_session (s);
-    omp_unset_lock(&s->lock);
-    return 0;
-  }
+    {
+      syslog (LOG_ERR, "init_session can't create file");
+      cleanup_session (s);
+      omp_unset_lock (&s->lock);
+      return 0;
+    }
 // Set up the output buffer
   s->pd = 0;
   fd = mkstemp (s->obuf);
@@ -321,15 +321,15 @@ init_session (session * s)
   if (fd > 0)
     close (fd);
   else
-  {
-    syslog (LOG_ERR, "init_session can't create file");
-    cleanup_session (s);
-    omp_unset_lock(&s->lock);
-    return 0;
-  }
-  time(&s->time);
+    {
+      syslog (LOG_ERR, "init_session can't create file");
+      cleanup_session (s);
+      omp_unset_lock (&s->lock);
+      return 0;
+    }
+  time (&s->time);
   s->sessionid = scount++;
-  omp_unset_lock(&s->lock);
+  omp_unset_lock (&s->lock);
   return 1;
 }
 
@@ -348,33 +348,33 @@ get_session ()
     {
       if (sessions[j].sessionid < 0)
         {
-          if(init_session(&sessions[j])>0)
-          {
-            id = j;
-            break;
-          }
-        }
-    }
-  if(id<0)
-  {
-   time(&t);
-/* Couldn't find any available sessions. Check for orphans. */
-    for (j = 0; j < MAX_SESSIONS; ++j)
-      {
-        if(t - sessions[j].time > TIMEOUT)
-          {
-            syslog (LOG_INFO, "get_session reaping session %d",j);
-            omp_set_lock(&sessions[j].lock);
-            cleanup_session (&sessions[j]);
-            omp_unset_lock(&sessions[j].lock);
-            if(init_session(&sessions[j])>0)
+          if (init_session (&sessions[j]) > 0)
             {
               id = j;
               break;
             }
-          }
-      }
-  }
+        }
+    }
+  if (id < 0)
+    {
+      time (&t);
+/* Couldn't find any available sessions. Check for orphans. */
+      for (j = 0; j < MAX_SESSIONS; ++j)
+        {
+          if (t - sessions[j].time > TIMEOUT)
+            {
+              syslog (LOG_INFO, "get_session reaping session %d", j);
+              omp_set_lock (&sessions[j].lock);
+              cleanup_session (&sessions[j]);
+              omp_unset_lock (&sessions[j].lock);
+              if (init_session (&sessions[j]) > 0)
+                {
+                  id = j;
+                  break;
+                }
+            }
+        }
+    }
   omp_unset_lock (&biglock);
   return id;
 }
@@ -406,9 +406,9 @@ upload (struct mg_connection *conn, const struct mg_request_info *ri)
   if (s)
     {
       omp_set_lock (&s->lock);
-      s->time = time(NULL) + WEEK; // Upload should take less than a week!
+      s->time = time (NULL) + WEEK;     // Upload should take less than a week!
       mg_append (conn, s->ibuf);
-      time(&s->time);
+      time (&s->time);
       snprintf (buf, MAX_VARLEN, "%s\r\n", s->ibuf);
 // XXX if mg_append fails, report server error too
       respond (conn, plain, 200, strlen (buf), buf);    // XXX report bytes uploaded
@@ -503,14 +503,16 @@ loadcsv (struct mg_connection *conn, const struct mg_request_info *ri)
 // Retrieve the number of errors allowed
   memset (var, 0, MAX_VARLEN);
   mg_get_var (ri->query_string, k, "err", var, MAX_VARLEN);
-  snprintf(cmd,LCSV_MAX, "%s/csv2scidb  -s %d < %s > %s.scidb; %s/iquery -naq 'remove(%s)'; %s/iquery -naq 'create_array(%s,%s)'; %s/iquery -naq \"store(input(%s,'%s.scidb',0),%s)\";rm -f %s.scidb", BASEPATH, n, s->ibuf, s->ibuf, BASEPATH, arrayname, BASEPATH, arrayname, schema, BASEPATH, schema, s->ibuf, arrayname, s->ibuf);
+  snprintf (cmd, LCSV_MAX,
+            "%s/csv2scidb  -s %d < %s > %s.scidb; %s/iquery -naq 'remove(%s)'; %s/iquery -naq 'create_array(%s,%s)'; %s/iquery -naq \"store(input(%s,'%s.scidb',0),%s)\";rm -f %s.scidb",
+            BASEPATH, n, s->ibuf, s->ibuf, BASEPATH, arrayname, BASEPATH,
+            arrayname, schema, BASEPATH, schema, s->ibuf, arrayname, s->ibuf);
 // It's a bummer, but I can't get loadcsv.py to work!
 //  snprintf(cmd,LCSV_MAX, "%s/loadcsv.py -i %s -n %d -e %d -a %s -s \"%s\"", BASEPATH, s->ibuf, n, e, arrayname, schema);
-  syslog (LOG_INFO, "loadcsv cmd: %s",cmd);
-  n = system(cmd);
-  syslog (LOG_INFO, "loadcsv result: %d",n);
-  syslog (LOG_INFO, "loadcsv releasing HTTP session %d",
-              s->sessionid);
+  syslog (LOG_INFO, "loadcsv cmd: %s", cmd);
+  n = system (cmd);
+  syslog (LOG_INFO, "loadcsv result: %d", n);
+  syslog (LOG_INFO, "loadcsv releasing HTTP session %d", s->sessionid);
   cleanup_session (s);
   omp_unset_lock (&s->lock);
 // Respond to the client
@@ -569,12 +571,12 @@ readbytes (struct mg_connection *conn, const struct mg_request_info *ri)
   mg_get_var (ri->query_string, k, "n", var, MAX_VARLEN);
   n = atoi (var);
   if (n < 1)
-  {
-    syslog (LOG_INFO, "readbytes returning entire buffer");
-    mg_send_file (conn, s->obuf);
-    omp_unset_lock (&s->lock);
-    return;
-  }
+    {
+      syslog (LOG_INFO, "readbytes returning entire buffer");
+      mg_send_file (conn, s->obuf);
+      omp_unset_lock (&s->lock);
+      return;
+    }
   if (n > MAX_RETURN_BYTES)
     n = MAX_RETURN_BYTES;
 
@@ -599,7 +601,7 @@ readbytes (struct mg_connection *conn, const struct mg_request_info *ri)
 
   l = (int) read (s->pd, buf, n);
   syslog (LOG_INFO, "readbytes  read %d n=%d", l, n);
-  if (l < 0)  // This is just EOF
+  if (l < 0)                    // This is just EOF
     {
       free (buf);
       respond (conn, plain, 410, 0, NULL);
@@ -607,7 +609,7 @@ readbytes (struct mg_connection *conn, const struct mg_request_info *ri)
       return;
     }
   respond (conn, binary, 200, l, buf);
-  time(&s->time);
+  time (&s->time);
   omp_unset_lock (&s->lock);
   free (buf);
 }
@@ -655,13 +657,13 @@ readlines (struct mg_connection *conn, const struct mg_request_info *ri)
   n = atoi (var);
 // Check to see if client wants the whole file at once, if so return it.
   omp_set_lock (&s->lock);
-  if(n<1)
-  {
-    syslog (LOG_INFO, "readlines returning entire buffer");
-    mg_send_file (conn, s->obuf);
-    omp_unset_lock (&s->lock);
-    return;
-  }
+  if (n < 1)
+    {
+      syslog (LOG_INFO, "readlines returning entire buffer");
+      mg_send_file (conn, s->obuf);
+      omp_unset_lock (&s->lock);
+      return;
+    }
 // Check to see if output buffer is open for reading
   syslog (LOG_INFO, "readlines opening buffer");
   if (s->pd < 1)
@@ -678,9 +680,9 @@ readlines (struct mg_connection *conn, const struct mg_request_info *ri)
         }
     }
   memset (var, 0, MAX_VARLEN);
-  if (n*MAX_VARLEN > MAX_RETURN_BYTES)
+  if (n * MAX_VARLEN > MAX_RETURN_BYTES)
     {
-      n = MAX_RETURN_BYTES/MAX_VARLEN;
+      n = MAX_RETURN_BYTES / MAX_VARLEN;
     }
 
   k = 0;
@@ -757,7 +759,7 @@ readlines (struct mg_connection *conn, const struct mg_request_info *ri)
   else
     respond (conn, plain, 200, t, buf);
   free (buf);
-  time(&s->time);
+  time (&s->time);
   omp_unset_lock (&s->lock);
 }
 
@@ -796,21 +798,19 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
       return;
     }
   k = strlen (ri->query_string);
-  qrybuf = (char *)malloc(k);
+  qrybuf = (char *) malloc (k);
   if (!qrybuf)
     {
       syslog (LOG_ERR, "execute_query error out of memory");
-      respond (conn, plain, 404, strlen ("Out of memory"),
-               "Out of memory");
+      respond (conn, plain, 404, strlen ("Out of memory"), "Out of memory");
       return;
     }
-  qry = (char *)malloc(k + MAX_VARLEN);
+  qry = (char *) malloc (k + MAX_VARLEN);
   if (!qry)
     {
-      free(qrybuf);
+      free (qrybuf);
       syslog (LOG_ERR, "execute_query error out of memory");
-      respond (conn, plain, 404, strlen ("Out of memory"),
-               "Out of memory");
+      respond (conn, plain, 404, strlen ("Out of memory"), "Out of memory");
       return;
     }
   mg_get_var (ri->query_string, k, "id", var, MAX_VARLEN);
@@ -823,8 +823,8 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
   s = find_session (id);
   if (!s)
     {
-      free(qrybuf);
-      free(qry);
+      free (qrybuf);
+      free (qry);
       syslog (LOG_ERR, "execute_query error Invalid session ID %d", id);
       respond (conn, plain, 404, strlen ("Invalid session ID"),
                "Invalid session ID");
@@ -846,8 +846,8 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
   syslog (LOG_INFO, "execute_query s->con = %p %s", s->con, qry);
   if (!s->con)
     {
-      free(qry);
-      free(qrybuf);
+      free (qry);
+      free (qrybuf);
       syslog (LOG_ERR, "execute_query error could not connect to SciDB");
       respond (conn, plain, 503, strlen ("Could not connect to SciDB"),
                "Could not connect to SciDB");
@@ -862,8 +862,8 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
   syslog (LOG_INFO, "execute_query scidb queryid = %llu", l);
   if (l < 1 || !pq.queryresult)
     {
-      free(qry);
-      free(qrybuf);
+      free (qry);
+      free (qrybuf);
       syslog (LOG_ERR, "execute_query error %s", SERR);
       respond (conn, plain, 500, strlen (SERR), SERR);
       if (s->con)
@@ -880,13 +880,13 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
  * lock is held.
  */
   s->queryid = l;
-  s->time = time(NULL) + WEEK;
+  s->time = time (NULL) + WEEK;
   if (s->con)
     l = execute_prepared_query (s->con, &pq, 1, SERR);
   if (l < 1)
     {
-      free(qry);
-      free(qrybuf);
+      free (qry);
+      free (qrybuf);
       syslog (LOG_ERR, "execute_prepared_query error %s", SERR);
       respond (conn, plain, 500, strlen (SERR), SERR);
       if (s->con)
@@ -899,8 +899,8 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
   if (s->con)
     completeQuery (l, s->con, SERR);
 
-  free(qry);
-  free(qrybuf);
+  free (qry);
+  free (qrybuf);
   syslog (LOG_INFO, "execute_query %d done, disconnecting", s->sessionid);
   if (s->con)
     scidbdisconnect (s->con);
@@ -911,7 +911,7 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
               s->sessionid);
       cleanup_session (s);
     }
-  time(&s->time);
+  time (&s->time);
   omp_unset_lock (&s->lock);
 // Respond to the client
   snprintf (buf, MAX_VARLEN, "%llu", l);        // Return the query ID
@@ -952,7 +952,8 @@ void
 getlog (struct mg_connection *conn, const struct mg_request_info *ri)
 {
   syslog (LOG_ERR, "getlog");
-  system ("cp `ps axu | grep SciDB | grep \"\\/000\\/0\"  | grep SciDB | head -n 1 | sed -e \"s/SciDB-000.*//\" | sed -e \"s/.* \\//\\//\"`/scidb.log /tmp/.scidb.log");
+  system
+    ("cp `ps axu | grep SciDB | grep \"\\/000\\/0\"  | grep SciDB | head -n 1 | sed -e \"s/SciDB-000.*//\" | sed -e \"s/.* \\//\\//\"`/scidb.log /tmp/.scidb.log");
   mg_send_file (conn, "/tmp/.scidb.log");
 }
 
@@ -960,13 +961,13 @@ getlog (struct mg_connection *conn, const struct mg_request_info *ri)
 /* Mongoose generic begin_request callback; we dispatch URIs to their
  * appropriate handlers.
  */
-static int 
-begin_request_handler(struct mg_connection *conn)
+static int
+begin_request_handler (struct mg_connection *conn)
 {
   char buf[MAX_VARLEN];
   const struct mg_request_info *ri = mg_get_request_info (conn);
 
-syslog (LOG_INFO, "SSL %d", ri->is_ssl);
+  syslog (LOG_INFO, "SSL %d", ri->is_ssl);
 
   syslog (LOG_INFO, "callback for %s%s", ri->uri, ri->query_string);
 // CLIENT API
@@ -997,9 +998,9 @@ syslog (LOG_INFO, "SSL %d", ri->is_ssl);
     {
 // fallback to http file server
       if (!strcmp (ri->uri, "/"))
-        snprintf (buf, MAX_VARLEN, "%s/index.html",docroot);
+        snprintf (buf, MAX_VARLEN, "%s/index.html", docroot);
       else
-        snprintf (buf, MAX_VARLEN, "%s/%s", docroot,ri->uri);
+        snprintf (buf, MAX_VARLEN, "%s/%s", docroot, ri->uri);
       mg_send_file (conn, buf);
     }
 
@@ -1054,8 +1055,10 @@ int
 main (int argc, char **argv)
 {
   int j, k, l, daemonize = 1;
+  char *cp, *ports;
   struct mg_context *ctx;
   struct mg_callbacks callbacks;
+  struct stat check_ssl;
   struct rlimit resLimit = { 0 };
   char pbuf[MAX_VARLEN];
   char *options[7];
@@ -1067,12 +1070,23 @@ main (int argc, char **argv)
   options[5] = "/var/lib/shim/ssl_cert.pem";
   options[6] = NULL;
   parse_args (options, argc, argv, &daemonize);
+  if(stat("/var/lib/shim/ssl_cert.pem", &check_ssl) < 0)
+  {
+/* Disable TLS by removing any 's' port options and getting rid of the ssl
+ * options.
+ */
+    ports = cp = strdup(options[1]);
+    while((cp = strchr(cp, 's')) != NULL) *cp++ = ',';
+    options[1] = ports;
+    options[4] = NULL;
+    options[5] = NULL;
+  }
   docroot = options[3];
   sessions = (session *) calloc (MAX_SESSIONS, sizeof (session));
   scount = 0;
-  memset(&callbacks, 0, sizeof(callbacks));
+  memset (&callbacks, 0, sizeof (callbacks));
 
-  BASEPATH = dirname(argv[0]);
+  BASEPATH = dirname (argv[0]);
 
 /* Daemonize */
   k = -1;
@@ -1091,7 +1105,7 @@ main (int argc, char **argv)
           l = resLimit.rlim_max;
           for (j = 0; j < l; j++)
             (void) close (j);
-          j = open ("/dev/null", O_RDWR); 
+          j = open ("/dev/null", O_RDWR);
           dup (j);
           dup (j);
           break;
