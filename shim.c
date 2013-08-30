@@ -453,7 +453,7 @@ new_session (struct mg_connection *conn)
 void
 loadcsv (struct mg_connection *conn, const struct mg_request_info *ri)
 {
-  int id, k, e, n;
+  int id, k, n;
   session *s;
   char var[MAX_VARLEN];
   char schema[MAX_VARLEN];
@@ -503,7 +503,6 @@ loadcsv (struct mg_connection *conn, const struct mg_request_info *ri)
 // Retrieve the number of errors allowed
   memset (var, 0, MAX_VARLEN);
   mg_get_var (ri->query_string, k, "err", var, MAX_VARLEN);
-  e = atoi (var);
   snprintf(cmd,LCSV_MAX, "%s/csv2scidb  -s %d < %s > %s.scidb; %s/iquery -naq 'remove(%s)'; %s/iquery -naq 'create_array(%s,%s)'; %s/iquery -naq \"store(input(%s,'%s.scidb',0),%s)\";rm -f %s.scidb", BASEPATH, n, s->ibuf, s->ibuf, BASEPATH, arrayname, BASEPATH, arrayname, schema, BASEPATH, schema, s->ibuf, arrayname, s->ibuf);
 // It's a bummer, but I can't get loadcsv.py to work!
 //  snprintf(cmd,LCSV_MAX, "%s/loadcsv.py -i %s -n %d -e %d -a %s -s \"%s\"", BASEPATH, s->ibuf, n, e, arrayname, schema);
@@ -958,59 +957,61 @@ getlog (struct mg_connection *conn, const struct mg_request_info *ri)
 }
 
 
-/* Mongoose callbacks; we dispatch URIs to their appropriate
- * handlers.
+/* Mongoose generic begin_request callback; we dispatch URIs to their
+ * appropriate handlers.
  */
-static void *
-callback (enum mg_event event, struct mg_connection *conn)
+//static void *
+//callback (enum mg_event event, struct mg_connection *conn)
+static int 
+begin_request_handler(struct mg_connection *conn)
 {
   char buf[MAX_VARLEN];
   const struct mg_request_info *ri = mg_get_request_info (conn);
 
-  if (event == MG_NEW_REQUEST)
-    {
-      syslog (LOG_INFO, "callback for %s%s", ri->uri, ri->query_string);
+//  if (event == MG_NEW_REQUEST)
+//    {
+  syslog (LOG_INFO, "callback for %s%s", ri->uri, ri->query_string);
 // CLIENT API
-      if (!strcmp (ri->uri, "/new_session"))
-        new_session (conn);
-      else if (!strcmp (ri->uri, "/release_session"))
-        release_session (conn, ri, 1);
-      else if (!strcmp (ri->uri, "/upload_file"))
-        upload (conn, ri);
-      else if (!strcmp (ri->uri, "/read_lines"))
-        readlines (conn, ri);
-      else if (!strcmp (ri->uri, "/read_bytes"))
-        readbytes (conn, ri);
-      else if (!strcmp (ri->uri, "/execute_query"))
-        execute_query (conn, ri);
-      else if (!strcmp (ri->uri, "/loadcsv"))
-        loadcsv (conn, ri);
-      else if (!strcmp (ri->uri, "/cancel"))
-        cancel_query (conn, ri);
+  if (!strcmp (ri->uri, "/new_session"))
+    new_session (conn);
+  else if (!strcmp (ri->uri, "/release_session"))
+    release_session (conn, ri, 1);
+  else if (!strcmp (ri->uri, "/upload_file"))
+    upload (conn, ri);
+  else if (!strcmp (ri->uri, "/read_lines"))
+    readlines (conn, ri);
+  else if (!strcmp (ri->uri, "/read_bytes"))
+    readbytes (conn, ri);
+  else if (!strcmp (ri->uri, "/execute_query"))
+    execute_query (conn, ri);
+  else if (!strcmp (ri->uri, "/loadcsv"))
+    loadcsv (conn, ri);
+  else if (!strcmp (ri->uri, "/cancel"))
+    cancel_query (conn, ri);
 // CONTROL API
 //      else if (!strcmp (ri->uri, "/stop_scidb"))
 //        stopscidb (conn, ri);
 //      else if (!strcmp (ri->uri, "/start_scidb"))
 //        startscidb (conn, ri);
-      else if (!strcmp (ri->uri, "/get_log"))
-        getlog (conn, ri);
-      else
-        {
-// fallback to http file server
-          if (!strcmp (ri->uri, "/"))
-            snprintf (buf, MAX_VARLEN, "%s/index.html",docroot);
-          else
-            snprintf (buf, MAX_VARLEN, "%s/%s", docroot,ri->uri);
-          mg_send_file (conn, buf);
-        }
-
-// Mark as processed by returning non-null value.
-      return "";
-    }
+  else if (!strcmp (ri->uri, "/get_log"))
+    getlog (conn, ri);
   else
     {
-      return NULL;
+// fallback to http file server
+      if (!strcmp (ri->uri, "/"))
+        snprintf (buf, MAX_VARLEN, "%s/index.html",docroot);
+      else
+        snprintf (buf, MAX_VARLEN, "%s/%s", docroot,ri->uri);
+      mg_send_file (conn, buf);
     }
+
+// Mark as processed by returning non-null value.
+  return 1;
+//    }
+//  else
+//    {
+//     return NULL;
+//    }
 }
 
 
@@ -1061,18 +1062,22 @@ main (int argc, char **argv)
 {
   int j, k, l, daemonize = 1;
   struct mg_context *ctx;
+  struct mg_callbacks callbacks;
   struct rlimit resLimit = { 0 };
   char pbuf[MAX_VARLEN];
-  char *options[5];
+  char *options[7];
   options[0] = "listening_ports";
   options[1] = DEFAULT_HTTP_PORT;
   options[2] = "document_root";
   options[3] = "/var/lib/shim/wwwroot";
-  options[4] = NULL;
+  options[4] = "ssl_certificate";
+  options[5] = "/var/lib/shim/ssl_cert.pem";
+  options[6] = NULL;
   parse_args (options, argc, argv, &daemonize);
   docroot = options[3];
   sessions = (session *) calloc (MAX_SESSIONS, sizeof (session));
   scount = 0;
+  memset(&callbacks, 0, sizeof(callbacks));
 
   BASEPATH = dirname(argv[0]);
 
@@ -1119,7 +1124,8 @@ main (int argc, char **argv)
       omp_init_lock (&sessions[j].lock);
     }
 
-  ctx = mg_start (&callback, NULL, (const char **) options);
+  callbacks.begin_request = begin_request_handler;
+  ctx = mg_start (&callbacks, NULL, (const char **) options);
   syslog (LOG_INFO,
           "SciDB HTTP service started on port(s) %s with web root [%s], talking to SciDB on port %d",
           mg_get_option (ctx, "listening_ports"),
