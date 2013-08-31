@@ -96,22 +96,24 @@
 
   <div class="container">
 
-<h2>The 'shim' HTTP API</h2>
+<h2>The Shim HTTP API for SciDB</h2>
 <p>
-Shim is a service that exposes a very simple API that clients may use
+Shim is a network service that exposes a very simple API for clients
 to interact with SciDB over HTTP connections.
 The API consists of a small number of URIs
 (described in detail below), including:
-/auth, /new_session, /release_session, /execute_query, /cancel,
+/login, /new_session, /release_session, /execute_query, /cancel,
 /read_lines, /read_bytes, /upload_file, and /logout.
 </p>
 <p>
 Note that there are more direct ways to talk to SciDB over a network.
-See <a href="https://github.com/artyom-smirnov/scidb4py">https://github.com/artyom-smirnov/scidb4py</a> for an example of direct network
-communication with SciDB using Python and Google protocol buffers.
-The protocol buffers approach is comparatively low-level, but more efficient
-than shim.
-Shim presents a convenient and very high-level way to talk to SciDB.
+See <a href="https://github.com/artyom-smirnov/scidb4py">https://github.com/artyom-smirnov/scidb4py</a> for a great example of direct network
+communication with SciDB using Python and Google protocol buffers
+(written by Artyom Smirnov, one of the core SciDB developers).
+The protocol buffers approach is comparatively low-level, but more efficient.
+Shim is designed to be a convenient and super easy way to talk to SciDB.
+Note that both shim and Artyom's Python interface are community open
+source projects; they are not official components of SciDB.
 </p>
 <p>
 Shim clients begin by requesting a <b>session ID</b> from the service, then
@@ -120,7 +122,6 @@ are distinct from SciDB query IDs--a session ID groups a SciDB query together
 with server resources for input and output to the client.
 </p>
 
-<br/>
 <h2>Configuration</h2>
 Shim runs as a system service or may be invoked directly from the command line.
 See the shim manual page for command-line options (type 'man shim' from a

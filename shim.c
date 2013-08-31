@@ -386,7 +386,7 @@ get_session ()
  * XXX in process
  */
 void
-auth (struct mg_connection *conn, const struct mg_request_info *ri)
+login (struct mg_connection *conn, const struct mg_request_info *ri)
 {
   int k;
   char u[MAX_VARLEN];
@@ -394,7 +394,7 @@ auth (struct mg_connection *conn, const struct mg_request_info *ri)
   if (!ri->query_string || !ri->is_ssl)
     {
       respond (conn, plain, 400, 0, NULL);
-      syslog (LOG_INFO, "auth error invalid http query");
+      syslog (LOG_INFO, "login error invalid http query");
       return;
     }
   k = strlen (ri->query_string);
@@ -997,7 +997,7 @@ begin_request_handler (struct mg_connection *conn)
   char buf[MAX_VARLEN];
   const struct mg_request_info *ri = mg_get_request_info (conn);
 
-  if(ri->is_ssl && !strcmp (ri->uri, "/auth"))
+  if(ri->is_ssl && !strcmp (ri->uri, "/login"))
     syslog (LOG_INFO, "(SSL)callback for %s", ri->uri);
   else if(ri->is_ssl)
     syslog (LOG_INFO, "(SSL)callback for %s%s", ri->uri, ri->query_string);

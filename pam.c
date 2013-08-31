@@ -17,6 +17,8 @@
 #include <security/pam_appl.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
+#include "pam.h"
 
 /* A conversation function for PAM to non-interactively supply username
  * and password.
@@ -87,4 +89,28 @@ end:
   if (k == PAM_SUCCESS)
     k = 0;
   return k;
+}
+
+/* A simple token generator using the basic sdbm hash function.  We use it to
+ * generate login token ids.  This token generator returns 0 if something went
+ * wrong.
+ * based on Per-Aake Larson's Dynamic Hashing algorithms. BIT 18 (1978).
+ * and public domain example by oz@nexus.yorku.ca
+ * status: public domain. keep it that way.
+ */
+unsigned long
+authtoken()
+{
+  int j;
+  char *p;
+  char buf[TOK_BUF];
+  unsigned long ans = 0;
+  FILE *f = fopen( "/dev/urandom", "r");
+  if(!f) return 0;
+  fread(buf, 1, TOK_BUF, f);
+  fclose(f);
+  p = buf;
+  while((j=*p++))
+    ans = j + (ans << 6) + (ans << 16) - ans;
+  return ans;
 }
