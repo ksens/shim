@@ -8,11 +8,12 @@ endif
 
 CFLAGS=-fopenmp
 INC=-I. -DPROJECT_ROOT="\"$(SCIDB)\"" -I"$(SCIDB)/include" -DSCIDB_CLIENT
-LIBS=-ldl -lpthread -L"$(SCIDB)/lib" -lscidbclient -lboost_system
+LIBS=-ldl -lpthread -L"$(SCIDB)/lib" -lscidbclient -lboost_system -lpam
 
 shim:
 	$(CXX) $(INC) -fpic -g -c client.cpp -o client.o
-	$(CC) -Wall $(CFLAGS) $(INC) -o shim shim.c mongoose.c client.o $(LIBS)
+	$(CC) -Wall $(CFLAGS) -fpic -g -c pam.c -o pam.o
+	$(CC) -Wall $(CFLAGS) $(INC) -o shim shim.c mongoose.c client.o pam.o $(LIBS)
 
 help:
 	@echo "make shim      (compile and link)"

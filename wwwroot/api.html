@@ -116,7 +116,8 @@ with server resources for input and output to the client.
 Shim listens on default ports 8080 (open, not encrypted), and
 8083 (TLS encrypted) on all available network interfaces. Create
 and edit the /var/lib/shim/conf file to change the default port
-or interface behavior. The /var/lib/shim/conf file has the syntax:
+or interface behavior. The /var/lib/shim/conf file must consist
+of only a single line with the syntax:
 <blockquote>
 [address:]port[s][,[address:]port[s]][,...]
 </blockquote>
@@ -480,10 +481,10 @@ HTTP session is released.
 <h2>Orphaned Sessions</h2>
 <p>
 Shim limits the number of simultaneous open sessions. Absent-minded or
-malicious clients must be prevented from opening new sessions repeatedly
-without closing them, eventually resulting in denial of service. Shim uses a
-lazy timeout mechanism to detect unused sessions and reclaim them. It works
-like this:
+malicious clients are prevented from opening too many new sessions repeatedly
+without closing them (which could eventually result in denial of service).
+Shim uses a lazy timeout mechanism to detect unused sessions and reclaim them.
+It works like this:
 </p>
 <ol>
 <li>The session time value is set to the current time when an API event
