@@ -96,31 +96,57 @@
 
   <div class="container">
 
-<h2>Simple SciDB HTTP API</h2>
+<h2>The 'shim' HTTP API</h2>
 <p>
-The SciDB HTTP Service implements a very simple API that clients may use
-to interact with SciDB.  The API consists of seven URIs (described in
-detail below): /new_session, /release_session, /execute_query, /cancel,
-/read_lines, /read_bytes, and /upload_file.
+Shim is a service that exposes a very simple API that clients may use
+to interact with SciDB over HTTP connections.
+The API consists of a small number of URIs
+(described in detail below), including:
+/auth, /new_session, /release_session, /execute_query, /cancel,
+/read_lines, /read_bytes, /upload_file, and /logout.
 </p>
 <p>
-Clients always begin by requesting a <b>session ID</b> from the service, then
+Note that there are more direct ways to talk to SciDB over a network.
+See <a href="https://github.com/artyom-smirnov/scidb4py">https://github.com/artyom-smirnov/scidb4py</a> for an example of direct network
+communication with SciDB using Python and Google protocol buffers.
+The protocol buffers approach is comparatively low-level, but more efficient
+than shim.
+Shim presents a convenient and very high-level way to talk to SciDB.
+</p>
+<p>
+Shim clients begin by requesting a <b>session ID</b> from the service, then
 running a query and releasing the session ID when done. Note that session IDs
 are distinct from SciDB query IDs--a session ID groups a SciDB query together
 with server resources for input and output to the client.
 </p>
 
 <br/>
-<h2>Ports, Interfaces and Secure Connections</h2>
+<h2>Configuration</h2>
+Shim runs as a system service or may be invoked directly from the command line.
+See the shim manual page for command-line options (type 'man shim' from a
+terminal). Service configuration is determined by the /var/lib/shim/conf
+configuration file. The default conf file is a sample that displays the
+default configuration options, which are listed as one key=value pair
+per line. Available options include:
+<br/><br/>
+<pre>
+ports=8080,80803s
+auth=login
+scidbport=1239
+</pre>
+Each options is described below.
+
+<h3>Ports and Network Interfaces</h3>
 <p>
 Shim listens on default ports 8080 (open, not encrypted), and
-8083 (TLS encrypted) on all available network interfaces. Create
-and edit the /var/lib/shim/conf file to change the default port
-or interface behavior. The /var/lib/shim/conf file must consist
-of only a single line with the syntax:
-<blockquote>
+8083 (TLS encrypted) on all available network interfaces. Ports
+and listening interfaces are configured with the command line '-p'
+option or with the 'ports=' option in the /var/lib/shim/conf file when
+shim is run as a service. The ports/interface specification uses the
+following syntax:
+<pre>
 [address:]port[s][,[address:]port[s]][,...]
-</blockquote>
+</pre>
 where:
 <ul>
 <li>"address" indicates an optional I.P. address associated with
@@ -131,16 +157,26 @@ a specific available network device
 Here are some examples of possible port configurations:
 </p>
 <table>
-<tr><td>8080,8083s<td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<td>The default config: listen on all devices on port 8080 and 8083(TLS/SSL).
 <tr><td>5555s<td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<td>Listen only on port 5555 (TLS/SSL).
-<tr><td>127.0.0.1:8080,1234s<td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<td>List on port 8080 but only on the local loopback interface; listen on port 1234(TLS/SSL) on all interfaces.
+<tr><td>127.0.0.1:8080,1234s<td><td>List on port 8080 but only on the local loopback interface; listen on port 1234(TLS/SSL) on all interfaces.
 </table>
-<br/>
+<h3>SciDB Port</h3>
+Shim runs on the same computer as a SciDB coordinator. Set the 'scidbport'
+option to select the coordinator database port to locally connect to. The
+default SciDB database port value is 1239 (see the SciDB configuration
+manual for more information).
+<h3>Authentication</h3>
+The shim API uses PAM-based authentication for most API functions over
+SSL connections. Shim may use any available PAM service (usually listed
+in /etc/pam.d), and defaults to the login service. That means client
+authentication is controlled by the usernames and passwords available
+to the computer that shim is installed on.
+<h3>TLS/SSL Certificate</h3>
 <p>
 Shim supports TLS/SSL encryption. Packaged versions of shim (RPM and deb
 packages) generate a self-signed certificate and 4096-bit RSA key when shim is
 installed. The certificate is placed in /var/lib/shim/ssl_cert.pem. If you
-would prefer to use a different certificate, simply replace the automatically
+would prefer to use a different certificate, replace the automatically
 generated one.
 </p>
 
