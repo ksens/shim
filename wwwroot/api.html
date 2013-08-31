@@ -111,6 +111,39 @@ with server resources for input and output to the client.
 </p>
 
 <br/>
+<h2>Ports, Interfaces and Secure Connections</h2>
+<p>
+Shim listens on default ports 8080 (open, not encrypted), and
+8083 (TLS encrypted) on all available network interfaces. Create
+and edit the /var/lib/shim/conf file to change the default port
+or interface behavior. The /var/lib/shim/conf file has the syntax:
+<blockquote>
+[address:]port[s][,[address:]port[s]][,...]
+</blockquote>
+where:
+<ul>
+<li>"address" indicates an optional I.P. address associated with
+a specific available network device
+<li>"port" indicates a required available port number
+<li>"s" is an optional single character s suffix indicating that TLS/SSL should be used on that port.
+</ul>
+Here are some examples of possible port configurations:
+</p>
+<table>
+<tr><td>8080,8083s<td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<td>The default config: listen on all devices on port 8080 and 8083(TLS/SSL).
+<tr><td>5555s<td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<td>Listen only on port 5555 (TLS/SSL).
+<tr><td>127.0.0.1:8080,1234s<td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<td>List on port 8080 but only on the local loopback interface; listen on port 1234(TLS/SSL) on all interfaces.
+</table>
+<br/>
+<p>
+Shim supports TLS/SSL encryption. Packaged versions of shim (RPM and deb
+packages) generate a self-signed certificate and 4096-bit RSA key when shim is
+installed. The certificate is placed in /var/lib/shim/ssl_cert.pem. If you
+would prefer to use a different certificate, simply replace the automatically
+generated one.
+</p>
+
+<br/>
 <h2>Example API Workflow</h2>
 
 <ol>
@@ -137,7 +170,7 @@ We use the example URL http://scidb:8080 below.  Parameters are required unless 
 <tr><td>RESPONSE
 <td>Success: HTTP 200 and text session ID value in text/plain payload
 <br/>
-Failure (out of resources): HTTP 503
+Failure (out of resources/server unavailable): HTTP 503
 <tr><td>EXAMPLE
 <td>
 http://scidb:8080/new_session
@@ -444,28 +477,37 @@ HTTP session is released.
 </div>
 
 <br/>
-<h2>API Reference</h2>
- * Orphan session detection process
- * Shim limits the number of simultaneous open sessions. Absent-minded or
- * malicious clients must be prevented from opening new sessions repeatedly
- * resulting in denial of service. Shim uses a lazy timeout mechanism to
- * detect unused sessions and reclaim them. It works like this:
- *
- * 1. The session time value is set to the current time when an API event
- *    finishes.
- * 2. If a new_session request fails to find any available session slots,
- *    it inspects the existing session time values for all the sessions,
- *    computing the difference between current time and the time value.
- *    If a session time difference exceeds TIMEOUT, then that session is
- *    cleaned up (cleanup_session), re-initialized, and returned as a
- *    new session. Queries are not cancelled though.
- *
- * Operations that are in-flight but may take an indeterminate amount of
- * time, for example PUT file uploads or execute_query statements, set their
- * time value to a point far in the future to protect them from harvesting.
- * Their time values are set to the current time when such operations complete.
-
-
+<h2>Orphaned Sessions</h2>
+<p>
+Shim limits the number of simultaneous open sessions. Absent-minded or
+malicious clients must be prevented from opening new sessions repeatedly
+without closing them, eventually resulting in denial of service. Shim uses a
+lazy timeout mechanism to detect unused sessions and reclaim them. It works
+like this:
+</p>
+<ol>
+<li>The session time value is set to the current time when an API event
+finishes.
+<li>If a new_session request fails to find any available session slots,
+it inspects the existing session time values for all the sessions,
+computing the difference between current time and the time value.
+If a session time difference exceeds a timeout value, then that session is
+harvested and returned as a new session.
+<li>Operations that may take an indeterminate amount of time like
+file uploads or execution of SciDB queries are protected from harvesting
+until the associated operation completes.
+</ol>
+<p>
+The above scheme is called lazy as sessions are only harvested when a
+new session request is unable to be satisfied. Until that event occurs,
+sessions are free to last indefinitely.
+</p>
+<p>
+Shim does not presently protect against uploading gigantic files nor from
+running many long-running SciDB queries. The service may become unavailable if
+too many query and/or upload operations are in flight; an HTTP 503 (Service
+Unavailable) error code is returned in that case.
+</p>
 
 
 

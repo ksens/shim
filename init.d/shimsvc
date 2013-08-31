@@ -26,11 +26,16 @@ fi
 
 export LD_LIBRARY_PATH="${SCIDB_DIR}/lib"
 export SHIM="${SCIDB_DIR}/bin/shim"
+# Check for special configuration (presently limited to ports)
+PORTS=
+if test -f "/var/lib/shim/conf"; then
+  PORTS="-p $(cat /var/lib/shim/conf)"
+fi
 
 case $1 in
         start)
             echo "Starting shim"
-            "${SHIM}"
+            "${SHIM}" $PORTS
             ;;
         restart)
             echo "Stopping shim"
@@ -41,7 +46,7 @@ case $1 in
               kill $P 2>/dev/null || echo "Couldn't kill process $P (privilege error?)"
             fi
             echo "Starting shim"
-            "${SHIM}"
+            "${SHIM}" $PORTS
             ;;
         status)
             P=$(cat /var/run/shim.pid 2>/dev/null)
@@ -57,5 +62,6 @@ case $1 in
             else
               kill $P 2>/dev/null || echo "Couldn't kill process $P (privilege error?)"
             fi
+            rm -f /var/run/shim.pid
             ;;
 esac
