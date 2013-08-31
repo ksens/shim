@@ -192,7 +192,13 @@ generated one.
 
 <br/>
 <h2>API Reference</h2>
-We use the example URL http://scidb:8080 below.  Parameters are required unless marked <i>optional</i>.
+We use the example URL http://scidb:8080 below.  Parameters are required unless marked <i>optional</i>. All HTTP query parameters are passed to the service
+as string values; some of them represent numbers and have value limits.
+Unless otherwise indicated integer numeric values (session ID, number
+of bytes to return, etc.) are interpreted by shim as signed 32-bit
+integers and are generally limited to values between zero and 2147483647.
+Values outside that range will result in an HTTP 400 error (invalid query).
+Other parameter limits are indicated.
 <br/><br/>
 <div class="api">
 <table class="api-param-values">
@@ -260,8 +266,8 @@ Content-Type: text/plain
 <tr><td>PARAMETERS
 <td>
 <b>id</b> (an HTTP session ID)<br/>
-<b>query</b> (query string, encoded for use in URL as required)<br/>
-<b>save</b> <i>optional</i> (format string) Save the query output in the specified
+<b>query</b> (query string, encoded for use in URL as required, limited to a maximum of 1,000,000 characters)<br/>
+<b>save</b> <i>optional</i> (format string, limited to a maximum of 4096 characters) Save the query output in the specified,
 format for subsequent by read_lines or read_bytes. If the save parameter is not
 specified, don't save the query output. <br/>
 <b>release</b>  <i>optional</i> 0 or 1: if 1 then release_session as soon as query completes.
@@ -278,11 +284,13 @@ Failure (Invalid session): HTTP 404
 Failure (invalid http query): HTTP 400
 </br>
 <tr><td>NOTES
-<td>500 and 503 errors result in removal of the web session ID and related resources (thus, release_session
-does not have to be called after such an error). This
-method blocks until the query completes. Do not specifiy the option relase=1 when the save option
-is also set, or output will not be available to read_bytes or read_lines. Instead, explicitly call
-release_session after reading is complete.
+<td>
+500 and 503 errors result in removal of the web session ID and related
+resources (thus, release_session does not have to be called after such an
+error). This method blocks until the query completes. Do not specifiy the
+option relase=1 when the save option is also set, or output will not be
+available to read_bytes or read_lines. Instead, explicitly call release_session
+after reading is complete.
 <tr><td>EXAMPLE
 <td>
 http://scidb:8080/execute_query?id=0&amp;query=remove(x)&amp;release=1
@@ -351,7 +359,7 @@ Content-Type: text/plain
 <tr><td>PARAMETERS
 <td>
 <b>id</b> (an HTTP session ID)<br/>
-<b>n</b> (maximum number of lines to read and return) <br/>
+<b>n</b> (maximum number of lines to read and return between 1 and 2147483647) <br/>
 <tr><td>RESPONSE
 <td>Success: HTTP 200 followed by text/plain query result (up to <b>n</b> lines)
 <br/>
@@ -414,7 +422,7 @@ Use the 410 error code to detect end of file output.
 <tr><td>PARAMETERS
 <td>
 <b>id</b> (an HTTP session ID)<br/>
-<b>n</b> (maximum number of bytes to read and return) <br/>
+<b>n</b> (maximum number of bytes to read and return between 1 and 2147483647) <br/>
 <tr><td>RESPONSE
 <td>Success: HTTP 200 followed by application/octet-stream binary query result (up to <b>n</b> bytes)
 <br/>
@@ -441,6 +449,7 @@ Content-Type: application/octet-stream
 <tr><td>NOTES
 <td>
 <ol>
+<li>Set n=0 to download the entire output buffer.
 <li>Iterative requests to read_lines are allowed, and will print at most the next n bytes of output.
 Use the 410 error code to detect the end of output.
 <li>Be sure to properly url-encode special characters in the request.
