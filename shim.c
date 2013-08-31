@@ -16,8 +16,8 @@
 #include "mongoose.h"
 #include "pam.h"
 
-#define MAX_SESSIONS 30         // Maximum number of simultaneous http sessions
-#define MAX_VARLEN 4096         // Static buffer length to hold http query params
+#define MAX_SESSIONS 30       // Maximum number of simultaneous http sessions
+#define MAX_VARLEN 4096       // Static buffer length to hold http query params
 #define LCSV_MAX 16384
 #ifndef PATH_MAX
 #define PATH_MAX 4096
@@ -94,10 +94,11 @@ typedef struct
 enum mimetype
 { html, plain, binary };
 
-session *sessions;              // Fixed pool of web client sessions
-char *docroot;
-char SCIDB_HOST[] = "localhost";
+const char SCIDB_HOST[] = "localhost";
 int SCIDB_PORT = 1239;
+session *sessions;                // Fixed pool of web client sessions
+char *docroot;
+char *PAM_service_name = "login"; // Default PAM service name
 omp_lock_t biglock;
 char *BASEPATH;
 
@@ -399,7 +400,7 @@ auth (struct mg_connection *conn, const struct mg_request_info *ri)
   k = strlen (ri->query_string);
   mg_get_var (ri->query_string, k, "username", u, MAX_VARLEN);
   mg_get_var (ri->query_string, k, "password", p, MAX_VARLEN);
-  k = do_pam_login("login",u,p);
+  k = do_pam_login(PAM_service_name,u,p);
 // XXX XXX If successful, enroll user and return an auth token.
   if(k==0)
     respond (conn, plain, 200, strlen ("HOMER\n"), "HOMER\n");
@@ -1048,21 +1049,24 @@ void
 parse_args (char **options, int argc, char **argv, int *daemonize)
 {
   int c;
-  while ((c = getopt (argc, argv, "hfp:r:s:")) != -1)
+  while ((c = getopt (argc, argv, "hfn:p:r:s:")) != -1)
     {
       switch (c)
         {
         case 'h':
           printf
-            ("Usage:\nshim [-h] [-f] [-p <http port>] [-r <document root>] [-s <scidb port>]\n");
+            ("Usage:\nshim [-h] [-f] [-n <PAM service name>] [-p <http port>] [-r <document root>] [-s <scidb port>]\n");
           printf
-            ("Specify -f to run in the foreground.\nDefault http port is 8080.\nDefault SciDB port is 1239.\nDefault document root is /var/lib/shim/wwwroot.\n");
+            ("Specify -f to run in the foreground.\nDefault http ports are 8080 and 80803(SSL).\nDefault SciDB port is 1239.\nDefault document root is /var/lib/shim/wwwroot.\nDefault PAM service name is 'login'.\n");
           printf
             ("Start up shim and view http://localhost:8080/api.html from a browser for help with the API.\n\n");
           exit (0);
           break;
         case 'f':
           *daemonize = 0;
+          break;
+        case 'n':
+          PAM_service_name = optarg;
           break;
         case 'p':
           options[1] = optarg;
