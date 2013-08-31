@@ -14,6 +14,7 @@
 #include <time.h>
 #include <omp.h>
 #include "mongoose.h"
+#include "pam.h"
 
 #define MAX_SESSIONS 30         // Maximum number of simultaneous http sessions
 #define MAX_VARLEN 4096         // Static buffer length to hold http query params
@@ -377,6 +378,34 @@ get_session ()
     }
   omp_unset_lock (&biglock);
   return id;
+}
+
+/* Authenticate
+ * POST username and password XXX
+ * XXX in process
+ */
+void
+auth (struct mg_connection *conn, const struct mg_request_info *ri)
+{
+  int k;
+  char u[MAX_VARLEN];
+  char p[MAX_VARLEN];
+  if (!ri->query_string || !ri->is_ssl)
+    {
+      respond (conn, plain, 400, 0, NULL);
+      syslog (LOG_INFO, "auth error invalid http query");
+      return;
+    }
+  k = strlen (ri->query_string);
+  mg_get_var (ri->query_string, k, "username", u, MAX_VARLEN);
+  mg_get_var (ri->query_string, k, "password", p, MAX_VARLEN);
+  k = do_pam_login("login",u,p);
+// XXX XXX If successful, enroll user and return an auth token.
+  if(k==0)
+    respond (conn, plain, 200, strlen ("HOMER\n"), "HOMER\n");
+  else
+    respond (conn, plain, 401, 0, NULL);
+  return;
 }
 
 /* Client file upload
@@ -967,12 +996,15 @@ begin_request_handler (struct mg_connection *conn)
   char buf[MAX_VARLEN];
   const struct mg_request_info *ri = mg_get_request_info (conn);
 
-  syslog (LOG_INFO, "SSL %d", ri->is_ssl);
-
-  syslog (LOG_INFO, "callback for %s%s", ri->uri, ri->query_string);
+  if(!ri->is_ssl)
+    syslog (LOG_INFO, "callback for %s%s", ri->uri, ri->query_string);
+  else
+    syslog (LOG_INFO, "callback for %s (SSL)", ri->uri);
 // CLIENT API
   if (!strcmp (ri->uri, "/new_session"))
     new_session (conn);
+  else if (!strcmp (ri->uri, "/auth"))
+    auth (conn, ri);
   else if (!strcmp (ri->uri, "/release_session"))
     release_session (conn, ri, 1);
   else if (!strcmp (ri->uri, "/upload_file"))

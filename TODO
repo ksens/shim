@@ -12,12 +12,9 @@ Things to do soon:
   is added.
 * SciDB port selection from control API (i.e., SciDB db selection)
 * Add authentication, at least for the control API.
-* https (available already in mongoose, need to hook up)
 
 * Maybe this can be used to identify the present DB when we know its name?:
 # ps axu | grep SciDB | grep dbname | head -n 1 | sed -e s/.*dbname=// | cut -d ' ' -f 1
-
-* Improve performance of returned results...
 
 Shim employs a really simple scheme to move results from SciDB to web clients.
 Shim asks SciDB to save the results of a query to a file. Then, it returns the
