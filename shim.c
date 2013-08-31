@@ -880,21 +880,6 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
       return;
     }
   k = strlen (ri->query_string);
-  qrybuf = (char *) malloc (k);
-  if (!qrybuf)
-    {
-      syslog (LOG_ERR, "execute_query error out of memory");
-      respond (conn, plain, 404, strlen ("Out of memory"), "Out of memory");
-      return;
-    }
-  qry = (char *) malloc (k + MAX_VARLEN);
-  if (!qry)
-    {
-      free (qrybuf);
-      syslog (LOG_ERR, "execute_query error out of memory");
-      respond (conn, plain, 404, strlen ("Out of memory"), "Out of memory");
-      return;
-    }
   mg_get_var (ri->query_string, k, "id", var, MAX_VARLEN);
   id = atoi (var);
   memset (var, 0, MAX_VARLEN);
@@ -905,12 +890,31 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
   s = find_session (id);
   if (!s)
     {
-      free (qrybuf);
-      free (qry);
       syslog (LOG_ERR, "execute_query error Invalid session ID %d", id);
       respond (conn, plain, 404, strlen ("Invalid session ID"),
                "Invalid session ID");
       return;                   // check for valid session
+    }
+  qrybuf = (char *) malloc (k);
+  if (!qrybuf)
+    {
+      syslog (LOG_ERR, "execute_query error out of memory");
+      respond (conn, plain, 500, strlen ("Out of memory"), "Out of memory");
+      omp_set_lock (&s->lock);
+      cleanup_session (s);
+      omp_unset_lock (&s->lock);
+      return;
+    }
+  qry = (char *) malloc (k + MAX_VARLEN);
+  if (!qry)
+    {
+      free (qrybuf);
+      syslog (LOG_ERR, "execute_query error out of memory");
+      respond (conn, plain, 500, strlen ("Out of memory"), "Out of memory");
+      omp_set_lock (&s->lock);
+      cleanup_session (s);
+      omp_unset_lock (&s->lock);
+      return;
     }
   omp_set_lock (&s->lock);
   memset (var, 0, MAX_VARLEN);

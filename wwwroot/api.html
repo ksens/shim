@@ -182,8 +182,92 @@ generated one.
 </p>
 
 <br/>
-<h2>Example API Workflow</h2>
+<h2>API Reference</h2>
+Examples use the URL http://localhost:8080 or https://localhost:8383 (TLS)
+below. Parameters are required unless marked <i>optional</i>.
+<h3>Limits</h3>
+<p>
+All HTTP query parameters are passed to the service
+as string values. They are limited to a maximum of 4096 characters unless
+otherwise indicated (a notable exception is the SciDB query string parameter,
+limited to 1,000,000 characers).
+</p><p>
+HTTP query string parameters that represent numbers have limits.
+Unless otherwise indicated whole-number values (session ID, number
+of bytes to return, etc.) are interpreted by shim as signed 32-bit
+integers and are generally limited to values between zero and 2147483647.
+Values outside that range will result in an HTTP 400 error (invalid query).
+</p>
+<h3>Response codes</h3>
+<p>
+Possible responses for each URI are listed below. HTTP status code 200
+always indicates success; other standard HTTP status codes indicate
+various errors. Returned data may be ASCII or binary depending on the
+request.
+</p>
+<h3>Authentication</h3>
+<p>
+Shim optionally exposes both open and encrypted (SSL or TLS) services.
+Access to most of the API over an encypted connection requires authentication.
+API URIs that require authentication include:
+/new_session /upload_file /read_lines /read_bytes /execute_query
+and /cancel.
+</p><p>
+Authentication is very simple to use:
+<ol>
+<li>
+Contact the /login service over SSL with username and password query string
+parameters. The /login service returns an authentication token if its
+successful.
+<li>
+Use all the other URI services normally, but append the auth=&lt;token&gt;
+query string parameter, replacing &lt;token&gt; with the response from the
+/login service above.
+<li>
+Log out of the system by contacing the /logout service with your
+authentication token.
+</ol>
+Shim's authentication mechanism only works over encrypted connections.
+Username and password query string parameters only appear in encrypted
+form over the network, and are never logged by the shim service log.
+</p><p>
+Here is a full example using the wget program from the command line
+talking to shim running on localhost, port 8083.
+</p>
+<pre>
+# Log in with username=scidb password=paradigm4 (assuming that such a user exists on the system that SciDB is running on):
+wget -q --no-check-certificate -O - "https://localhost:8083/login?username=scidb&password=paradigm4"
+90362228960         # (authentication token returned on success)
 
+# As a quick check, we'll try to obtain a new session without using the auth parameter (this will return an error):
+wget --no-check-certificate -O - "https://localhost:8083/new_session"
+HTTP request sent, awaiting response... 400 ERROR
+
+# Now, let's try again with auth and run a simple query and this time get a new session ID:
+wget -q --no-check-certificate -O - "https://localhost:8083/new_session?auth=90362228960"
+0    # (our session ID)
+wget -q --no-check-certificate -O - "https://localhost:8083/execute_query?id=0&query=list('functions')&save=dcsv&auth=90362228960"
+wget -q --no-check-certificate -O - "https://localhost:8083/read_lines?id=0&n=0&auth=90362228960" | head -n 10
+{No} name,profile,deterministic,library
+{0} '%','double %(double,double)',true,'scidb'
+{1} '%','int16 %(int16,int16)',true,'scidb'
+{2} '%','int32 %(int32,int32)',true,'scidb'
+{3} '%','int64 %(int64,int64)',true,'scidb'
+{4} '%','int8 %(int8,int8)',true,'scidb'
+{5} '%','uint16 %(uint16,uint16)',true,'scidb'
+{6} '%','uint32 %(uint32,uint32)',true,'scidb'
+{7} '%','uint64 %(uint64,uint64)',true,'scidb'
+{8} '%','uint8 %(uint8,uint8)',true,'scidb'
+{9} '*','double *(double,double)',true,'scidb'
+
+wget -q --no-check-certificate -O - "https://localhost:8083/release_session?id=0&auth=90362228960"
+
+# ... do some other things, always adding auth=<token> ...  When you're done, log out of the system:
+wget -q --no-check-certificate -O - "https://localhost:8083/logout?auth=90362228960"
+</pre>
+Again, simply append your authentication token to your HTTP requests to use the authenticated service.
+
+<h3>Example API Workflow</h3>
 <ol>
 <li> <b>/new_session</b>
 <li> <b>/execute_query</b>
@@ -191,16 +275,20 @@ generated one.
 <li> <b>/release_session</b>
 </ol>
 
+<h3>Example Authenticated API Workflow</h3>
+<ol>
+<li> <b>/login</b>
+<li> <b>/new_session</b>
+<li> <b>/execute_query</b>
+<li> <b>/read_lines</b> or <b>/read_bytes</b>
+<li> <b>/release_session</b>
+<li> <b>...</b>
+<li> <b>/logout</b>
+</ol>
+
+
 <br/>
-<h2>API Reference</h2>
-We use the example URL http://scidb:8080 below.  Parameters are required unless marked <i>optional</i>. All HTTP query parameters are passed to the service
-as string values; some of them represent numbers and have value limits.
-Unless otherwise indicated integer numeric values (session ID, number
-of bytes to return, etc.) are interpreted by shim as signed 32-bit
-integers and are generally limited to values between zero and 2147483647.
-Values outside that range will result in an HTTP 400 error (invalid query).
-Other parameter limits are indicated.
-<br/><br/>
+<h2>API Service URIs</h2>
 <div class="api">
 <table class="api-param-values">
 <tr>
@@ -211,13 +299,18 @@ Other parameter limits are indicated.
 <tr><td>METHOD<td>GET
 <tr><td>PARAMETERS
 <td>
+<b>auth</b> <i>optional</i> authentication token (required for encrypted connections).
 <tr><td>RESPONSE
 <td>Success: HTTP 200 and text session ID value in text/plain payload
 <br/>
 Failure (out of resources/server unavailable): HTTP 503
+<br/>
+Invalid request (encrypted only -- this means auth is missing): HTTP 400
+<br/>
+Not authorized (encrypted only): HTTP 401
 <tr><td>EXAMPLE
 <td>
-http://scidb:8080/new_session
+http://localhost:8080/new_session
 <br/><br/>
 <pre>
 HTTP/1.0 200 OK
@@ -237,15 +330,18 @@ Content-Type: text/plain
 <tr><td>METHOD<td>GET
 <tr><td>PARAMETERS
 <td><b>id</b> (an HTTP session ID)
+<br/><b>auth</b> <i>optional</i> authentication token (required for encrypted connections).
 <tr><td>RESPONSE
 <td>Success: HTTP 200
 <br/>
 Failure (Session not found): HTTP 404
 <br/>
 Failure (invalid http query): HTTP 400
+<br/>
+Not authorized (encrypted only): HTTP 401
 <tr><td>EXAMPLE
 <td>
-http://scidb:8080/release_session?id=0
+http://localhost:8080/release_session?id=0
 <br/><br/>
 <pre>
 HTTP/1.0 200 OK
@@ -273,16 +369,22 @@ format for subsequent by read_lines or read_bytes. If the save parameter is not
 specified, don't save the query output. <br/>
 <b>release</b>  <i>optional</i> 0 or 1: if 1 then release_session as soon as query completes.
 The default value is 0 if not specified.<br/>
+<b>auth</b> <i>optional</i> authentication token (required for encrypted connections).
+</br>
 <tr><td>RESPONSE
 <td>
 Success: HTTP 200 text/plain (SciDB Query ID)<br/>
-Failure (SciDB connect error): HTTP 503 text/plain (SCIDB ERROR TEXT)
+Failure (SciDB not available error): HTTP 503 text/plain (ERROR TEXT)
 </br>
 Failure (SciDB query error): HTTP 500 text/plain (SCIDB ERROR TEXT)
+</br>
+Failure (out of memory error): HTTP 507 text/plain (SCIDB ERROR TEXT)
 </br>
 Failure (Invalid session): HTTP 404
 <br/>
 Failure (invalid http query): HTTP 400
+<br/>
+Not authorized (encrypted only): HTTP 401
 </br>
 <tr><td>NOTES
 <td>
@@ -294,7 +396,7 @@ available to read_bytes or read_lines. Instead, explicitly call release_session
 after reading is complete.
 <tr><td>EXAMPLE
 <td>
-http://scidb:8080/execute_query?id=0&amp;query=remove(x)&amp;release=1
+http://localhost:8080/execute_query?id=0&amp;query=remove(x)&amp;release=1
 <br/><br/>
 <pre>
 HTTP/1.0 200 OK
@@ -306,7 +408,7 @@ Content-Type: text/plain
 <td>
 <tr><td>EXAMPLE (ERROR)
 <td>
-http://scidb:8080/execute_query?id=0&amp;query=remove(x)&amp;release=1
+http://localhost:8080/execute_query?id=0&amp;query=remove(x)&amp;release=1
 <br/><br/>
 <pre>
 HTTP/1.0 500 ERROR
@@ -330,6 +432,8 @@ Failed query id: 1100994052246
 <tr><td>METHOD<td>GET
 <tr><td>PARAMETERS
 <td><b>id</b> (an HTTP session ID)
+<br/>
+<b>auth</b> <i>optional</i> authentication token (required for encrypted connections).
 <tr><td>RESPONSE
 <td>Success: HTTP 200
 <br/>
@@ -338,9 +442,11 @@ Failure (session not found): HTTP 404
 Failure (invalid http query): HTTP 400
 <br/>
 Failure (could not connect to SciDB): HTTP 503
+<br/>
+Not authorized (encrypted only): HTTP 401
 <tr><td>EXAMPLE
 <td>
-http://scidb:8080/cancel?id=0
+http://localhost:8080/cancel?id=0
 <br/><br/>
 <pre>
 HTTP/1.0 200 OK
@@ -360,7 +466,9 @@ Content-Type: text/plain
 <tr><td>PARAMETERS
 <td>
 <b>id</b> (an HTTP session ID)<br/>
-<b>n</b> (maximum number of lines to read and return between 1 and 2147483647) <br/>
+<b>n</b> (maximum number of lines to read and return between 0 and 2147483647) <br/>
+<b>auth</b> <i>optional</i> authentication token (required for encrypted connections).
+<br/>
 <tr><td>RESPONSE
 <td>Success: HTTP 200 followed by text/plain query result (up to <b>n</b> lines)
 <br/>
@@ -371,11 +479,13 @@ Failure (invalid request): HTTP 414 <br/>
 Failure (SciDB server error): HTTP 500<br/>
 Failure (could not connect to SciDB server error): HTTP 503<br/>
 Failure (server out of memory): HTTP 507<br/>
+Not authorized (encrypted only): HTTP 401
+<br/>
 <tr><td>EXAMPLE
 <td>
-http://scidb:8080/new_session<br/>
-http://scidb:8080/execute_query?id=0&amp;query=list('functions')&amp;save=dcsv<br/>
-http://scidb:8080/read_lines?id=0&amp;n=20
+http://localhost:8080/new_session<br/>
+http://localhost:8080/execute_query?id=0&amp;query=list('functions')&amp;save=dcsv<br/>
+http://localhost:8080/read_lines?id=0&amp;n=20
 <br/><br/>
 <pre>
 HTTP/1.0 200 OK
@@ -423,7 +533,9 @@ Use the 410 error code to detect end of file output.
 <tr><td>PARAMETERS
 <td>
 <b>id</b> (an HTTP session ID)<br/>
-<b>n</b> (maximum number of bytes to read and return between 1 and 2147483647) <br/>
+<b>n</b> (maximum number of bytes to read and return between 0 and 2147483647) <br/>
+<b>auth</b> <i>optional</i> authentication token (required for encrypted connections).
+<br/>
 <tr><td>RESPONSE
 <td>Success: HTTP 200 followed by application/octet-stream binary query result (up to <b>n</b> bytes)
 <br/>
@@ -434,11 +546,13 @@ Failure (invalid request): HTTP 414 <br/>
 Failure (SciDB server error): HTTP 500<br/>
 Failure (could not connect to SciDB server error): HTTP 503<br/>
 Failure (server out of memory): HTTP 507<br/>
+Not authorized (encrypted only): HTTP 401
+<br/>
 <tr><td>EXAMPLE
 <td>
-http://scidb:8080/new_session<br/>
-http://scidb:8080/execute_query?id=0&amp;query=build(%3Cx:double%3E%5Bi=1:10,10,0%5D,random())&amp;save=(double)<br/>
-http://scidb:8080/read_bytes?id=0&amp;n=20
+http://localhost:8080/new_session<br/>
+http://localhost:8080/execute_query?id=0&amp;query=build(%3Cx:double%3E%5Bi=1:10,10,0%5D,random())&amp;save=(double)<br/>
+http://localhost:8080/read_bytes?id=0&amp;n=20
 <br/><br/>
 <pre>
 HTTP/1.0 200 OK
@@ -468,19 +582,25 @@ Use the 410 error code to detect the end of output.
 <td>
 <b>id</b> (an HTTP session ID)<br/>
 A valid file-upload HTTP POST message.
+<br/>
+<b>auth</b> <i>optional</i> authentication token (required for encrypted connections).
+<br/>
 <tr><td>RESPONSE
 <td>Success: HTTP 200 and the name of the file uploaded to the server in a text/plain response.
 <br/>
 Failure (invalid HTTP query string): HTTP 400 <br/>
 Failure (Session not found): HTTP 404 <br/>
 Failure (Server error): HTTP 500
+<br/>
+Not authorized (encrypted only): HTTP 401
+<br/>
 <tr><td>EXAMPLE
 <td>
 <b>Example POST to session id=0:</b>
 <br/>
 <pre>
 POST /upload_file?id=0 HTTP/1.1
-Host: scidb:8080
+Host: localhost:8080
 Accept: */*
 Content-Length: 526
 Expect: 100-continue
@@ -519,6 +639,67 @@ Content-Type: text/plain
 The file to upload can be binary. Use the returned server-side file name in a
 subsequent SciDB load query, for example. The file does not persist after the
 HTTP session is released.
+
+
+<tr>
+<td>
+<h3>/login</h3>
+
+<tr><td>DESCRIPTION
+<td>Authenticate a user with shim
+<tr><td>METHOD<td>GET
+<tr><td>PARAMETERS
+<td><b>username</b> (the PAM username)
+<br/><b>password</b> (the user password)
+<tr><td>RESPONSE
+<td>Success: HTTP 200 and a text authentication token to use with
+the <b>auth</b> parameter in subsequent HTTP queries.
+<br/>
+Failure (invalid http query): HTTP 400
+<br/>
+Not authorized: HTTP 401
+<tr><td>EXAMPLE
+<td>
+https://localhost:8083/login?username=scidb&amp;password=paradigm4
+<br/><br/>
+<pre>
+HTTP/1.0 200 OK
+Content-Length: 11
+Content-Type: text/plain
+
+90362228960
+</pre>
+<tr><td>NOTES
+<td>
+The /login service URI requires a TLS or SSL encrypted connection. The
+password and username query parameters only appear in encrypted form
+over the network.
+
+<tr>
+<td>
+<h3>/logout</h3>
+
+<tr><td>DESCRIPTION
+<td>Retire an authentication token.
+<tr><td>METHOD<td>GET
+<tr><td>PARAMETERS
+<td><b>auth</b> (authentication token from /login)
+<tr><td>RESPONSE
+<td>Success: HTTP 200 (empty response)
+<br/>
+Failure (invalid http query): HTTP 400
+<br/>
+<tr><td>EXAMPLE
+<td>
+https://localhost:8083/logout?auth=90362228960
+<br/><br/>
+<pre>
+HTTP/1.0 200 OK
+Content-Length: 0
+Content-Type: text/plain
+
+</pre>
+
 
 </table>
 </div>
