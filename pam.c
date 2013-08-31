@@ -18,6 +18,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <time.h>
 #include "pam.h"
 
 /* A conversation function for PAM to non-interactively supply username
@@ -113,4 +114,51 @@ authtoken()
   while((j=*p++))
     ans = j + (ans << 6) + (ans << 16) - ans;
   return ans;
+}
+
+/* addtoken
+ * Add a new authtoken to the list. If there is a conflict, return NULL and
+ * don't add the new token. Otherwise return the new head (and modify head)
+ * that points to the new head of the list. Aquire the big lock before calling
+ * this.
+ */
+token_list *
+addtoken(token_list *head, unsigned long val)
+{
+  token_list *new;
+  token_list *t = head;
+/* Scan the list for collision. Also eject timed out tokens from the list. */
+  while(t)
+  {
+    if(t->val == val) return NULL;
+// XXX check time out (todo)
+    t = (token_list *)t->next;
+  }
+  new = (token_list *)malloc(sizeof(token_list));
+  new->val = val;
+  new->time = time(NULL);
+  new->next = (void *)head;
+  head = new;
+  return head;
+}
+
+/* removetoken
+ * remove a token from the list, deallocating the token entry.
+ * Return the head of the list (which may change).
+ * XXX Get rid of recursion (todo).
+ */
+token_list *
+removetoken(token_list *item, unsigned long val)
+{
+  if (item == NULL)
+    return NULL;
+  if (item->val == val)
+  {
+    token_list * nextitem;
+    nextitem = item->next;
+    free(item);
+    return nextitem;
+  }
+  item->next = removetoken(item->next, val);
+  return item;
 }

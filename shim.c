@@ -99,9 +99,11 @@ int SCIDB_PORT = 1239;
 session *sessions;                // Fixed pool of web client sessions
 char *docroot;
 char *PAM_service_name = "login"; // Default PAM service name
+/* Big giant lock used to serialize many operations: */
 omp_lock_t biglock;
 char *BASEPATH;
 
+token_list *tokens = NULL; // the head of the list
 
 /*
  * conn: A mongoose client connection
@@ -381,9 +383,13 @@ get_session ()
   return id;
 }
 
-/* Authenticate
- * POST username and password XXX
- * XXX in process
+/* Authenticate a user with PAM and return a token.
+ *
+ * Error 400 is returned if the query string is empty or if this is not a
+ * TLS/SSL connection.  login expects two query string arguments, username and
+ * password.  Error 401 is returned if PAM can't authenticate the
+ * username/password combo.  If successful, a token is returned. Use the token
+ * with other TLS connections to show authentication.
  */
 void
 login (struct mg_connection *conn, const struct mg_request_info *ri)
@@ -391,23 +397,69 @@ login (struct mg_connection *conn, const struct mg_request_info *ri)
   int k;
   char u[MAX_VARLEN];
   char p[MAX_VARLEN];
+  token_list *t = NULL;
   if (!ri->query_string || !ri->is_ssl)
     {
       respond (conn, plain, 400, 0, NULL);
-      syslog (LOG_INFO, "login error invalid http query");
+      syslog (LOG_ERR, "login error invalid http query");
       return;
     }
   k = strlen (ri->query_string);
   mg_get_var (ri->query_string, k, "username", u, MAX_VARLEN);
   mg_get_var (ri->query_string, k, "password", p, MAX_VARLEN);
   k = do_pam_login(PAM_service_name,u,p);
-// XXX XXX If successful, enroll user and return an auth token.
   if(k==0)
-    respond (conn, plain, 200, strlen ("HOMER\n"), "HOMER\n");
+  {
+/* Success. Generate a new auth token and return it.
+ * XXX NOTE! No limit to the number of authenticated logins.  This means a
+ * malicious user with a login can extend the token list indefinitely. Tokens
+ * will eventually timeout, but this is still a problem to be fixed.
+ */
+    omp_set_lock (&biglock);
+    while(t==NULL)
+      t = addtoken(tokens, authtoken());
+    tokens = t;
+    omp_unset_lock (&biglock);
+    memset(p,0,MAX_VARLEN);
+    snprintf(p,MAX_VARLEN,"%lu",t->val);
+    syslog (LOG_INFO, "Authenticated user %s token %s",u,p);
+    respond (conn, plain, 200, strlen (p), p);
+  }
   else
-    respond (conn, plain, 401, 0, NULL);
+    respond (conn, plain, 401, 0, NULL); // Not authorized.
   return;
 }
+
+/* Remove an authentication token from the tokens list.
+ *
+ * Error 400 is returned if the query string is empty or if this is not a
+ * TLS/SSL connection.
+ * Expects query string argument named 'auth.'
+ * 200 is returned with no message on success.
+ */
+void
+logout (struct mg_connection *conn, const struct mg_request_info *ri)
+{
+  int k;
+  unsigned long l;
+  char a[MAX_VARLEN];
+  if (!ri->query_string || !ri->is_ssl)
+    {
+      respond (conn, plain, 400, 0, NULL);
+      syslog (LOG_ERR, "logout error invalid http query");
+      return;
+    }
+  k = strlen (ri->query_string);
+  mg_get_var (ri->query_string, k, "auth", a, MAX_VARLEN);
+  l = strtoul(a,NULL,0);
+  omp_set_lock (&biglock);
+  tokens = removetoken(tokens, l);
+  omp_unset_lock (&biglock);
+  respond (conn, plain, 200, 0, NULL);
+  return;
+}
+
+
 
 /* Client file upload
  * POST upload to server-side file defined in the session identified
@@ -1006,8 +1058,10 @@ begin_request_handler (struct mg_connection *conn)
 // CLIENT API
   if (!strcmp (ri->uri, "/new_session"))
     new_session (conn);
-  else if (!strcmp (ri->uri, "/auth"))
-    auth (conn, ri);
+  else if (!strcmp (ri->uri, "/login"))
+    login (conn, ri);
+  else if (!strcmp (ri->uri, "/logout"))
+    logout (conn, ri);
   else if (!strcmp (ri->uri, "/release_session"))
     release_session (conn, ri, 1);
   else if (!strcmp (ri->uri, "/upload_file"))
