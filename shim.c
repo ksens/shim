@@ -127,7 +127,7 @@ respond (struct mg_connection *conn, enum mimetype type, int code, int length,
 {
   if (code != 200)              // error
     {
-      if (data)                 // error with data payload (always presented as text/html here)
+      if (data) // error with data payload (always presented as text/html here)
         {
           mg_printf (conn, "HTTP/1.0 %d ERROR\r\n"
                      "Content-Length: %lu\r\n"
@@ -1039,6 +1039,39 @@ getlog (struct mg_connection *conn, const struct mg_request_info *ri)
   mg_send_file (conn, "/tmp/.scidb.log");
 }
 
+/* Check authentication token to see if it's in our list. */
+token_list *
+check_auth(token_list *head, struct mg_connection *conn,
+           const struct mg_request_info *ri)
+{
+  int k;
+  unsigned long l;
+  char var[MAX_VARLEN];
+  token_list *t = head;
+  if (!ri->query_string)
+    {
+      respond (conn, plain, 400, 0, NULL);
+      syslog (LOG_ERR, "authentication error invalid http query");
+      return NULL;
+    }
+  k = strlen (ri->query_string);
+  mg_get_var (ri->query_string, k, "auth", var, MAX_VARLEN);
+  l = strtoul(var,NULL,0);
+/* Scan the list for a match */
+  while(t)
+  {
+    if(t->val == l)
+    {
+/* Authorizedd, we don't repond here since a downstream callback will */
+      return t;
+    }
+    t = (token_list *)t->next;
+  }
+/* Not authorized */
+  respond (conn, plain, 401, 0, NULL);
+  return NULL;
+}
+
 
 /* Mongoose generic begin_request callback; we dispatch URIs to their
  * appropriate handlers.
@@ -1049,12 +1082,28 @@ begin_request_handler (struct mg_connection *conn)
   char buf[MAX_VARLEN];
   const struct mg_request_info *ri = mg_get_request_info (conn);
 
-  if(ri->is_ssl && !strcmp (ri->uri, "/login"))
-    syslog (LOG_INFO, "(SSL)callback for %s", ri->uri);
+// Don't log login query string
+  if(!strcmp (ri->uri, "/login"))
+    syslog (LOG_INFO, "%s", ri->uri);
   else if(ri->is_ssl)
-    syslog (LOG_INFO, "(SSL)callback for %s%s", ri->uri, ri->query_string);
+    syslog (LOG_INFO, "(SSL) %s?%s", ri->uri, ri->query_string);
   else
-    syslog (LOG_INFO, "callback for %s%s", ri->uri, ri->query_string);
+    syslog (LOG_INFO, "%s?%s", ri->uri, ri->query_string);
+
+/* Check API authentication (encrypted sessions only) only applies to:
+ * /new_session /upload_file /read_lines /read_bytes /execute_query /loadcsv
+ * /cancel (a subset of the available API)
+ */
+  if(ri->is_ssl                            &&
+     (!strcmp (ri->uri, "/new_session")    ||
+      !strcmp (ri->uri, "/upload_file")    ||
+      !strcmp (ri->uri, "/read_lines")     ||
+      !strcmp (ri->uri, "/read_bytes")     ||
+      !strcmp (ri->uri, "/execute_query")  ||
+      !strcmp (ri->uri, "/loadcsv")        ||
+      !strcmp (ri->uri, "/cancel"))        &&
+      !check_auth(tokens, conn, ri)) goto end;
+
 // CLIENT API
   if (!strcmp (ri->uri, "/new_session"))
     new_session (conn);
@@ -1093,6 +1142,7 @@ begin_request_handler (struct mg_connection *conn)
       mg_send_file (conn, buf);
     }
 
+end:
 // Mark as processed by returning non-null value.
   return 1;
 }
