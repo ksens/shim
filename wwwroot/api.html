@@ -135,7 +135,7 @@ ports=8080,80803s
 auth=login
 scidbport=1239
 </pre>
-Each options is described below.
+Each option is described below.
 
 <h3>Ports and Network Interfaces</h3>
 <p>
@@ -208,7 +208,7 @@ request.
 <h3>Authentication</h3>
 <p>
 Shim optionally exposes both open and encrypted (SSL or TLS) services.
-Access to most of the API over an encypted connection requires authentication.
+Access to most of the API over an encrypted connection requires authentication.
 API URIs that require authentication include:
 /new_session /upload_file /read_lines /read_bytes /execute_query
 and /cancel.
@@ -224,7 +224,7 @@ Use all the other URI services normally, but append the auth=&lt;token&gt;
 query string parameter, replacing &lt;token&gt; with the response from the
 /login service above.
 <li>
-Log out of the system by contacing the /logout service with your
+Log out of the system by contacting the /logout service with your
 authentication token.
 </ol>
 Shim's authentication mechanism only works over encrypted connections.
@@ -390,8 +390,8 @@ Not authorized (encrypted only): HTTP 401
 <td>
 500 and 503 errors result in removal of the web session ID and related
 resources (thus, release_session does not have to be called after such an
-error). This method blocks until the query completes. Do not specifiy the
-option relase=1 when the save option is also set, or output will not be
+error). This method blocks until the query completes. Do not specify the
+option release=1 when the save option is also set, or output will not be
 available to read_bytes or read_lines. Instead, explicitly call release_session
 after reading is complete.
 <tr><td>EXAMPLE
