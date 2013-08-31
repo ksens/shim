@@ -1,8 +1,14 @@
 Shim is a super-basic SciDB client that exposes limited SciDB functionality
 through a simple HTTP API. It's based on the mongoose web server.
 
-The program must run on the system that a SciDB coordinator runs on. It does
-not need to run as the same user that SciDB runs under.
+## NEW!
+Shim now supports TLS and SSL encryption and implements a simple
+PAM-based authentication scheme. The API remains unchanged and the
+unencrypted, non-authentication API remains unchanged. See
+[Paradigm4/shim/master/wwwroot/api.html](http://htmlpreview.github.com/?https://raw.github.com/Paradigm4/shim/master/wwwroot/api.html)
+for complete details.
+
+The program must run on the system that a SciDB coordinator runs on.
 
 Note: libscidbclient.so must be in shim's library path. This may entail setting
 LD_LIBRARY_PATH=/opt/scidb/<whatever>/lib  before running shim.  You don't have
