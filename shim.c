@@ -996,10 +996,12 @@ begin_request_handler (struct mg_connection *conn)
   char buf[MAX_VARLEN];
   const struct mg_request_info *ri = mg_get_request_info (conn);
 
-  if(!ri->is_ssl)
-    syslog (LOG_INFO, "callback for %s%s", ri->uri, ri->query_string);
+  if(ri->is_ssl && !strcmp (ri->uri, "/auth"))
+    syslog (LOG_INFO, "(SSL)callback for %s", ri->uri);
+  else if(ri->is_ssl)
+    syslog (LOG_INFO, "(SSL)callback for %s%s", ri->uri, ri->query_string);
   else
-    syslog (LOG_INFO, "callback for %s (SSL)", ri->uri);
+    syslog (LOG_INFO, "callback for %s%s", ri->uri, ri->query_string);
 // CLIENT API
   if (!strcmp (ri->uri, "/new_session"))
     new_session (conn);
