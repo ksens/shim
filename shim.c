@@ -1279,6 +1279,11 @@ main (int argc, char **argv)
 
   callbacks.begin_request = begin_request_handler;
   ctx = mg_start (&callbacks, NULL, (const char **) options);
+  if(!ctx)
+  {
+    syslog (LOG_ERR, "failed to start web service");
+    return -1;
+  }
   syslog (LOG_INFO,
           "SciDB HTTP service started on port(s) %s with web root [%s], talking to SciDB on port %d",
           mg_get_option (ctx, "listening_ports"),
