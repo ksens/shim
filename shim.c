@@ -408,6 +408,7 @@ login (struct mg_connection *conn, const struct mg_request_info *ri)
   mg_get_var (ri->query_string, k, "username", u, MAX_VARLEN);
   mg_get_var (ri->query_string, k, "password", p, MAX_VARLEN);
   k = do_pam_login(PAM_service_name,u,p);
+  syslog(LOG_INFO,"PAM login returns %d",k);
   if(k==0)
   {
 /* Success. Generate a new auth token and return it.
