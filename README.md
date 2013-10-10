@@ -30,8 +30,9 @@ The wwwroot directory also includes an example simple javascript client.
 This is the fastest/easiest way to install this service.
 The author (Bryan Lewis) provides a few pre-built binary packages for SciDB 13.3--13.9 on Ubuntu 12.04 here:
 
-* [http://paradigm4.github.io/shim/shim_13.3_amd64.deb](http://paradigm4.github.io/shim/shim_13.3_amd64.deb)
+* [http://paradigm4.github.io/shim/shim_13.9_amd64.deb](http://paradigm4.github.io/shim/shim_13.9_amd64.deb)
 * [http://paradigm4.github.io/shim/shim_13.6_amd64.deb](http://paradigm4.github.io/shim/shim_13.6_amd64.deb)
+* [http://paradigm4.github.io/shim/shim_13.3_amd64.deb](http://paradigm4.github.io/shim/shim_13.3_amd64.deb)
 
 ```
 # Install with:
@@ -43,6 +44,7 @@ apt-get remove shim
 
 and for SciDB 13.3--13.9 on RHEL/Centos 6 here:
 
+* [http://paradigm4.github.io/shim/shim-13.9-1.x86_64.rpm](http://paradigm4.github.io/shim/shim-13.9-1.x86_64.rpm)
 * [http://paradigm4.github.io/shim/shim-13.6-1.x86_64.rpm](http://paradigm4.github.io/shim/shim-13.6-1.x86_64.rpm)
 * [http://paradigm4.github.io/shim/shim-13.3-1.x86_64.rpm](http://paradigm4.github.io/shim/shim-13.3-1.x86_64.rpm)
 
