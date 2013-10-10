@@ -109,7 +109,7 @@ authtoken()
 /* disallow too short tokens */
   while(ans < 10000)
   {
-    FILE *f = fopen( "/dev/urandom", "r");
+    FILE *f = fopen( "/dev/random", "r");
     if(!f) return 0;
     fread(buf, 1, TOK_BUF, f);
     fclose(f);
@@ -149,7 +149,7 @@ addtoken(token_list *head, unsigned long val)
 /* removetoken
  * remove a token from the list, deallocating the token entry.
  * Return the head of the list (which may change).
- * XXX Get rid of recursion (todo).
+ * XXX This recursive implementation is a bit lame; fix it up.
  */
 token_list *
 removetoken(token_list *item, unsigned long val)
