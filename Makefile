@@ -7,8 +7,8 @@ ifeq ($(SCIDB),)
 endif
 
 CFLAGS=-fopenmp
-INC=-I. -DPROJECT_ROOT="\"$(SCIDB)\"" -I"$(SCIDB)/include" -DSCIDB_CLIENT
-LIBS=-ldl -lpthread -L"$(SCIDB)/lib" -lscidbclient -lboost_system -lpam
+INC=-I. -DPROJECT_ROOT="\"$(SCIDB)\"" -I"$(SCIDB)/3rdparty/boost/include/" -I"$(SCIDB)/include" -DSCIDB_CLIENT
+LIBS=-ldl -lpthread -L"$(SCIDB)/3rdparty/boost/lib" -L"$(SCIDB)/lib" -lscidbclient -lboost_system -lpam
 
 shim: pam client
 	$(CC) -Wall $(CFLAGS) $(INC) -o shim shim.c mongoose.c client.o pam.o $(LIBS)
