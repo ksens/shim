@@ -109,7 +109,7 @@ authtoken()
 /* disallow too short tokens */
   while(ans < 10000)
   {
-    FILE *f = fopen( "/dev/random", "r");
+    FILE *f = fopen( "/dev/urandom", "r");
     if(!f) return 0;
     fread(buf, 1, TOK_BUF, f);
     fclose(f);
