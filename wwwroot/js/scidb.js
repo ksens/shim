@@ -14,7 +14,7 @@ function cancel()
 {
   cancelled = true;
   $("#result")[0].innerHTML = "<pre>Query cancellation in process...</pre>";
-  $.get("/cancel?id="+x);
+  $.get("/cancel?id="+x+"&auth="+getCookie("authtok"));
   $("#querycontainer").spin(false);
 }
 
@@ -44,16 +44,16 @@ function execute_query(ret)
   lockstate(true);
 
 $.get(
-  "/new_session",
+  "/new_session?auth="+getCookie("authtok"),
   function(data){
     x = parseInt(data); // session ID
     var sq = $("#query")[0].value;
     var q = encodeURIComponent(sq);
-    var urix = "/execute_query?id="+x+"&query="+q+"&save=dcsv";
+    var urix = "/execute_query?id="+x+"&query="+q+"&save=dcsv&auth="+getCookie("authtok");
     if(ret==0)
-      urix = "/execute_query?id="+x+"&query="+q;
-    var urir = "/read_lines?id="+x+"&n="+numlines.value;
-    var rel = "/release_session?id="+x;
+      urix = "/execute_query?id="+x+"&query="+q+"&auth="+getCookie("authtok");
+    var urir = "/read_lines?id="+x+"&n="+numlines.value+"&auth="+getCookie("authtok");
+    var rel = "/release_session?id="+x+"&auth="+getCookie("authtok");
 
     $.get(urix)
      .fail(function(z){$("#result")[0].innerHTML = "<pre>" +
@@ -102,12 +102,12 @@ function do_upload()
   var chunkSize = parseInt(dims[2]);
   
   $.get(
-    "/new_session",
+    "/new_session?auth="+getCookie("authtok"),
     function(data){
       lockstate(true);
       x = parseInt(data); // session ID
-      var rel = "/release_session?id="+x;
-      var urix = "/upload_file?id="+x
+      var rel = "/release_session?id="+x+"&auth="+getCookie("authtok");
+      var urix = "/upload_file?id="+x+"&auth="+getCookie("authtok");
 
       var arrayName = $("#arrayName").val();
 
@@ -125,7 +125,7 @@ function do_upload()
 
       xhr.onreadystatechange = function(e) {
         if (this.readyState == 4 && this.status == 200) {
-          var urir = "/loadcsv?id="+x+"&err="+e+"&schema="+schema+"&name="+arrayName+"&head="+n;
+          var urir = "/loadcsv?id="+x+"&err="+e+"&schema="+schema+"&name="+arrayName+"&head="+n+"&auth="+getCookie("authtok");
           $.get(urir, function(z) {
                $("#query")[0].value = "scan(" + arrayName + ")";
                $("#result")[0].innerHTML = "<pre>OK</pre>";

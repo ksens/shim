@@ -18,7 +18,7 @@ $.ajaxSetup({
     $("#scidb_dash").spin();
 
 
-    $.get( "/get_log",
+    $.get( "/get_log?auth="+getCookie("authtok"),
       function(data){
         $("#configini").val(data);
         $("#configini").show();
@@ -37,7 +37,7 @@ $.ajaxSetup({
   {
 //    $("#beditconfig").attr("disabled","disabled")
     $("#bgetlog").attr("disabled","disabled")
-    $.get( "/get_config",
+    $.get( "/get_config?auth="+getCookie("authtok"),
       function(data){
         $("#configini").val(data);
         $("#configini").show();
@@ -62,24 +62,60 @@ $.ajaxSetup({
 
   $(document).ready(function()
   {
-
+    setCookie("authtok",getCookie("authtok"),1);
     $("#configini").hide();
     $("#savebtn").hide();
     $("#closebtn").hide();
-    hello("list('instances')",0);
+    hello_maybe("list('instances')",0);
   });
+
+
+function do_login_maybe()
+{
+  $("#scidb_dash")[0].innerHTML = "<h3>Login...</h3>";
+  $('#loginModal').modal();
+}
+
+function do_login(sq, numlines)
+{
+  if(sq=="") sq="list('instances')";
+  $("#scidb_dash")[0].innerHTML = "<h3>Logging in...</h3>";
+  $.get("/login?username="+$("#username").val()
+                          +"&password="+$("#password").val(),
+    function(data){
+      setCookie("authtok",data,1);
+      hello(sq, numlines);
+    }).fail(function(z)
+       {
+          $("#scidb_dash")[0].innerHTML = "<h3>Login failed.</h3>";
+          setCookie("authtok",null,-1);
+          window.setTimeout('location.reload()', 1500);
+    });
+}
+
+function hello_maybe(sq, numlines)
+{
+  cook = getCookie("authtok");
+  if(location.protocol == "https:" && (cook=="null" || cook==null))
+  {
+    do_login_maybe();
+  } else
+  {
+    hello(sq, numlines);
+  }
+}
 
 function hello(sq, numlines)
 {
 var result="";
 $.get(
-  "/new_session",
+  "/new_session?auth="+getCookie("authtok"),
   function(data){
     x = parseInt(data); // session ID
     var q = encodeURIComponent(sq);
-    var urix = "/execute_query?id="+x+"&query="+q+"&save=dcsv";
-    var urir = "/read_lines?id="+x+"&n="+numlines;
-    var rel = "/release_session?id="+x;
+    var urix = "/execute_query?id="+x+"&query="+q+"&save=dcsv"+"&auth="+getCookie("authtok");
+    var urir = "/read_lines?id="+x+"&n="+numlines+"&auth="+getCookie("authtok");
+    var rel = "/release_session?id="+x+"&auth="+getCookie("authtok");
 
     $.get(urix)
      .done(function(z)

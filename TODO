@@ -11,7 +11,6 @@ Things to do soon:
 * finish the control API, which is partially disabled until authentication
   is added.
 * SciDB port selection from control API (i.e., SciDB db selection)
-* Add authentication, at least for the control API.
 
 * Maybe this can be used to identify the present DB when we know its name?:
 # ps axu | grep SciDB | grep dbname | head -n 1 | sed -e s/.*dbname=// | cut -d ' ' -f 1
