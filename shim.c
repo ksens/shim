@@ -98,12 +98,14 @@ const char SCIDB_HOST[] = "localhost";
 int SCIDB_PORT = 1239;
 session *sessions;                // Fixed pool of web client sessions
 char *docroot;
+static uid_t real_uid; // For setting uid to logged in user when required
 char *PAM_service_name = "login"; // Default PAM service name
 /* Big giant lock used to serialize many operations: */
 omp_lock_t biglock;
 char *BASEPATH;
 
 token_list *tokens = NULL; // the head of the list
+
 
 /*
  * conn: A mongoose client connection
@@ -395,6 +397,7 @@ void
 login (struct mg_connection *conn, const struct mg_request_info *ri)
 {
   int k;
+  uid_t uid;
   char u[MAX_VARLEN];
   char p[MAX_VARLEN];
   token_list *t = NULL;
@@ -408,7 +411,6 @@ login (struct mg_connection *conn, const struct mg_request_info *ri)
   mg_get_var (ri->query_string, k, "username", u, MAX_VARLEN);
   mg_get_var (ri->query_string, k, "password", p, MAX_VARLEN);
   k = do_pam_login(PAM_service_name,u,p);
-  syslog(LOG_INFO,"PAM login returns %d",k);
   if(k==0)
   {
 /* Success. Generate a new auth token and return it.
@@ -417,17 +419,21 @@ login (struct mg_connection *conn, const struct mg_request_info *ri)
  * will eventually timeout, but this is still a problem to be fixed.
  */
     omp_set_lock (&biglock);
+    uid = username2uid(u);
     while(t==NULL)
-      t = addtoken(tokens, authtoken());
+      t = addtoken(tokens, authtoken(), uid);
     tokens = t;
     omp_unset_lock (&biglock);
     memset(p,0,MAX_VARLEN);
     snprintf(p,MAX_VARLEN,"%lu",t->val);
-    syslog (LOG_INFO, "Authenticated user %s token %s",u,p);
+    syslog (LOG_INFO, "Authenticated user %s token %s uid %ld",u,p,(long)uid);
     respond (conn, plain, 200, strlen (p), p);
   }
   else
+  {
+    syslog(LOG_INFO,"PAM login for username %s returned %d",u,k);
     respond (conn, plain, 401, 0, NULL); // Not authorized.
+  }
   return;
 }
 
@@ -532,11 +538,21 @@ new_session (struct mg_connection *conn)
     }
 }
 
-/* Load an uploaded CSV file with loadcsv */
+/* Experimental: Load an uploaded CSV file with loadcsv
+ * /loadcsv
+ * --Parameters--
+ * id:      <session id>
+ * auth:   <optional auth token>
+ * schema: array schema
+ * name:   array name
+ * delim:  optional single-character delimiter (default ,)
+ * head:   header lines (integer >= 0)
+ * err:    number of tolerable errors (integer >= 0)
+ */
 void
 loadcsv (struct mg_connection *conn, const struct mg_request_info *ri)
 {
-  int id, k, n;
+  int id, k, n, e;
   session *s;
   char var[MAX_VARLEN];
   char schema[MAX_VARLEN];
@@ -586,12 +602,13 @@ loadcsv (struct mg_connection *conn, const struct mg_request_info *ri)
 // Retrieve the number of errors allowed
   memset (var, 0, MAX_VARLEN);
   mg_get_var (ri->query_string, k, "err", var, MAX_VARLEN);
-  snprintf (cmd, LCSV_MAX,
-            "%s/csv2scidb  -s %d < %s > %s.scidb; %s/iquery -naq 'remove(%s)'; %s/iquery -naq 'create_array(%s,%s)'; %s/iquery -naq \"store(input(%s,'%s.scidb',0),%s)\";rm -f %s.scidb",
-            BASEPATH, n, s->ibuf, s->ibuf, BASEPATH, arrayname, BASEPATH,
-            arrayname, schema, BASEPATH, schema, s->ibuf, arrayname, s->ibuf);
-// It's a bummer, but I can't get loadcsv.py to work!
-//  snprintf(cmd,LCSV_MAX, "%s/loadcsv.py -i %s -n %d -e %d -a %s -s \"%s\"", BASEPATH, s->ibuf, n, e, arrayname, schema);
+  e = atoi (var);
+//  snprintf (cmd, LCSV_MAX,
+//            "%s/csv2scidb  -s %d < %s > %s.scidb; %s/iquery -naq 'remove(%s)'; %s/iquery -naq 'create_array(%s,%s)'; %s/iquery -naq \"store(input(%s,'%s.scidb',0),%s)\";rm -f %s.scidb",
+//            BASEPATH, n, s->ibuf, s->ibuf, BASEPATH, arrayname, BASEPATH,
+//            arrayname, schema, BASEPATH, schema, s->ibuf, arrayname, s->ibuf);
+//  XXX HOMER
+  snprintf(cmd,LCSV_MAX, "python %s/loadcsv.py -i %s -n %d -e %d -a %s -s \"%s\"", BASEPATH, s->ibuf, n, e, arrayname, schema);
   syslog (LOG_INFO, "loadcsv cmd: %s", cmd);
   n = system (cmd);
   syslog (LOG_INFO, "loadcsv result: %d", n);
@@ -1232,6 +1249,7 @@ main (int argc, char **argv)
   sessions = (session *) calloc (MAX_SESSIONS, sizeof (session));
   scount = 0;
   memset (&callbacks, 0, sizeof (callbacks));
+  real_uid = getuid();
 
   BASEPATH = dirname (argv[0]);
 

@@ -13,13 +13,19 @@
  * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. Please refer to the
  * AGPL (http://www.gnu.org/licenses/agpl-3.0.txt) for more details.
  *
+ * Additional portions based on Per-Aake Larson's Dynamic Hashing algorithms.
+ * BIT 18 (1978).  and public domain example by oz@nexus.yorku.ca.
  */
+
 #include <security/pam_appl.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include <time.h>
 #include "pam.h"
+#include <pwd.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 /* A conversation function for PAM to non-interactively supply username
  * and password.
@@ -95,6 +101,7 @@ end:
 /* A simple token generator using the basic sdbm hash function.  We use it to
  * generate login token ids.  This token generator returns 0 if something went
  * wrong.
+ *
  * based on Per-Aake Larson's Dynamic Hashing algorithms. BIT 18 (1978).
  * and public domain example by oz@nexus.yorku.ca
  * status: public domain. keep it that way.
@@ -127,7 +134,7 @@ authtoken()
  * this.
  */
 token_list *
-addtoken(token_list *head, unsigned long val)
+addtoken(token_list *head, unsigned long val, uid_t uid)
 {
   token_list *new;
   token_list *t = head;
@@ -140,6 +147,7 @@ addtoken(token_list *head, unsigned long val)
   }
   new = (token_list *)malloc(sizeof(token_list));
   new->val = val;
+  new->uid = uid;
   new->time = time(NULL);
   new->next = (void *)head;
   head = new;
@@ -149,7 +157,6 @@ addtoken(token_list *head, unsigned long val)
 /* removetoken
  * remove a token from the list, deallocating the token entry.
  * Return the head of the list (which may change).
- * XXX This recursive implementation is a bit lame; fix it up.
  */
 token_list *
 removetoken(token_list *item, unsigned long val)
@@ -165,4 +172,35 @@ removetoken(token_list *item, unsigned long val)
   }
   item->next = removetoken(item->next, val);
   return item;
+}
+
+/* Look up a uid from a user name string. Return an
+ * invalid uid_t if not found.
+ */
+uid_t
+username2uid(char *username)
+{
+  struct passwd pwd;
+  struct passwd *result;
+  char *buf;
+  size_t bufsize;
+
+  bufsize = sysconf (_SC_GETPW_R_SIZE_MAX);
+  if (bufsize == -1)            /* Value was indeterminate */
+    bufsize = 16384;            /* Should be more than enough */
+
+  buf = malloc (bufsize);
+  if (buf == NULL)
+    {
+      return -1;
+    }
+  getpwnam_r (username, &pwd, buf, bufsize, &result);
+  if (result == NULL)
+    {
+      free(buf);
+      return -1;
+    }
+
+  free(buf);
+  return pwd.pw_uid;
 }
