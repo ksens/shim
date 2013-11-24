@@ -116,7 +116,7 @@ function do_upload()
       {
         n = 1;
       }
-      var e = parseInt($("#errorlimit").val());
+      var ner = parseInt($("#errorlimit").val());
 
       var formData = new FormData();
       formData.append('file', FILEOBJ);
@@ -125,7 +125,7 @@ function do_upload()
 
       xhr.onreadystatechange = function(e) {
         if (this.readyState == 4 && this.status == 200) {
-          var urir = "/loadcsv?id="+x+"&err="+e+"&schema="+schema+"&name="+arrayName+"&head="+n+"&auth="+getCookie("authtok");
+          var urir = "/loadcsv?id="+x+"&nerr="+ner+"&schema="+schema+"&name="+arrayName+"&head="+n+"&auth="+getCookie("authtok");
           $.get(urir, function(z) {
                $("#query")[0].value = "scan(" + arrayName + ")";
                $("#result")[0].innerHTML = "<pre>OK</pre>";

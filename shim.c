@@ -539,6 +539,9 @@ new_session (struct mg_connection *conn)
 }
 
 /* Experimental: Load an uploaded CSV file with loadcsv
+ * NOTE! This is an experimental function and presently limited to
+ * secure connections. And the user must have write privilege to
+ * the SciDB data directories (the usual loadcsv.py limitation).
  * /loadcsv
  * --Parameters--
  * id:      <session id>
@@ -547,7 +550,7 @@ new_session (struct mg_connection *conn)
  * name:   array name
  * delim:  optional single-character delimiter (default ,)
  * head:   header lines (integer >= 0)
- * err:    number of tolerable errors (integer >= 0)
+ * nerr:   number of tolerable errors (integer >= 0)
  */
 void
 loadcsv (struct mg_connection *conn, const struct mg_request_info *ri)
@@ -601,13 +604,8 @@ loadcsv (struct mg_connection *conn, const struct mg_request_info *ri)
   n = atoi (var);
 // Retrieve the number of errors allowed
   memset (var, 0, MAX_VARLEN);
-  mg_get_var (ri->query_string, k, "err", var, MAX_VARLEN);
+  mg_get_var (ri->query_string, k, "nerr", var, MAX_VARLEN);
   e = atoi (var);
-//  snprintf (cmd, LCSV_MAX,
-//            "%s/csv2scidb  -s %d < %s > %s.scidb; %s/iquery -naq 'remove(%s)'; %s/iquery -naq 'create_array(%s,%s)'; %s/iquery -naq \"store(input(%s,'%s.scidb',0),%s)\";rm -f %s.scidb",
-//            BASEPATH, n, s->ibuf, s->ibuf, BASEPATH, arrayname, BASEPATH,
-//            arrayname, schema, BASEPATH, schema, s->ibuf, arrayname, s->ibuf);
-//  XXX HOMER
   snprintf(cmd,LCSV_MAX, "python %s/loadcsv.py -i %s -n %d -e %d -a %s -s \"%s\"", BASEPATH, s->ibuf, n, e, arrayname, schema);
   syslog (LOG_INFO, "loadcsv cmd: %s", cmd);
   n = system (cmd);
@@ -1103,6 +1101,7 @@ begin_request_handler (struct mg_connection *conn)
 {
   char buf[MAX_VARLEN];
   const struct mg_request_info *ri = mg_get_request_info (conn);
+  token_list *tok = NULL;
 
 // Don't log login query string
   if(!strcmp (ri->uri, "/login"))
@@ -1124,7 +1123,7 @@ begin_request_handler (struct mg_connection *conn)
       !strcmp (ri->uri, "/execute_query")  ||
       !strcmp (ri->uri, "/loadcsv")        ||
       !strcmp (ri->uri, "/cancel"))        &&
-      !check_auth(tokens, conn, ri)) goto end;
+      !(tok=check_auth(tokens, conn, ri))) goto end;
 
 // CLIENT API
   if (!strcmp (ri->uri, "/new_session"))
@@ -1144,7 +1143,15 @@ begin_request_handler (struct mg_connection *conn)
   else if (!strcmp (ri->uri, "/execute_query"))
     execute_query (conn, ri);
   else if (!strcmp (ri->uri, "/loadcsv"))
+  {
+    if(!tok)
+    {
+      syslog (LOG_ERR, "loadcsv not authorized");
+      respond (conn, plain, 401, strlen("Not authorized"), "Not authorized");
+      goto end;
+    }
     loadcsv (conn, ri);
+  }
   else if (!strcmp (ri->uri, "/cancel"))
     cancel_query (conn, ri);
 // CONTROL API
