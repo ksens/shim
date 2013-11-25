@@ -39,7 +39,7 @@ The author provides a few pre-built binary packages for SciDB on Ubuntu 12.04 he
 # Install with:
 sudo gdebi shim_13.11_amd64.deb
 
-# Uninstall with:
+# Uninstall with (be sure to uninstall any existing copy before re-installing shim):
 apt-get remove shim
 ```
 
