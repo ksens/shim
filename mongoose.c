@@ -4360,6 +4360,7 @@ mg_append(struct mg_connection *conn, char *filename)
     fp = NULL;
 
     // Open file in binary mode for appending.
+    umask(S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
     if ((fp = fopen(filename, "a+b")) == NULL) {
       break;
     }

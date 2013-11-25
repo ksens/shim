@@ -15,6 +15,7 @@
 #include <omp.h>
 #include "mongoose.h"
 #include "pam.h"
+#include <pwd.h>
 
 #define MAX_SESSIONS 30       // Maximum number of simultaneous http sessions
 #define MAX_VARLEN 4096       // Static buffer length to hold http query params
@@ -551,17 +552,26 @@ new_session (struct mg_connection *conn)
  * delim:  optional single-character delimiter (default ,)
  * head:   header lines (integer >= 0)
  * nerr:   number of tolerable errors (integer >= 0)
+ *
+ * And the function must be called with a valid user id for seteuid.
  */
 void
-loadcsv (struct mg_connection *conn, const struct mg_request_info *ri)
+loadcsv (struct mg_connection *conn, const struct mg_request_info *ri, uid_t uid)
 {
-  int id, k, n, e;
+  int id, k, n, e, j;
   session *s;
+  char *LD;
   char var[MAX_VARLEN];
   char schema[MAX_VARLEN];
   char buf[MAX_VARLEN];
   char arrayname[MAX_VARLEN];
   char cmd[LCSV_MAX];
+
+  struct passwd pwd;
+  struct passwd *result;
+  char *pbuf;
+  size_t bufsize;
+
   if (!ri->query_string)
     {
       respond (conn, plain, 400, 0, NULL);
@@ -606,9 +616,40 @@ loadcsv (struct mg_connection *conn, const struct mg_request_info *ri)
   memset (var, 0, MAX_VARLEN);
   mg_get_var (ri->query_string, k, "nerr", var, MAX_VARLEN);
   e = atoi (var);
-  snprintf(cmd,LCSV_MAX, "python %s/loadcsv.py -i %s -n %d -e %d -a %s -s \"%s\"", BASEPATH, s->ibuf, n, e, arrayname, schema);
-  syslog (LOG_INFO, "loadcsv cmd: %s", cmd);
+
+  bufsize = sysconf (_SC_GETPW_R_SIZE_MAX);
+  if (bufsize == -1)            /* Value was indeterminate */
+    bufsize = 16384;            /* Should be enough */
+  pbuf = malloc (bufsize);
+  if (pbuf == NULL)
+    {
+      goto bail;
+    }
+  getpwuid_r (uid, &pwd, pbuf, bufsize, &result);
+  if (result == NULL)
+    {
+      free(pbuf);
+      goto bail;
+    }
+  LD = getenv("LD_LIBRARY_PATH");
+  snprintf (cmd, LCSV_MAX, "su %s -c \"/bin/bash -c \\\"umask 022; export LD_LIBRARY_PATH=%s ; %s/csv2scidb  -s %d < %s > %s.scidb ; %s/iquery -naq 'remove(%s)' 2>>/tmp/log; %s/iquery -naq 'create_array(%s,%s)' 2>>/tmp/log; %s/iquery -naq \\\\\\\"store(input(%s,'%s.scidb',0),%s)\\\\\\\" 2>>/tmp/log;rm -f %s.scidb\\\" \" ",
+            pwd.pw_name, LD, BASEPATH, n, s->ibuf, s->ibuf, BASEPATH, arrayname,  BASEPATH,
+            arrayname, schema, BASEPATH, schema, s->ibuf, arrayname, s->ibuf);
+//  snprintf (cmd, LCSV_MAX,
+//            "/bin/bash -l -c \"umask 022; export LD_LIBRARY_PATH=%s ; %s/csv2scidb  -s %d < %s > %s.scidb ; %s/iquery -naq 'remove(%s)' 2>>/tmp/log; %s/iquery -naq 'create_array(%s,%s)' 2>>/tmp/log; %s/iquery -naq \\\"store(input(%s,'%s.scidb',0),%s)\\\" 2>>/tmp/log;touch %s.scidb\"",
+//            LD, BASEPATH, n, s->ibuf, s->ibuf, BASEPATH, arrayname,  BASEPATH,
+//            arrayname, schema, BASEPATH, schema, s->ibuf, arrayname, s->ibuf);
+//  snprintf(cmd,LCSV_MAX, "export LD_LIBRARY_PATH=%s && python %s/loadcsv.py -v -m -l -M -L -x -i %s -n %d -e %d -a %s -s \"%s\" >/tmp/log 2>&1",  getenv("LD_LIBRARY_PATH"), BASEPATH, s->ibuf, n, e, arrayname, schema);
+
+  syslog (LOG_INFO, "loadcsv euid: %ld user name %s; cmd: %s", (long)uid, pwd.pw_name, cmd);
+  free(pbuf);
+  j = seteuid(uid);
+  if(j<0)
+  {
+    goto bail;
+  }
   n = system (cmd);
+  seteuid(real_uid);
   syslog (LOG_INFO, "loadcsv result: %d", n);
   syslog (LOG_INFO, "loadcsv releasing HTTP session %d", s->sessionid);
   cleanup_session (s);
@@ -616,6 +657,13 @@ loadcsv (struct mg_connection *conn, const struct mg_request_info *ri)
 // Respond to the client
   snprintf (buf, MAX_VARLEN, "%d", n);
   respond (conn, plain, 200, strlen (buf), buf);
+  return;
+
+bail:
+  syslog (LOG_ERR, "Setuid error");
+  cleanup_session (s);
+  omp_unset_lock (&s->lock);
+  respond (conn, plain, 401, strlen("Not authorized"), "Not authorized");
 }
 
 
@@ -1150,7 +1198,7 @@ begin_request_handler (struct mg_connection *conn)
       respond (conn, plain, 401, strlen("Not authorized"), "Not authorized");
       goto end;
     }
-    loadcsv (conn, ri);
+    loadcsv (conn, ri, tok->uid);
   }
   else if (!strcmp (ri->uri, "/cancel"))
     cancel_query (conn, ri);
