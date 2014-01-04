@@ -1,5 +1,6 @@
 Known bugs:
 
+
 1. Shim does not work with plugins that require client load of plugin.so.
    The best example of this is timeseries. I'm not sure how to write a SciDB
    client that can use the pluginManager correctly...
