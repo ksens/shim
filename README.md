@@ -1,10 +1,11 @@
 Shim is a super-basic SciDB client that exposes limited SciDB functionality
 through a simple HTTP API. It's based on the mongoose web server.
 
-## NEW!
-Shim now supports TLS and SSL encryption and implements a simple
-PAM-based authentication scheme. The API remains unchanged and the
-unencrypted, non-authentication API remains unchanged. See
+## Notes
+Shim supports TLS and SSL encryption and implements a simple
+PAM-based authentication scheme. The encrypted, authenticated API adds one
+new argument to the unencrypted, non-authentication API, but is otherwise
+identical. See
 [Paradigm4/shim/master/wwwroot/api.html](http://htmlpreview.github.com/?https://raw.github.com/Paradigm4/shim/master/wwwroot/api.html)
 for complete details.
 
@@ -66,8 +67,11 @@ I will continue to make binary packages available when new versions of SciDB are
 Note that because shim is a SciDB client it needs the boost, log4cpp and log4cxx development libraries installed to compile. We illustrate installation of Ubuntu build dependencies below:
 ```
 sudo apt-get install liblog4cpp5-dev liblog4cxx10-dev libboost-dev libboost-system-dev rubygems
+sudo apt-get install scidb-13.12-libboost1.54-all-dev
 gem install fpm
 ```
+Note: `scidb-13.12-libboost1.54-all-dev` corresponds to your installed version of SciDB, replace it as required. Use `apt-get search scidb` to find the right version and be sure to have all the SciDB -dev packages installed.
+
 Once the build dependencies are install, build shim with:
 ```
 make

@@ -558,7 +558,7 @@ new_session (struct mg_connection *conn)
 void
 loadcsv (struct mg_connection *conn, const struct mg_request_info *ri, uid_t uid)
 {
-  int id, k, n, e, j;
+  int id, k, n, j;
   session *s;
   char *LD;
   char var[MAX_VARLEN];
@@ -615,7 +615,6 @@ loadcsv (struct mg_connection *conn, const struct mg_request_info *ri, uid_t uid
 // Retrieve the number of errors allowed
   memset (var, 0, MAX_VARLEN);
   mg_get_var (ri->query_string, k, "nerr", var, MAX_VARLEN);
-  e = atoi (var);
 
   bufsize = sysconf (_SC_GETPW_R_SIZE_MAX);
   if (bufsize == -1)            /* Value was indeterminate */
