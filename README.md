@@ -1,10 +1,11 @@
 Shim is a super-basic SciDB client that exposes limited SciDB functionality
 through a simple HTTP API. It's based on the mongoose web server.
 
-## NEW!
-Shim now supports TLS and SSL encryption and implements a simple
-PAM-based authentication scheme. The API remains unchanged and the
-unencrypted, non-authentication API remains unchanged. See
+## Notes
+Shim supports TLS and SSL encryption and implements PAM
+password authentication. The encrypted, authenticated API adds one
+new argument to the unencrypted, non-authentication API, but is otherwise
+identical. See
 [Paradigm4/shim/master/wwwroot/api.html](http://htmlpreview.github.com/?https://raw.github.com/Paradigm4/shim/master/wwwroot/api.html)
 for complete details.
 
@@ -30,6 +31,7 @@ The wwwroot directory also includes an example simple javascript client.
 This is the fastest/easiest way to install this service.
 The author provides a few pre-built binary packages for SciDB on Ubuntu 12.04 here:
 
+* [http://paradigm4.github.io/shim/shim_13.12_amd64.deb](http://paradigm4.github.io/shim/shim_13.12_amd64.deb)
 * [http://paradigm4.github.io/shim/shim_13.11_amd64.deb](http://paradigm4.github.io/shim/shim_13.11_amd64.deb)
 * [http://paradigm4.github.io/shim/shim_13.9_amd64.deb](http://paradigm4.github.io/shim/shim_13.9_amd64.deb)
 * [http://paradigm4.github.io/shim/shim_13.6_amd64.deb](http://paradigm4.github.io/shim/shim_13.6_amd64.deb)
@@ -37,7 +39,7 @@ The author provides a few pre-built binary packages for SciDB on Ubuntu 12.04 he
 
 ```
 # Install with:
-sudo gdebi shim_13.11_amd64.deb
+sudo gdebi shim_13.12_amd64.deb
 
 # Uninstall with (be sure to uninstall any existing copy before re-installing shim):
 apt-get remove shim
@@ -45,6 +47,7 @@ apt-get remove shim
 
 and for SciDB on RHEL/Centos 6 here:
 
+* [http://paradigm4.github.io/shim/shim-13.12-1.x86_64.rpm](http://paradigm4.github.io/shim/shim-13.12-1.x86_64.rpm)
 * [http://paradigm4.github.io/shim/shim-13.11-1.x86_64.rpm](http://paradigm4.github.io/shim/shim-13.11-1.x86_64.rpm)
 * [http://paradigm4.github.io/shim/shim-13.9-1.x86_64.rpm](http://paradigm4.github.io/shim/shim-13.9-1.x86_64.rpm)
 * [http://paradigm4.github.io/shim/shim-13.6-1.x86_64.rpm](http://paradigm4.github.io/shim/shim-13.6-1.x86_64.rpm)
@@ -52,7 +55,7 @@ and for SciDB on RHEL/Centos 6 here:
 
 ```
 # Install with:
-rpm -i shim-13.11-1.x86_64.rpm
+rpm -i shim-13.12-1.x86_64.rpm
 # shim depends on libgomp. If installation fails, install libgomp and try again:
 yum install libgomp
 
@@ -66,24 +69,27 @@ I will continue to make binary packages available when new versions of SciDB are
 Note that because shim is a SciDB client it needs the boost, log4cpp and log4cxx development libraries installed to compile. We illustrate installation of Ubuntu build dependencies below:
 ```
 sudo apt-get install liblog4cpp5-dev liblog4cxx10-dev libboost-dev libboost-system-dev rubygems
+sudo apt-get install scidb-13.12-dev scidb-13.12-libboost1.54-all-dev
 gem install fpm
 ```
+Note: `scidb-13.12-libboost1.54-all-dev` and `scidb-13.12-dev` correspond to your installed version of SciDB, replace those package names as required for your version. Use `apt-get search scidb` to find the exact package names. (On RHEL platforms, you will need the `scidb-13.12-libboost-devel.x86_64` and `scidb-13.12-dev.x86_64` packages installed.)
+
 Once the build dependencies are install, build shim with:
 ```
 make
 sudo make install
 
 # Or, if SCIDB is not in the PATH, can set a Make variable SCIDB that points
-# to the SCIDB home directory, for example for version 13.11:
+# to the SCIDB home directory, for example for version 13.12:
 
-make SCIDB=/opt/scidb/13.11
-sudo make SCIDB=/opt/scidb/13.11 install
+make SCIDB=/opt/scidb/13.12
+sudo make SCIDB=/opt/scidb/13.12 install
 
 ```
 ### Optionally install as a service
 You can install shim as a system service so that it just runs all the time with:
 ```
-sudo make SCIDB=/opt/scidb/13.11 service
+sudo make SCIDB=/opt/scidb/13.12 service
 ```
 If you install shim as a service and want to change its default options, for example the default HTTP port or port to talk to SciDB on, you'll need to edit the /etc/init.d/shimsvc file. See the discussion of command line parameters below.
 ### Optionally build deb or rpm packages
@@ -110,7 +116,7 @@ If you installed the service version, then you can control when shim is running 
 ## Uninstall
 We explicitly define our SCIDB home directory for Make in the example below:
 ```
-sudo make SCIDB=/opt/scidb/13.11 uninstall
+sudo make SCIDB=/opt/scidb/13.12 uninstall
 ```
 
 
