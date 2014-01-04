@@ -416,8 +416,8 @@ login (struct mg_connection *conn, const struct mg_request_info *ri)
   {
 /* Success. Generate a new auth token and return it.
  * XXX NOTE! No limit to the number of authenticated logins.  This means a
- * malicious user with a login can extend the token list indefinitely. Tokens
- * will eventually timeout, but this is still a problem to be fixed.
+ * careless user can extend the token list indefinitely (that is, leak).
+ * FIX ME
  */
     omp_set_lock (&biglock);
     uid = username2uid(u);
