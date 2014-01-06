@@ -8,7 +8,8 @@ endif
 
 CFLAGS=-fopenmp
 INC=-I. -DPROJECT_ROOT="\"$(SCIDB)\"" -I"$(SCIDB)/3rdparty/boost/include/" -I"$(SCIDB)/include" -DSCIDB_CLIENT
-LIBS=-ldl -lpthread -L"$(SCIDB)/3rdparty/boost/lib" -L"$(SCIDB)/lib" -lscidbclient -lboost_system -lpam
+LIBS=-ldl -lpthread -L"$(SCIDB)/3rdparty/boost/lib" -L"$(SCIDB)/lib" -lscidbclient -lboost_system -lpam -Wl,-rpath,$(SCIDB)/lib:$(RPATH)
+DESTDIR=""; # default: empty DESTDIR implicitly installs to /
 
 shim: pam client
 	$(CC) -Wall $(CFLAGS) $(INC) -o shim shim.c mongoose.c client.o pam.o $(LIBS)
@@ -36,11 +37,12 @@ help:
 install: shim
 	@if test ! -d "$(SCIDB)"; then echo  "Can't find scidb. Maybe try explicitly setting SCIDB variable, for example::\n\nmake SCIDB=/opt/scidb/13.3 install"; exit 1; fi 
 	@if test -x /etc/init.d/shimsvc; then /etc/init.d/shimsvc stop;fi
-	cp shim "$(SCIDB)/bin"
-	mkdir -p /var/lib/shim
-	cp -aR wwwroot /var/lib/shim/
-	chmod -R 755 /var/lib/shim
-	@if test -d /usr/local/share/man/man1;then cp man/shim.1 /usr/local/share/man/man1/;fi
+	mkdir -p "$(DESTDIR)$(SCIDB)/bin"
+	cp shim "$(DESTDIR)/$(SCIDB)/bin"
+	mkdir -p "$(DESTDIR)/var/lib/shim"
+	cp -aR wwwroot "$(DESTDIR)/var/lib/shim/"
+	chmod -R 755 "$(DESTDIR)/var/lib/shim"
+	@if test -d $(DESTDIR)/usr/local/share/man/man1;then cp man/shim.1 $(DESTDIR)/usr/local/share/man/man1/;fi
 
 uninstall: unservice
 	@if test ! -d "$(SCIDB)"; then echo  "Can't find scidb. Maybe try explicitly setting SCIDB variable, for example:\n\nmake SCIDB=/opt/scidb/13.3 uninstall"; exit 1; fi 
