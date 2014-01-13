@@ -84,10 +84,13 @@ letter 's' to indicate TLS encryption.
 user, but then TLS authenticated port logins are limited to the user that shim
 is running under.
 
+Restart shim to effect option changes with `/etc/init.d/shimsvc restart`.
+
 Shim uses a cryptographic key certificate for TLS encrypted web connections.
 When you instal shim from a binary package, a new certificate key is
 dynamically generated and stored in `/var/lib/shim/ssl_cert.pem`. Feel
 free to replace the certificate with one of your own.
+
 
 You can alternatively run `shim` from the command line and use command line
 switches to set the configuration options. Run `shim -h` to see a full list
