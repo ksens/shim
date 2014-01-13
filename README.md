@@ -76,7 +76,7 @@ user=root
 If an option is missing from the config file, the default value will be used.
 The options are:
 
-* `auth` A PAM authentication method (presently now limited to login)
+* `auth` A PAM authentication method (presently limited to 'login').
 * `ports` A comma-delimited list of HTTP listening ports. Append the lowercase
 letter 's' to indicate TLS encryption.
 * `scidbport` The local port to talk to SciDB on.
