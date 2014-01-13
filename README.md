@@ -2,7 +2,7 @@ Shim is a super-basic SciDB client that exposes limited SciDB functionality
 through a simple HTTP API. It's based on the mongoose web server.
 
 ## Notes
-Shim supports TLS and SSL encryption and implements PAM
+Shim supports TLS/SSL encryption and implements PAM
 password authentication. The encrypted, authenticated API adds one
 new argument to the unencrypted, non-authentication API, but is otherwise
 identical. See
@@ -78,15 +78,15 @@ The options are:
 
 * `auth` A PAM authentication method (presently limited to 'login').
 * `ports` A comma-delimited list of HTTP listening ports. Append the lowercase
-letter 's' to indicate TLS encryption.
+letter 's' to indicate SSL encryption.
 * `scidbport` The local port to talk to SciDB on.
 * `user` The user that the shim service runs under. Shim can run as a non-root
-user, but then TLS authenticated port logins are limited to the user that shim
+user, but then SSL authenticated port logins are limited to the user that shim
 is running under.
 
 Restart shim to effect option changes with `/etc/init.d/shimsvc restart`.
 
-Shim uses a cryptographic key certificate for TLS encrypted web connections.
+Shim uses a cryptographic key certificate for SSL encrypted web connections.
 When you instal shim from a binary package, a new certificate key is
 dynamically generated and stored in `/var/lib/shim/ssl_cert.pem`. Feel free to
 replace the certificate with one of your own. You should then also set the
