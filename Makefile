@@ -12,10 +12,10 @@ LIBS=-ldl -lpthread -L"$(SCIDB)/3rdparty/boost/lib" -L"$(SCIDB)/lib" -lscidbclie
 DESTDIR=""; # default: empty DESTDIR implicitly installs to /
 
 shim: pam client
-	$(CC) -Wall $(CFLAGS) $(INC) -o shim shim.c mongoose.c client.o pam.o $(LIBS)
+	$(CC) -Wall $(CFLAGS) $(INC) $(LDFLAGS) -o shim shim.c mongoose.c client.o pam.o $(LIBS)
 
 client:
-	$(CXX) $(INC) -fpic -g -c client.cpp -o client.o
+	$(CXX) $(CXXFLAGS) $(INC) -fpic -g -c client.cpp -o client.o
 
 pam:
 	$(CC) -Wall $(CFLAGS) -fpic -g -c pam.c -o pam.o
