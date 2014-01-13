@@ -88,9 +88,13 @@ Restart shim to effect option changes with `/etc/init.d/shimsvc restart`.
 
 Shim uses a cryptographic key certificate for TLS encrypted web connections.
 When you instal shim from a binary package, a new certificate key is
-dynamically generated and stored in `/var/lib/shim/ssl_cert.pem`. Feel
-free to replace the certificate with one of your own.
-
+dynamically generated and stored in `/var/lib/shim/ssl_cert.pem`. Feel free to
+replace the certificate with one of your own. You should then also set the
+permissions of the `/var/lib/shim/ssl_cert.pem` file to restrict all read and
+write access to the user that shim is running under.  Restricting access
+permissions to the SSL certificate is particularly important for general
+machines with many untrusted users (an unlikely setting for an installation of
+SciDB).
 
 You can alternatively run `shim` from the command line and use command line
 switches to set the configuration options. Run `shim -h` to see a full list
