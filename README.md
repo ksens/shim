@@ -9,7 +9,7 @@ identical. See
 [Paradigm4/shim/master/wwwroot/api.html](http://htmlpreview.github.com/?https://raw.github.com/Paradigm4/shim/master/wwwroot/api.html)
 for complete details.
 
-The program must run on the system that a SciDB coordinator runs on.
+The `shim` program must run on the system that a SciDB coordinator runs on.
 
 Note: libscidbclient.so must be in shim's library path. This may entail setting
 LD_LIBRARY_PATH=/opt/scidb/<whatever>/lib  before running shim.  You don't have
@@ -64,6 +64,34 @@ yum remove shim
 ```
 I will continue to make binary packages available when new versions of SciDB are released.
 
+##Configuring  shim
+The `shim` service script consults the `/var/lib/shim/conf` file for
+configuration options. The default configuration options are shown below:
+```
+auth=login
+ports=8080,8083s
+scidbport=1239
+user=root
+```
+If an option is missing from the config file, the default value will be used.
+The options are:
+
+* `auth` A PAM authentication method (presently now limited to login)
+* `ports` A comma-delimited list of HTTP listening ports. Append the lowercase
+letter 's' to indicate TLS encryption.
+* `scidbport` The local port to talk to SciDB on.
+* `user` The user that the shim service runs under. Shim can run as a non-root
+user, but then TLS authenticated port logins are limited to the user that shim
+is running under.
+
+Shim uses a cryptographic key certificate for TLS encrypted web connections.
+When you instal shim from a binary package, a new certificate key is
+dynamically generated and stored in `/var/lib/shim/ssl_cert.pem`. Feel
+free to replace the certificate with one of your own.
+
+You can alternatively run `shim` from the command line and use command line
+switches to set the configuration options. Run `shim -h` to see a full list
+of options.
 
 ##Compile and Install from Source
 Note that because shim is a SciDB client it needs the boost, log4cpp and log4cxx development libraries installed to compile. We illustrate installation of Ubuntu build dependencies below:
@@ -91,7 +119,7 @@ You can install shim as a system service so that it just runs all the time with:
 ```
 sudo make SCIDB=/opt/scidb/13.12 service
 ```
-If you install shim as a service and want to change its default options, for example the default HTTP port or port to talk to SciDB on, you'll need to edit the /etc/init.d/shimsvc file. See the discussion of command line parameters below.
+If you install shim as a service and want to change its default options, for example the default HTTP port or port to talk to SciDB on, you'll need to edit the shim configuration file. See the discussion of command line parameters below.
 ### Optionally build deb or rpm packages
 You can build the service version of shim into packages for Ubuntu 12.04 or RHEL/CentOS 6 with
 ```
