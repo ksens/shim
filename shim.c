@@ -36,7 +36,8 @@
 #define PIDFILE "/var/run/shim.pid"
 
 #define WEEK 604800             // One week in seconds
-#define TIMEOUT 60              // Timeout before a session is declared orphaned and reaped
+#define TIMEOUT 60              // Timeout before a session is declared
+                                // orphaned and reaped
 
 // Minimalist SciDB client API from client.cpp -------------------------------
 void *scidbconnect (const char *host, int port);
@@ -1255,6 +1256,9 @@ parse_args (char **options, int argc, char **argv, int *daemonize)
           break;
         case 'r':
           options[3] = optarg;
+          options[5] = (char *)malloc(PATH_MAX);
+          strncat(options[5],optarg,PATH_MAX);
+          strncat(options[5],"/../ssl_cert.pem",PATH_MAX - 17);
           break;
         case 's':
           SCIDB_PORT = atoi (optarg);
@@ -1290,9 +1294,9 @@ main (int argc, char **argv)
   options[5] = "/var/lib/shim/ssl_cert.pem";
   options[6] = NULL;
   parse_args (options, argc, argv, &daemonize);
-  if(stat("/var/lib/shim/ssl_cert.pem", &check_ssl) < 0)
+  if(stat(options[5], &check_ssl) < 0)
   {
-/* Disable TLS by removing any 's' port options and getting rid of the ssl
+/* Disable SSL  by removing any 's' port options and getting rid of the ssl
  * options.
  */
     ports = cp = strdup(options[1]);

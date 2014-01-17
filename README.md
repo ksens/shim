@@ -98,7 +98,9 @@ SciDB).
 
 You can alternatively run `shim` from the command line and use command line
 switches to set the configuration options. Run `shim -h` to see a full list
-of options.
+of options. When you run shim from a non-standard location, the program
+expects to find the ssl_cert.pem file one directory above the wwwroot
+directory.
 
 ##Compile and Install from Source
 Note that because shim is a SciDB client it needs the boost, log4cpp and log4cxx development libraries installed to compile. We illustrate installation of Ubuntu build dependencies below:
