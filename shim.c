@@ -928,7 +928,7 @@ readlines (struct mg_connection *conn, const struct mg_request_info *ri)
 void
 execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
 {
-  int id, k, rel = 0;
+  int id, k, rel = 0, async = 0;
   unsigned long long l;
   session *s;
   char var[MAX_VARLEN];
@@ -952,6 +952,11 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
   mg_get_var (ri->query_string, k, "release", var, MAX_VARLEN);
   if (strlen (var) > 0)
     rel = atoi (var);
+  memset (var, 0, MAX_VARLEN);
+  mg_get_var (ri->query_string, k, "async", var, MAX_VARLEN);
+  if (strlen (var) > 0)
+    async = atoi (var);
+  if(rel==0) async = 0;
   syslog (LOG_INFO, "execute_query for session id %d", id);
   s = find_session (id);
   if (!s)
@@ -982,6 +987,12 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
       omp_unset_lock (&s->lock);
       return;
     }
+// XXX Experimental async flag, if set respond immediately
+  if(async)
+  {
+    syslog (LOG_INFO, "execute_query async indicated");
+    respond (conn, plain, 200, 0, NULL);
+  }
   omp_set_lock (&s->lock);
   memset (var, 0, MAX_VARLEN);
   mg_get_var (ri->query_string, k, "save", save, MAX_VARLEN);
@@ -1001,7 +1012,7 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
       free (qry);
       free (qrybuf);
       syslog (LOG_ERR, "execute_query error could not connect to SciDB");
-      respond (conn, plain, 503, strlen ("Could not connect to SciDB"),
+      if(!async) respond (conn, plain, 503, strlen ("Could not connect to SciDB"),
                "Could not connect to SciDB");
       cleanup_session (s);
       omp_unset_lock (&s->lock);
@@ -1017,7 +1028,7 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
       free (qry);
       free (qrybuf);
       syslog (LOG_ERR, "execute_query error %s", SERR);
-      respond (conn, plain, 500, strlen (SERR), SERR);
+      if(!async) respond (conn, plain, 500, strlen (SERR), SERR);
       if (s->con)
         scidbdisconnect (s->con);
       s->con = NULL;
@@ -1040,7 +1051,7 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
       free (qry);
       free (qrybuf);
       syslog (LOG_ERR, "execute_prepared_query error %s", SERR);
-      respond (conn, plain, 500, strlen (SERR), SERR);
+      if(!async) respond (conn, plain, 500, strlen (SERR), SERR);
       if (s->con)
         scidbdisconnect (s->con);
       s->con = NULL;
@@ -1067,7 +1078,7 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
   omp_unset_lock (&s->lock);
 // Respond to the client
   snprintf (buf, MAX_VARLEN, "%llu", l);        // Return the query ID
-  respond (conn, plain, 200, strlen (buf), buf);
+  if(!async) respond (conn, plain, 200, strlen (buf), buf);
 }
 
 

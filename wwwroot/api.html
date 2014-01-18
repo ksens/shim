@@ -134,6 +134,7 @@ per line. Available options include:
 ports=8080,80803s
 auth=login
 scidbport=1239
+user=root
 </pre>
 Each option is described below.
 
@@ -172,6 +173,8 @@ SSL connections. Shim may use any available PAM service (usually listed
 in /etc/pam.d), and defaults to the login service. That means client
 authentication is controlled by the usernames and passwords available
 to the computer that shim is installed on.
+<h3>User</h3>
+The user that the shim service runs under. Shim can run as a non-root user, but then SSL authenticated port logins are limited to the user that shim is running under.
 <h3>TLS/SSL Certificate</h3>
 <p>
 Shim supports TLS/SSL encryption. Packaged versions of shim (RPM and deb
