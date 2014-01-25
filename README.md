@@ -11,9 +11,12 @@ for complete details.
 
 The `shim` program must run on the system that a SciDB coordinator runs on.
 
-Note: libscidbclient.so must be in shim's library path. This may entail setting
-LD_LIBRARY_PATH=/opt/scidb/<whatever>/lib  before running shim.  You don't have
-to worry about that if you install and run shim as a service.
+Note: libscidbclient.so and SciDB's boost libraries must be in shim's library
+path. This may entail setting
+LD_LIBRARY_PATH=/opt/scidb/<whatever>/lib:/opt/scidb/<whatever>/3rdparty/boost/lib
+before
+running shim.  You don't have to worry about that if you install and run shim
+as a service.
 
 Note: Shim queries are limited to at most 1,000,000 characters.
 

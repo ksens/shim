@@ -9,7 +9,8 @@ endif
 CFLAGS=-fopenmp
 INC=-I. -DPROJECT_ROOT="\"$(SCIDB)\"" -I"$(SCIDB)/3rdparty/boost/include/" -I"$(SCIDB)/include" -DSCIDB_CLIENT
 LIBS=-ldl -lpthread -L"$(SCIDB)/3rdparty/boost/lib" -L"$(SCIDB)/lib" -lscidbclient -lboost_system -lpam -Wl,-rpath,$(SCIDB)/lib:$(RPATH)
-DESTDIR=""; # default: empty DESTDIR implicitly installs to /
+# default: empty DESTDIR implicitly installs to /
+DESTDIR=
 
 shim: pam client
 	$(CC) -Wall $(CFLAGS) $(INC) $(LDFLAGS) -o shim shim.c mongoose.c client.o pam.o $(LIBS)
