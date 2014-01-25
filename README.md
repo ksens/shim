@@ -106,9 +106,9 @@ expects to find the ssl_cert.pem file one directory above the wwwroot
 directory.
 
 ##Compile and Install from Source
-Note that because shim is a SciDB client it needs the boost, log4cpp and log4cxx development libraries installed to compile. We illustrate installation of Ubuntu build dependencies below:
+Note that because shim is a SciDB client it needs the boost, log4cpp and log4cxx development libraries installed to compile. And because shim now uses PAM authentication, you'll now need the PAM development libraries for your system installed too. We illustrate installation of Ubuntu build dependencies below:
 ```
-sudo apt-get install liblog4cpp5-dev liblog4cxx10-dev libboost-dev libboost-system-dev rubygems
+sudo apt-get install liblog4cpp5-dev liblog4cxx10-dev libboost-dev libboost-system-dev rubygems libpam0g-dev
 sudo apt-get install scidb-13.12-dev scidb-13.12-libboost1.54-all-dev
 gem install fpm
 ```
