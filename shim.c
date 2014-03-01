@@ -31,7 +31,7 @@
 
 // Should we make the TMPDIR a runtime option (probably yes)?
 #ifndef TMPDIR
-#define TMPDIR "/tmp"           // Temporary location for I/O buffers
+#define TMPDIR "/dev/shm/"           // Temporary location for I/O buffers
 #endif
 #define PIDFILE "/var/run/shim.pid"
 
@@ -1116,7 +1116,7 @@ getlog (struct mg_connection *conn, const struct mg_request_info *ri)
 {
   syslog (LOG_ERR, "getlog");
   system
-    ("cp `ps axu | grep SciDB | grep \"\\/000\\/0\"  | grep SciDB | head -n 1 | sed -e \"s/SciDB-000.*//\" | sed -e \"s/.* \\//\\//\"`/scidb.log /tmp/.scidb.log");
+    ("tail -n 1555 `ps axu | grep SciDB | grep \"\\/000\\/0\"  | grep SciDB | head -n 1 | sed -e \"s/SciDB-000.*//\" | sed -e \"s/.* \\//\\//\"`/scidb.log > /tmp/.scidb.log");
   mg_send_file (conn, "/tmp/.scidb.log");
 }
 
@@ -1172,9 +1172,8 @@ begin_request_handler (struct mg_connection *conn)
   else
     syslog (LOG_INFO, "%s?%s", ri->uri, ri->query_string);
 
-/* Check API authentication (encrypted sessions only) only applies to:
- * /new_session /upload_file /read_lines /read_bytes /execute_query /loadcsv
- * /cancel (a subset of the available API)
+/* Check API authentication (encrypted sessions only--only applies to
+ * the listed subset of the available shim API)
  */
   if(ri->is_ssl                            &&
      (!strcmp (ri->uri, "/new_session")    ||
