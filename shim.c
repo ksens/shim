@@ -29,10 +29,7 @@
 #define DEFAULT_HTTP_PORT "8080,8083s"
 #endif
 
-// Should we make the TMPDIR a runtime option (probably yes)?
-#ifndef TMPDIR
-#define TMPDIR "/dev/shm/"           // Temporary location for I/O buffers
-#endif
+#define DEFAULT_TMPDIR "/dev/shm/"     // Temporary location for I/O buffers
 #define PIDFILE "/var/run/shim.pid"
 
 #define WEEK 604800             // One week in seconds
@@ -105,7 +102,7 @@ char *PAM_service_name = "login"; // Default PAM service name
 /* Big giant lock used to serialize many operations: */
 omp_lock_t biglock;
 char *BASEPATH;
-
+char *TMPDIR; // temporary files go here
 token_list *tokens = NULL; // the head of the list
 
 
@@ -1242,13 +1239,13 @@ void
 parse_args (char **options, int argc, char **argv, int *daemonize)
 {
   int c;
-  while ((c = getopt (argc, argv, "hfn:p:r:s:")) != -1)
+  while ((c = getopt (argc, argv, "hfn:p:r:s:t:")) != -1)
     {
       switch (c)
         {
         case 'h':
           printf
-            ("Usage:\nshim [-h] [-f] [-n <PAM service name>] [-p <http port>] [-r <document root>] [-s <scidb port>]\n");
+            ("Usage:\nshim [-h] [-f] [-n <PAM service name>] [-p <http port>] [-r <document root>] [-s <scidb port>] [-t <tmp I/O DIR>]\n");
           printf
             ("Specify -f to run in the foreground.\nDefault http ports are 8080 and 80803(SSL).\nDefault SciDB port is 1239.\nDefault document root is /var/lib/shim/wwwroot.\nDefault PAM service name is 'login'.\n");
           printf
@@ -1272,6 +1269,11 @@ parse_args (char **options, int argc, char **argv, int *daemonize)
           break;
         case 's':
           SCIDB_PORT = atoi (optarg);
+          break;
+        case 't':
+          TMPDIR = optarg;
+          break;
+        default:
           break;
         }
     }
@@ -1303,6 +1305,7 @@ main (int argc, char **argv)
   options[4] = "ssl_certificate";
   options[5] = "/var/lib/shim/ssl_cert.pem";
   options[6] = NULL;
+  TMPDIR = DEFAULT_TMPDIR;
   parse_args (options, argc, argv, &daemonize);
   if(stat(options[5], &check_ssl) < 0)
   {

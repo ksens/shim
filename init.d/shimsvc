@@ -30,21 +30,25 @@ export SHIM="${SCIDB_DIR}/bin/shim"
 PORTS=
 AUTH=
 SCIDBPORT=
+TMPD=
 USER=root
 if test -f "/var/lib/shim/conf"; then
   AUTH="$(cat /var/lib/shim/conf | sed -n /^auth/p | cut -d '=' -f 2)"
   PORTS="$(cat /var/lib/shim/conf | sed -n /^ports/p | cut -d '=' -f 2)"
   SCIDBPORT="$(cat /var/lib/shim/conf | sed -n /^scidbport/p | cut -d '=' -f 2)"
   USER="$(cat /var/lib/shim/conf | sed -n /^user/p | cut -d '=' -f 2)"
+  TMPD="$(cat /var/lib/shim/conf | sed -n /^tmp/p | cut -d '=' -f 2)"
+# Build up shim command line options
   test -n "${AUTH}" && AUTH="-n ${AUTH}"
   test -n "${PORTS}" && PORTS="-p ${PORTS}"
+  test -n "${TMPD}" && TMPD="-t ${TMPD}"
   test -n "${SCIDBPORT}" && SCIDBPORT="-s ${SCIDBPORT}"
 fi
 
 case $1 in
         start)
             echo "Starting shim"
-            su $USER -c "'${SHIM}' $PORTS $AUTH $SCIDBPORT"
+            su $USER -c "'${SHIM}' $PORTS $AUTH $SCIDBPORT $TMPD"
             ;;
         restart)
             $0 stop
