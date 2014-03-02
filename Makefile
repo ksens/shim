@@ -13,7 +13,7 @@ LIBS=-ldl -lpthread -L"$(SCIDB)/3rdparty/boost/lib" -L"$(SCIDB)/lib" -lscidbclie
 DESTDIR=
 
 shim: pam client
-	$(CC) -Wall $(CFLAGS) $(INC) $(LDFLAGS) -o shim shim.c mongoose.c client.o pam.o $(LIBS)
+	$(CC) -std=c99 -Wall $(CFLAGS) -DUSE_WEBSOCKET $(INC) $(LDFLAGS) -o shim shim.c mongoose.c client.o pam.o $(LIBS)
 
 client:
 	$(CXX) $(CXXFLAGS) $(INC) -fpic -g -c client.cpp -o client.o

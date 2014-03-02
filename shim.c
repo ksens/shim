@@ -1,6 +1,7 @@
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <limits.h>
+#include <inttypes.h>
 #include <stdlib.h>
 #include <string.h>
 #include <libgen.h>
@@ -35,6 +36,10 @@
 #define WEEK 604800             // One week in seconds
 #define TIMEOUT 60              // Timeout before a session is declared
                                 // orphaned and reaped
+
+#define TELEMETRY_ENTRIES 1024   // Max number of telemetry items (circular buf)
+#define TELEMETRY_BUFFER_SIZE 256 // Max size of a single line of telemetry
+#define TELEMETRY_UPDATE_INTERVAL 5 // In seconds, update client freq.
 
 // Minimalist SciDB client API from client.cpp -------------------------------
 void *scidbconnect (const char *host, int port);
@@ -105,6 +110,9 @@ char *BASEPATH;
 char *TMPDIR; // temporary files go here
 token_list *tokens = NULL; // the head of the list
 
+/* Telemetry data */
+char **telemetry;
+unsigned int telemetry_counter;
 
 /*
  * conn: A mongoose client connection
@@ -1108,10 +1116,111 @@ startscidb (struct mg_connection *conn, const struct mg_request_info *ri)
   respond (conn, plain, 200, 0, NULL);
 }
 
+/* Telemetry and log callbacks
+ * - measurement uploads new telemetry data
+ * - webocket_ready_handler periodically sends telemetry data to an open
+ *   client websocket connection, it's a mongoose callback function that
+ *   gets instantiated as a thread for each websocket connection.
+ */
+void
+measurement (struct mg_connection *conn, const struct mg_request_info *ri)
+{
+  int k;
+  char var[TELEMETRY_BUFFER_SIZE];
+  time_t t;
+  if (!ri->query_string)
+    {
+      respond (conn, plain, 400, 0, NULL);
+      syslog (LOG_ERR, "measurement error invalid http query");
+      return;
+    }
+  k = strlen (ri->query_string);
+  mg_get_var (ri->query_string, k, "data", var, TELEMETRY_BUFFER_SIZE);
+  omp_set_lock (&biglock);
+  time(&t);
+// Add current server time in seconds to the measurement
+  snprintf(telemetry[telemetry_counter],TELEMETRY_BUFFER_SIZE, "%ld,%s", (long int )t, var);
+  telemetry_counter = (telemetry_counter + 1)  % TELEMETRY_ENTRIES;
+  omp_unset_lock (&biglock);
+  respond (conn, plain, 200, 0, NULL);
+}
+
+static void
+websocket_ready_handler(struct mg_connection *conn)
+{
+  unsigned char *buf;             // websocket response method
+  unsigned char *p;
+  unsigned char x;
+  int16_t l;                      // Length of the websocket payload
+  int k;
+  unsigned int j, counter = 0; // Last line that this thread sent
+  buf = (unsigned char *)malloc(TELEMETRY_BUFFER_SIZE * TELEMETRY_ENTRIES+4);
+  buf[0] = 0x81;    // FIN + TEXT (aka a single utf8 text message)
+  buf[1] = 126;     // -> two-byte length in buf[2], buf[3].
+
+for(;;)
+{
+  p = buf + 4;
+  l = 0;
+  if(counter == telemetry_counter)
+  {
+    goto skip;
+  } else if(counter < telemetry_counter)
+  {
+    for(j=counter;j<telemetry_counter;++j)
+    {
+      snprintf((char * restrict)p,TELEMETRY_BUFFER_SIZE,"%s\n",telemetry[j]);
+      k = strlen(telemetry[j]) + 2; // newline + trailing null
+      p+=k;
+    }
+  } else
+  {
+    for(j=counter;j<TELEMETRY_ENTRIES;++j)
+    {
+      snprintf((char * restrict)p,TELEMETRY_BUFFER_SIZE,"%s\n",telemetry[j]);
+      k = strlen(telemetry[j]) + 2; // newline + trailing null
+      p+=k;
+    }
+    for(j=0;j<telemetry_counter;++j)
+    {
+      snprintf((char * restrict)p,TELEMETRY_BUFFER_SIZE,"%s\n",telemetry[j]);
+      k = strlen(telemetry[j]) + 2; // newline + trailing null
+      p+=k;
+    }
+  }
+  counter = telemetry_counter;
+  l = (p - buf) - 4;
+// Make sure length of websocket message is in [126,32768) for websocket framing
+// reasons.
+  if(l < 127)
+  {
+    memset(p, 10, 127); // Pad out with newlines
+    memset(p+127,0,1);
+    p+=128;
+  }
+  l = (p - buf) - 4;
+  memcpy((void *)buf+2,(const void *)&l, sizeof(l));
+// poor man's htons
+  x = buf[3];
+  buf[3] = buf[2];
+  buf[2] = x;
+  k = mg_write(conn, buf, l+4);
+  syslog(LOG_INFO, "sent %d telemetry bytes over websocket",k);
+    if(k<1)
+    {
+// The client connection must be closed, break out of loop.
+      syslog(LOG_INFO, "websocket connection closed");
+      break;
+    }
+skip:
+  sleep(5);
+}
+}
+
 void
 getlog (struct mg_connection *conn, const struct mg_request_info *ri)
 {
-  syslog (LOG_ERR, "getlog");
+  syslog (LOG_INFO, "getlog");
   system
     ("tail -n 1555 `ps axu | grep SciDB | grep \"\\/000\\/0\"  | grep SciDB | head -n 1 | sed -e \"s/SciDB-000.*//\" | sed -e \"s/.* \\//\\//\"`/scidb.log > /tmp/.scidb.log");
   mg_send_file (conn, "/tmp/.scidb.log");
@@ -1218,6 +1327,11 @@ begin_request_handler (struct mg_connection *conn)
 //        startscidb (conn, ri);
   else if (!strcmp (ri->uri, "/get_log"))
     getlog (conn, ri);
+/* Telemetry API */
+  else if (!strcmp (ri->uri, "/measurement"))
+    measurement (conn, ri);
+  else if (!strcmp (ri->uri, "/telemetry"))
+    return 0;
   else
     {
 // fallback to http file server
@@ -1324,6 +1438,14 @@ main (int argc, char **argv)
   memset (&callbacks, 0, sizeof (callbacks));
   real_uid = getuid();
 
+/* Set up telemetry storage. It's a fixed buffer. */
+  telemetry = (char **)malloc(TELEMETRY_ENTRIES*sizeof(char *));
+  for(k=0;k<TELEMETRY_ENTRIES;++k)
+  {
+    telemetry[k] = (char *)calloc(TELEMETRY_BUFFER_SIZE, sizeof(char));
+  }
+  telemetry_counter = 0;
+
   BASEPATH = dirname (argv[0]);
 
 /* Daemonize */
@@ -1370,6 +1492,7 @@ main (int argc, char **argv)
     }
 
   callbacks.begin_request = begin_request_handler;
+  callbacks.websocket_ready = websocket_ready_handler;
   ctx = mg_start (&callbacks, NULL, (const char **) options);
   if(!ctx)
   {

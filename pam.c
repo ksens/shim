@@ -23,8 +23,8 @@
 #include <stdio.h>
 #include <time.h>
 #include "pam.h"
-#include <pwd.h>
 #include <sys/types.h>
+#include <pwd.h>
 #include <unistd.h>
 
 /* A conversation function for PAM to non-interactively supply username
