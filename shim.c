@@ -37,9 +37,9 @@
 #define TIMEOUT 60              // Timeout before a session is declared
                                 // orphaned and reaped
 
-#define TELEMETRY_ENTRIES 4000  // Max number of telemetry items (circular buf)
-#define TELEMETRY_BUFFER_SIZE 256  // Max size of a single line of telemetry
-#define TELEMETRY_UPDATE_INTERVAL 30     // In seconds, update client freq.
+#define TELEMETRY_ENTRIES 512  // Max number of telemetry items (circular buf)
+#define TELEMETRY_BUFFER_SIZE 64  // Max size of a single line of telemetry
+#define TELEMETRY_UPDATE_INTERVAL 5     // In seconds, update client freq.
 
 // Minimalist SciDB client API from client.cpp -------------------------------
 void *scidbconnect (const char *host, int port);
@@ -1167,8 +1167,8 @@ websocket_ready_handler (struct mg_connection *conn)
   int k;
   unsigned int j;
 // tracks the last line that this thread has sent...
-  unsigned int counter = (telemetry_counter + 1) % TELEMETRY_ENTRIES;
-  int first_msg = 1;
+  unsigned int counter = TELEMETRY_ENTRIES + 1;
+// The websocket header takes 4 bytes in this case.
   buf =
     (unsigned char *) malloc (TELEMETRY_BUFFER_SIZE * TELEMETRY_ENTRIES + 4);
   buf[0] = 0x81;                // FIN + TEXT (aka a single utf8 text message)
@@ -1181,11 +1181,13 @@ websocket_ready_handler (struct mg_connection *conn)
       if (counter == telemetry_counter)
         {
 // Nothing new to send.
+syslog(LOG_INFO, "telemetry skip");
           goto skip;
         }
-      else if (first_msg)
+      else if (counter > TELEMETRY_ENTRIES)
         {
-          first_msg = 0;
+// First message, send everything we got
+syslog(LOG_INFO, "telemetry first");
           for (j = 0; j < TELEMETRY_ENTRIES; ++j)
             {
               snprintf ((char * restrict) p, TELEMETRY_BUFFER_SIZE, "%s\n",
@@ -1197,6 +1199,7 @@ websocket_ready_handler (struct mg_connection *conn)
         }
       else if (counter < telemetry_counter)
         {
+syslog(LOG_INFO, "telemetry increment");
           for (j = counter; j < telemetry_counter; ++j)
             {
               snprintf ((char * restrict) p, TELEMETRY_BUFFER_SIZE, "%s\n",
@@ -1208,6 +1211,7 @@ websocket_ready_handler (struct mg_connection *conn)
         }
       else
         {
+syslog(LOG_INFO, "telemetry increment w/wrap around");
           for (j = counter; j < TELEMETRY_ENTRIES; ++j)
             {
               snprintf ((char * restrict) p, TELEMETRY_BUFFER_SIZE, "%s\n",
@@ -1240,7 +1244,7 @@ websocket_ready_handler (struct mg_connection *conn)
       buf[3] = buf[2];
       buf[2] = x;
       k = mg_write (conn, buf, l + 4);
-      syslog (LOG_INFO, "sent %d telemetry bytes over websocket", k);
+      syslog (LOG_INFO, "sent %d telemetry bytes (websocket) %d", k, (int)l);
       if (k < 1)
         {
 // The client connection must be closed, break out of loop.

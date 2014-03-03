@@ -17,5 +17,5 @@ do
   load=$(cat /proc/loadavg | cut -d ' ' -f 1)
   msg="${n},${mem},${load}"
   wget -O - -q "http://${1}/measurement?data=${msg}" >/dev/null 2>&1
-  sleep 10
+  sleep 2
 done
