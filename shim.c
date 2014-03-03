@@ -1188,7 +1188,6 @@ websocket_ready_handler (struct mg_connection *conn)
           first_msg = 0;
           for (j = 0; j < TELEMETRY_ENTRIES; ++j)
             {
-syslog(LOG_INFO, "FIRST");
               snprintf ((char * restrict) p, TELEMETRY_BUFFER_SIZE, "%s\n",
                         telemetry[j]);
               k = strlen (telemetry[j]) + 1;    // newline
