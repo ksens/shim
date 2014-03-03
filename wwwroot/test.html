@@ -48,12 +48,10 @@ window.onload = function()
   websocket = new WebSocket(url);
   websocket.onopen = function(ev)
   {
-    console.log('CONNECTED');
   };
   websocket.onclose = function(ev)
   {
-    console.log('DISCONNECTED');
-//    location.reload(); // Try to reload page
+    location.reload(); // Try to reload page
   };
   websocket.onmessage = function(ev)
   {

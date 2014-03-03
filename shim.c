@@ -1186,9 +1186,10 @@ websocket_ready_handler (struct mg_connection *conn)
       else if (first_msg)
         {
           first_msg = 0;
-          for (j = counter; j < TELEMETRY_ENTRIES; ++j)
+          for (j = 0; j < TELEMETRY_ENTRIES; ++j)
             {
-              snprintf ((char *restrict) p, TELEMETRY_BUFFER_SIZE, "%s\n",
+syslog(LOG_INFO, "FIRST");
+              snprintf ((char * restrict) p, TELEMETRY_BUFFER_SIZE, "%s\n",
                         telemetry[j]);
               k = strlen (telemetry[j]) + 1;    // newline
 // Note! We intentionally do not include the string's trailing zero byte.
@@ -1199,7 +1200,7 @@ websocket_ready_handler (struct mg_connection *conn)
         {
           for (j = counter; j < telemetry_counter; ++j)
             {
-              snprintf ((char *restrict) p, TELEMETRY_BUFFER_SIZE, "%s\n",
+              snprintf ((char * restrict) p, TELEMETRY_BUFFER_SIZE, "%s\n",
                         telemetry[j]);
               k = strlen (telemetry[j]) + 1;    // newline
 // Note! We intentionally do not include the string's trailing zero byte.
@@ -1210,7 +1211,7 @@ websocket_ready_handler (struct mg_connection *conn)
         {
           for (j = counter; j < TELEMETRY_ENTRIES; ++j)
             {
-              snprintf ((char *restrict) p, TELEMETRY_BUFFER_SIZE, "%s\n",
+              snprintf ((char * restrict) p, TELEMETRY_BUFFER_SIZE, "%s\n",
                         telemetry[j]);
               k = strlen (telemetry[j]) + 1;    // newline
               p += k;
