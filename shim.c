@@ -39,7 +39,7 @@
 
 #define TELEMETRY_ENTRIES 4000  // Max number of telemetry items (circular buf)
 #define TELEMETRY_BUFFER_SIZE 256  // Max size of a single line of telemetry
-#define TELEMETRY_UPDATE_INTERVAL 5     // In seconds, update client freq.
+#define TELEMETRY_UPDATE_INTERVAL 30     // In seconds, update client freq.
 
 // Minimalist SciDB client API from client.cpp -------------------------------
 void *scidbconnect (const char *host, int port);
