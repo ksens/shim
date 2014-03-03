@@ -3,7 +3,7 @@
 shim \- A basic HTTP service for SciDB.
 .SH SYNOPSIS
 .B shim
-[\-h] [\-f] [\-n \fIPAM_service_name\fR] [\-p \fIhttpport\fR] [\-r \fIdocumentroot\fR] [\-s \fIscidbport\fR]
+[\-h] [\-f] [\-n \fIPAM_service_name\fR] [\-p \fIhttpport\fR] [\-r \fIdocumentroot\fR] [\-s \fIscidbport\fR] [\-t \fItmpdir\fR]
 .SH DESCRIPTION
 Shim is a super-basic SciDB client that exposes SciDB queries
 through a simple HTTP API.
@@ -32,6 +32,9 @@ of shim use /var/lib/shim/wwwroot by default.
 .TP
 .B \-s \fIport\fR
 Talk to SciDB on the specified port, 1239 by default.
+.TP
+.B \-t \fItmpdir\fR
+Set the directory used for temporary file I/O, /dev/shm by default.
 
 
 .SH AUTHOR

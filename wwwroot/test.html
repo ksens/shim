@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<title>telemetry test</title>
+<meta charset="utf-8">
+<style>
+
+body {
+  font: 10px sans-serif;
+}
+
+.label {
+  font-weight: bold;
+}
+
+.tile {
+  shape-rendering: crispEdges;
+}
+
+.axis path,
+.axis line {
+  fill: none;
+  stroke: #000;
+  shape-rendering: crispEdges;
+}
+
+div {font: small Verdana; float: left;}
+</style>
+
+
+<body>
+<div id="loadavg">
+load average plot
+</div>
+<div id="freemem">
+percent free memory plot
+</div>
+
+<div id="output"></div>
+</body>
+<script src="js/d3.js"></script>
+<script language="javascript" type="text/javascript">
+// Global array of raw telemetry data.
+telemetry = [];
+
+window.onload = function()
+{
+  var url = 'ws://' + window.location.host + '/telemetry';
+  websocket = new WebSocket(url);
+  websocket.onopen = function(ev)
+  {
+    console.log('CONNECTED');
+  };
+  websocket.onclose = function(ev)
+  {
+    console.log('DISCONNECTED');
+//    location.reload(); // Try to reload page
+  };
+  websocket.onmessage = function(ev)
+  {
+// Magic happens here
+// Append new telemetry data
+    telemetry = telemetry.concat(csv2array(ev.data));
+// Truncate when it gets too big... XXX TODO
+// Plot
+    var p = ago(telemetry);
+    canned_heat(p,2,"Pct free mem","Minutes ago","host","#freemem","#eef","#00f")
+    canned_heat(p,3,"Load avg","Minutes ago","host","#loadavg","#ff5","red")
+  };
+  websocket.onerror = function(ev)
+  {
+//    console.log("websocket error "+ev.data);
+  };
+};
+
+var csv2array = function(X)
+{
+  var ans = X.split("\n").filter(function(x){return x.length>2;}).map(function(x){return x.split(",");});
+  ans = ans.map(function(x){
+                  var y=x;
+                  y[0] = Number(x[0]);       // Time  in 1s
+                  y[2] = Number(y[2]);       // Free memory percent
+                  y[3] = Number(y[3]);       // One minute load avg.
+                  return y;});
+  return ans;
+}
+
+// time ago from the present
+// aggregated into buckets for plotting
+var ago = function(X)
+{
+  var max_time = d3.max(X, function(x){return x[0];});
+// Divide time into one-minute buckets
+  var ans = X.map(function(x){
+               return [Math.floor((max_time - x[0])/60), x[1], x[2], x[3]];});
+// Roll up time buckets, applying an average. This is a bit clumsy...certainly
+// must be a more elegant way.
+  var a = d3.nest().key(function(x){return x[0];}).sortKeys(d3.ascending).key(function(x){return x[1];}).sortKeys(d3.ascending).rollup(function(x) {return {"N": x.length, "SUM2": d3.sum(x, function(y){return y[2];}), "SUM3": d3.sum(x,function(y){return y[3];}) } }).entries(ans);
+// the host names
+  var hostnames = a[0].values.map(function(x) {return x.key;});
+// the unique time buckets
+  var dt = a.map(function(x) {return Number(x.key);});
+// Averages over time buckets for all hostnames (same length as dt, each
+// entry has hostnames.length entries, each of those has two entries)
+  var avg = a.map(function(x) {return x.values.map(function(y) {return [y.values.SUM2/y.values.N, y.values.SUM3/y.values.N];});});
+
+  var rolled = [];
+  for(var j=0;j<dt.length;++j)
+  {
+    for(var k=0;k<hostnames.length;++k)
+    {
+      try
+      {
+        var free = avg[j][k][0];
+        var load = avg[j][k][1];
+        rolled.push([dt[j],hostnames[k],free,load]);
+      } catch(e){}
+    }
+  }
+  return rolled;
+}
+
+var example_data =
+{
+  name: "Load average",
+  xlab: "Seconds ago",
+  ylab: "Host",
+  data : [
+[0, "homer", 7],
+[0, "elmo",3],
+[0, "duke",5],
+[1, "homer", 5],
+[1, "elmo",2],
+[1, "duke",2],
+[2, "homer", 4],
+[2, "elmo",1],
+[2, "duke",2],
+[3, "homer", 5],
+[3, "elmo",3],
+[3, "duke",4],
+]};
+// Could plot this with:
+// canned_heat(example_data.data, 2, "example","time","host","#mydiv","white","red")
+
+
+/*
+ * canned_heat
+ * Plot time-series heatmaps of telemetry data.
+ * heat: An array with at least three columns: time, hostname, value.
+ * pos: column position in the data array of the measurement values
+ * name: name of the measurement
+ * xlab: x-axis label
+ * ylab: y-axis label
+ * div: A string ID selector for the div to draw in. For example "#mydiv".
+ * lowcol: low color limit
+ * highcol: high color limit
+ * Draws a time-series heat map, most recent times on the right.
+ */
+var canned_heat = function(heat, pos, name, xlab, ylab, div, lowcol, highcol)
+{
+  d3.select(div)[0][0].innerHTML="";
+  var margin = {top: 20, right: 90, bottom: 30, left: 80},
+    width = 500 - margin.left - margin.right,
+    height = 300 - margin.top - margin.bottom;
+
+  var svg = d3.select(div).append("svg")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+  .append("g")
+    .attr("class", "chart")
+    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+// Let's obtain a list of unqiue host names
+  var hosts = heat.map(function(x) {return x[1];}).filter(function(value,index,self){return self.indexOf(value) === index;});
+
+  var x = d3.scale.linear().range([width,0]),
+      y = d3.scale.ordinal().domain(hosts).rangeBands([height, 0]),
+      z = d3.scale.linear().range([lowcol, highcol]);
+  var xStep = 1;
+
+  // Compute the scale domains.
+  x.domain(d3.extent(heat, function(d) { return d[0]; }));
+  z.domain([0, d3.max(heat, function(d) { return d[pos]; })]);
+
+  // Extend the domains to fit the last value
+  x.domain([x.domain()[0], x.domain()[1] + xStep]);
+
+  // Display the tiles
+  svg.selectAll(".tile")
+      .data(heat)
+    .enter().append("rect")
+      .attr("class", "tile")
+      .attr("x", function(d) { return x(d[0] + 1); })
+      .attr("y", function(d) { return y(d[1]); })
+      .attr("width", Math.abs(x(xStep) - x(0)))
+      .attr("height",  y(1) - y(2))
+      .style("fill", function(d) { return z(d[pos]); });
+
+  // Add a legend for the color values.
+  var legend = svg.selectAll(".legend")
+      .data(z.ticks(6).slice(1).reverse())
+    .enter().append("g")
+      .attr("class", "legend")
+      .attr("transform", function(d, i) { return "translate(" + (width + 20) + "," + (20 + i * 20) + ")"; });
+
+  legend.append("rect")
+      .attr("width", 20)
+      .attr("height", 20)
+      .style("fill", z);
+
+  legend.append("text")
+      .attr("x", 26)
+      .attr("y", 10)
+      .attr("dy", ".35em")
+      .text(String);
+
+  svg.append("text")
+      .attr("class", "label")
+      .attr("x", width + 20)
+      .attr("y", 10)
+      .attr("dy", ".35em")
+      .text(name);
+
+  // Add an x-axis with label.
+  svg.append("g")
+      .attr("class", "x axis")
+      .attr("transform", "translate(0," + height + ")")
+      .call(d3.svg.axis().scale(x).orient("bottom"))
+    .append("text")
+      .attr("class", "label")
+      .attr("x", width)
+      .attr("y", -6)
+      .attr("text-anchor", "end")
+      .text(xlab);
+
+  // Add a y-axis with label.
+  // XXX Somehow the y scale is getting messed up. We reset it.
+      y = d3.scale.ordinal().domain(hosts).rangeBands([height, 0]);
+  svg.append("g")
+      .attr("class", "y axis")
+      .call(d3.svg.axis().scale(y).orient("left"))
+};
+</script>

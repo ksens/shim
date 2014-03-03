@@ -15,6 +15,7 @@ cat >/var/lib/shim/conf << EOF
 #auth=login
 #ports=8080,8083s
 #scidbport=1239
+#tmp=/dev/shm/
 #user=root
 EOF
 # Generate a certificate
