@@ -18,8 +18,8 @@
 #include "pam.h"
 #include <pwd.h>
 
-#define MAX_SESSIONS 30       // Maximum number of simultaneous http sessions
-#define MAX_VARLEN 4096       // Static buffer length to hold http query params
+#define MAX_SESSIONS 30         // Maximum number of simultaneous http sessions
+#define MAX_VARLEN 4096         // Static buffer length to hold http query params
 #define LCSV_MAX 16384
 #ifndef PATH_MAX
 #define PATH_MAX 4096
@@ -30,16 +30,16 @@
 #define DEFAULT_HTTP_PORT "8080,8083s"
 #endif
 
-#define DEFAULT_TMPDIR "/dev/shm/"     // Temporary location for I/O buffers
+#define DEFAULT_TMPDIR "/dev/shm/"      // Temporary location for I/O buffers
 #define PIDFILE "/var/run/shim.pid"
 
 #define WEEK 604800             // One week in seconds
 #define TIMEOUT 60              // Timeout before a session is declared
                                 // orphaned and reaped
 
-#define TELEMETRY_ENTRIES 1024   // Max number of telemetry items (circular buf)
-#define TELEMETRY_BUFFER_SIZE 256 // Max size of a single line of telemetry
-#define TELEMETRY_UPDATE_INTERVAL 5 // In seconds, update client freq.
+#define TELEMETRY_ENTRIES 4000  // Max number of telemetry items (circular buf)
+#define TELEMETRY_BUFFER_SIZE 256  // Max size of a single line of telemetry
+#define TELEMETRY_UPDATE_INTERVAL 5     // In seconds, update client freq.
 
 // Minimalist SciDB client API from client.cpp -------------------------------
 void *scidbconnect (const char *host, int port);
@@ -100,15 +100,15 @@ enum mimetype
 
 const char SCIDB_HOST[] = "localhost";
 int SCIDB_PORT = 1239;
-session *sessions;                // Fixed pool of web client sessions
+session *sessions;              // Fixed pool of web client sessions
 char *docroot;
-static uid_t real_uid; // For setting uid to logged in user when required
-char *PAM_service_name = "login"; // Default PAM service name
+static uid_t real_uid;          // For setting uid to logged in user when required
+char *PAM_service_name = "login";       // Default PAM service name
 /* Big giant lock used to serialize many operations: */
 omp_lock_t biglock;
 char *BASEPATH;
-char *TMPDIR; // temporary files go here
-token_list *tokens = NULL; // the head of the list
+char *TMPDIR;                   // temporary files go here
+token_list *tokens = NULL;      // the head of the list
 
 /* Telemetry data */
 char **telemetry;
@@ -136,7 +136,7 @@ respond (struct mg_connection *conn, enum mimetype type, int code, int length,
 {
   if (code != 200)              // error
     {
-      if (data) // error with data payload (always presented as text/html here)
+      if (data)                 // error with data payload (always presented as text/html here)
         {
           mg_printf (conn, "HTTP/1.0 %d ERROR\r\n"
                      "Content-Length: %lu\r\n"
@@ -417,30 +417,31 @@ login (struct mg_connection *conn, const struct mg_request_info *ri)
   k = strlen (ri->query_string);
   mg_get_var (ri->query_string, k, "username", u, MAX_VARLEN);
   mg_get_var (ri->query_string, k, "password", p, MAX_VARLEN);
-  k = do_pam_login(PAM_service_name,u,p);
-  if(k==0)
-  {
+  k = do_pam_login (PAM_service_name, u, p);
+  if (k == 0)
+    {
 /* Success. Generate a new auth token and return it.
  * XXX NOTE! No limit to the number of authenticated logins.  This means a
  * careless user can extend the token list indefinitely (that is, leak).
  * FIX ME
  */
-    omp_set_lock (&biglock);
-    uid = username2uid(u);
-    while(t==NULL)
-      t = addtoken(tokens, authtoken(), uid);
-    tokens = t;
-    omp_unset_lock (&biglock);
-    memset(p,0,MAX_VARLEN);
-    snprintf(p,MAX_VARLEN,"%lu",t->val);
-    syslog (LOG_INFO, "Authenticated user %s token %s uid %ld",u,p,(long)uid);
-    respond (conn, plain, 200, strlen (p), p);
-  }
+      omp_set_lock (&biglock);
+      uid = username2uid (u);
+      while (t == NULL)
+        t = addtoken (tokens, authtoken (), uid);
+      tokens = t;
+      omp_unset_lock (&biglock);
+      memset (p, 0, MAX_VARLEN);
+      snprintf (p, MAX_VARLEN, "%lu", t->val);
+      syslog (LOG_INFO, "Authenticated user %s token %s uid %ld", u, p,
+              (long) uid);
+      respond (conn, plain, 200, strlen (p), p);
+    }
   else
-  {
-    syslog(LOG_INFO,"PAM login for username %s returned %d",u,k);
-    respond (conn, plain, 401, 0, NULL); // Not authorized.
-  }
+    {
+      syslog (LOG_INFO, "PAM login for username %s returned %d", u, k);
+      respond (conn, plain, 401, 0, NULL);      // Not authorized.
+    }
   return;
 }
 
@@ -465,9 +466,9 @@ logout (struct mg_connection *conn, const struct mg_request_info *ri)
     }
   k = strlen (ri->query_string);
   mg_get_var (ri->query_string, k, "auth", a, MAX_VARLEN);
-  l = strtoul(a,NULL,0);
+  l = strtoul (a, NULL, 0);
   omp_set_lock (&biglock);
-  tokens = removetoken(tokens, l);
+  tokens = removetoken (tokens, l);
   omp_unset_lock (&biglock);
   respond (conn, plain, 200, 0, NULL);
   return;
@@ -562,7 +563,8 @@ new_session (struct mg_connection *conn)
  * And the function must be called with a valid user id for seteuid.
  */
 void
-loadcsv (struct mg_connection *conn, const struct mg_request_info *ri, uid_t uid)
+loadcsv (struct mg_connection *conn, const struct mg_request_info *ri,
+         uid_t uid)
 {
   int id, k, n, j;
   session *s;
@@ -633,30 +635,33 @@ loadcsv (struct mg_connection *conn, const struct mg_request_info *ri, uid_t uid
   getpwuid_r (uid, &pwd, pbuf, bufsize, &result);
   if (result == NULL)
     {
-      free(pbuf);
+      free (pbuf);
       goto bail;
     }
-  LD = getenv("LD_LIBRARY_PATH");
+  LD = getenv ("LD_LIBRARY_PATH");
 // User access is restricted by seteuid and then su. We add su to allow
 // use of LD_LIBRARY_PATH.
-  snprintf (cmd, LCSV_MAX, "su %s -c \"/bin/bash -c \\\"umask 022; export LD_LIBRARY_PATH=%s ; %s/csv2scidb  -s %d < %s > %s.scidb ; %s/iquery -naq 'remove(%s)' 2>>/tmp/log; %s/iquery -naq 'create_array(%s,%s)' 2>>/tmp/log; %s/iquery -naq \\\\\\\"store(input(%s,'%s.scidb',0),%s)\\\\\\\" 2>>/tmp/log;rm -f %s.scidb\\\" \" ",
-            pwd.pw_name, LD, BASEPATH, n, s->ibuf, s->ibuf, BASEPATH, arrayname,  BASEPATH,
-            arrayname, schema, BASEPATH, schema, s->ibuf, arrayname, s->ibuf);
+  snprintf (cmd, LCSV_MAX,
+            "su %s -c \"/bin/bash -c \\\"umask 022; export LD_LIBRARY_PATH=%s ; %s/csv2scidb  -s %d < %s > %s.scidb ; %s/iquery -naq 'remove(%s)' 2>>/tmp/log; %s/iquery -naq 'create_array(%s,%s)' 2>>/tmp/log; %s/iquery -naq \\\\\\\"store(input(%s,'%s.scidb',0),%s)\\\\\\\" 2>>/tmp/log;rm -f %s.scidb\\\" \" ",
+            pwd.pw_name, LD, BASEPATH, n, s->ibuf, s->ibuf, BASEPATH,
+            arrayname, BASEPATH, arrayname, schema, BASEPATH, schema, s->ibuf,
+            arrayname, s->ibuf);
 //  snprintf (cmd, LCSV_MAX,
 //            "/bin/bash -l -c \"umask 022; export LD_LIBRARY_PATH=%s ; %s/csv2scidb  -s %d < %s > %s.scidb ; %s/iquery -naq 'remove(%s)' 2>>/tmp/log; %s/iquery -naq 'create_array(%s,%s)' 2>>/tmp/log; %s/iquery -naq \\\"store(input(%s,'%s.scidb',0),%s)\\\" 2>>/tmp/log;touch %s.scidb\"",
 //            LD, BASEPATH, n, s->ibuf, s->ibuf, BASEPATH, arrayname,  BASEPATH,
 //            arrayname, schema, BASEPATH, schema, s->ibuf, arrayname, s->ibuf);
 //  snprintf(cmd,LCSV_MAX, "export LD_LIBRARY_PATH=%s && python %s/loadcsv.py -v -m -l -M -L -x -i %s -n %d -e %d -a %s -s \"%s\" >/tmp/log 2>&1",  getenv("LD_LIBRARY_PATH"), BASEPATH, s->ibuf, n, e, arrayname, schema);
 
-  syslog (LOG_INFO, "loadcsv euid: %ld user name %s; cmd: %s", (long)uid, pwd.pw_name, cmd);
-  free(pbuf);
-  j = seteuid(uid);
-  if(j<0)
-  {
-    goto bail;
-  }
+  syslog (LOG_INFO, "loadcsv euid: %ld user name %s; cmd: %s", (long) uid,
+          pwd.pw_name, cmd);
+  free (pbuf);
+  j = seteuid (uid);
+  if (j < 0)
+    {
+      goto bail;
+    }
   n = system (cmd);
-  seteuid(real_uid);
+  seteuid (real_uid);
   syslog (LOG_INFO, "loadcsv result: %d", n);
   syslog (LOG_INFO, "loadcsv releasing HTTP session %d", s->sessionid);
   cleanup_session (s);
@@ -670,7 +675,7 @@ bail:
   syslog (LOG_ERR, "Setuid error");
   cleanup_session (s);
   omp_unset_lock (&s->lock);
-  respond (conn, plain, 401, strlen("Not authorized"), "Not authorized");
+  respond (conn, plain, 401, strlen ("Not authorized"), "Not authorized");
 }
 
 
@@ -961,7 +966,8 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
   mg_get_var (ri->query_string, k, "async", var, MAX_VARLEN);
   if (strlen (var) > 0)
     async = atoi (var);
-  if(rel==0) async = 0;
+  if (rel == 0)
+    async = 0;
   syslog (LOG_INFO, "execute_query for session id %d", id);
   s = find_session (id);
   if (!s)
@@ -993,11 +999,11 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
       return;
     }
 // XXX Experimental async flag, if set respond immediately
-  if(async)
-  {
-    syslog (LOG_INFO, "execute_query async indicated");
-    respond (conn, plain, 200, 0, NULL);
-  }
+  if (async)
+    {
+      syslog (LOG_INFO, "execute_query async indicated");
+      respond (conn, plain, 200, 0, NULL);
+    }
   omp_set_lock (&s->lock);
   memset (var, 0, MAX_VARLEN);
   mg_get_var (ri->query_string, k, "save", save, MAX_VARLEN);
@@ -1017,8 +1023,9 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
       free (qry);
       free (qrybuf);
       syslog (LOG_ERR, "execute_query error could not connect to SciDB");
-      if(!async) respond (conn, plain, 503, strlen ("Could not connect to SciDB"),
-               "Could not connect to SciDB");
+      if (!async)
+        respond (conn, plain, 503, strlen ("Could not connect to SciDB"),
+                 "Could not connect to SciDB");
       cleanup_session (s);
       omp_unset_lock (&s->lock);
       return;
@@ -1033,7 +1040,8 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
       free (qry);
       free (qrybuf);
       syslog (LOG_ERR, "execute_query error %s", SERR);
-      if(!async) respond (conn, plain, 500, strlen (SERR), SERR);
+      if (!async)
+        respond (conn, plain, 500, strlen (SERR), SERR);
       if (s->con)
         scidbdisconnect (s->con);
       s->con = NULL;
@@ -1056,7 +1064,8 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
       free (qry);
       free (qrybuf);
       syslog (LOG_ERR, "execute_prepared_query error %s", SERR);
-      if(!async) respond (conn, plain, 500, strlen (SERR), SERR);
+      if (!async)
+        respond (conn, plain, 500, strlen (SERR), SERR);
       if (s->con)
         scidbdisconnect (s->con);
       s->con = NULL;
@@ -1083,7 +1092,8 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
   omp_unset_lock (&s->lock);
 // Respond to the client
   snprintf (buf, MAX_VARLEN, "%llu", l);        // Return the query ID
-  if(!async) respond (conn, plain, 200, strlen (buf), buf);
+  if (!async)
+    respond (conn, plain, 200, strlen (buf), buf);
 }
 
 
@@ -1137,84 +1147,110 @@ measurement (struct mg_connection *conn, const struct mg_request_info *ri)
   k = strlen (ri->query_string);
   mg_get_var (ri->query_string, k, "data", var, TELEMETRY_BUFFER_SIZE);
   omp_set_lock (&biglock);
-  time(&t);
+  time (&t);
 // Add current server time in seconds to the measurement
-  snprintf(telemetry[telemetry_counter],TELEMETRY_BUFFER_SIZE, "%ld,%s", (long int )t, var);
-  telemetry_counter = (telemetry_counter + 1)  % TELEMETRY_ENTRIES;
+  snprintf (telemetry[telemetry_counter], TELEMETRY_BUFFER_SIZE, "%ld,%s",
+            (long int) t, var);
+  telemetry_counter = (telemetry_counter + 1) % TELEMETRY_ENTRIES;
+  syslog (LOG_INFO, "telemetry counter %d", (int) telemetry_counter);
   omp_unset_lock (&biglock);
   respond (conn, plain, 200, 0, NULL);
 }
 
 static void
-websocket_ready_handler(struct mg_connection *conn)
+websocket_ready_handler (struct mg_connection *conn)
 {
-  unsigned char *buf;             // websocket response method
+  unsigned char *buf;           // websocket response method
   unsigned char *p;
   unsigned char x;
-  int16_t l;                      // Length of the websocket payload
+  int16_t l;                    // Length of the websocket payload
   int k;
-  unsigned int j, counter = 0; // Last line that this thread sent
-  buf = (unsigned char *)malloc(TELEMETRY_BUFFER_SIZE * TELEMETRY_ENTRIES+4);
-  buf[0] = 0x81;    // FIN + TEXT (aka a single utf8 text message)
-  buf[1] = 126;     // -> two-byte length in buf[2], buf[3].
+  unsigned int j;
+// tracks the last line that this thread has sent...
+  unsigned int counter = (telemetry_counter + 1) % TELEMETRY_ENTRIES;
+  int first_msg = 1;
+  buf =
+    (unsigned char *) malloc (TELEMETRY_BUFFER_SIZE * TELEMETRY_ENTRIES + 4);
+  buf[0] = 0x81;                // FIN + TEXT (aka a single utf8 text message)
+  buf[1] = 126;                 // -> two-byte length in buf[2], buf[3].
 
-for(;;)
-{
-  p = buf + 4;
-  l = 0;
-  if(counter == telemetry_counter)
-  {
-    goto skip;
-  } else if(counter < telemetry_counter)
-  {
-    for(j=counter;j<telemetry_counter;++j)
+  for (;;)
     {
-      snprintf((char * restrict)p,TELEMETRY_BUFFER_SIZE,"%s\n",telemetry[j]);
-      k = strlen(telemetry[j]) + 2; // newline + trailing null
-      p+=k;
-    }
-  } else
-  {
-    for(j=counter;j<TELEMETRY_ENTRIES;++j)
-    {
-      snprintf((char * restrict)p,TELEMETRY_BUFFER_SIZE,"%s\n",telemetry[j]);
-      k = strlen(telemetry[j]) + 2; // newline + trailing null
-      p+=k;
-    }
-    for(j=0;j<telemetry_counter;++j)
-    {
-      snprintf((char * restrict)p,TELEMETRY_BUFFER_SIZE,"%s\n",telemetry[j]);
-      k = strlen(telemetry[j]) + 2; // newline + trailing null
-      p+=k;
-    }
-  }
-  counter = telemetry_counter;
-  l = (p - buf) - 4;
+      p = buf + 4;
+      l = 0;
+      if (counter == telemetry_counter)
+        {
+// Nothing new to send.
+          goto skip;
+        }
+      else if (first_msg)
+        {
+          first_msg = 0;
+          for (j = counter; j < TELEMETRY_ENTRIES; ++j)
+            {
+              snprintf ((char *restrict) p, TELEMETRY_BUFFER_SIZE, "%s\n",
+                        telemetry[j]);
+              k = strlen (telemetry[j]) + 1;    // newline
+// Note! We intentionally do not include the string's trailing zero byte.
+              p += k;
+            }
+        }
+      else if (counter < telemetry_counter)
+        {
+          for (j = counter; j < telemetry_counter; ++j)
+            {
+              snprintf ((char *restrict) p, TELEMETRY_BUFFER_SIZE, "%s\n",
+                        telemetry[j]);
+              k = strlen (telemetry[j]) + 1;    // newline
+// Note! We intentionally do not include the string's trailing zero byte.
+              p += k;
+            }
+        }
+      else
+        {
+          for (j = counter; j < TELEMETRY_ENTRIES; ++j)
+            {
+              snprintf ((char *restrict) p, TELEMETRY_BUFFER_SIZE, "%s\n",
+                        telemetry[j]);
+              k = strlen (telemetry[j]) + 1;    // newline
+              p += k;
+            }
+          for (j = 0; j < telemetry_counter; ++j)
+            {
+              snprintf ((char *restrict) p, TELEMETRY_BUFFER_SIZE, "%s\n",
+                        telemetry[j]);
+              k = strlen (telemetry[j]) + 1;    // newline
+              p += k;
+            }
+        }
+      counter = telemetry_counter;
+      l = (p - buf) - 4;
 // Make sure length of websocket message is in [126,32768) for websocket framing
 // reasons.
-  if(l < 127)
-  {
-    memset(p, 10, 127); // Pad out with newlines
-    memset(p+127,0,1);
-    p+=128;
-  }
-  l = (p - buf) - 4;
-  memcpy((void *)buf+2,(const void *)&l, sizeof(l));
+      if (l < 127)
+        {
+          memset (p, 10, 127);  // Pad out with newlines
+          memset (p + 127, 0, 1);
+          p += 128;
+        }
+      l = (p - buf) - 4;
+      memcpy ((void *) buf + 2, (const void *) &l, sizeof (l));
 // poor man's htons
-  x = buf[3];
-  buf[3] = buf[2];
-  buf[2] = x;
-  k = mg_write(conn, buf, l+4);
-  syslog(LOG_INFO, "sent %d telemetry bytes over websocket",k);
-    if(k<1)
-    {
+      x = buf[3];
+      buf[3] = buf[2];
+      buf[2] = x;
+      k = mg_write (conn, buf, l + 4);
+      syslog (LOG_INFO, "sent %d telemetry bytes over websocket", k);
+      if (k < 1)
+        {
 // The client connection must be closed, break out of loop.
-      syslog(LOG_INFO, "websocket connection closed");
-      break;
+          syslog (LOG_INFO, "websocket connection closed");
+          break;
+        }
+    skip:
+      sleep (TELEMETRY_UPDATE_INTERVAL);
     }
-skip:
-  sleep(5);
-}
+  free (buf);
 }
 
 void
@@ -1228,8 +1264,8 @@ getlog (struct mg_connection *conn, const struct mg_request_info *ri)
 
 /* Check authentication token to see if it's in our list. */
 token_list *
-check_auth(token_list *head, struct mg_connection *conn,
-           const struct mg_request_info *ri)
+check_auth (token_list * head, struct mg_connection *conn,
+            const struct mg_request_info *ri)
 {
   int k;
   unsigned long l;
@@ -1243,17 +1279,17 @@ check_auth(token_list *head, struct mg_connection *conn,
     }
   k = strlen (ri->query_string);
   mg_get_var (ri->query_string, k, "auth", var, MAX_VARLEN);
-  l = strtoul(var,NULL,0);
+  l = strtoul (var, NULL, 0);
 /* Scan the list for a match */
-  while(t)
-  {
-    if(t->val == l)
+  while (t)
     {
+      if (t->val == l)
+        {
 /* Authorizedd, we don't repond here since a downstream callback will */
-      return t;
+          return t;
+        }
+      t = (token_list *) t->next;
     }
-    t = (token_list *)t->next;
-  }
 /* Not authorized */
   respond (conn, plain, 401, 0, NULL);
   return NULL;
@@ -1271,9 +1307,9 @@ begin_request_handler (struct mg_connection *conn)
   token_list *tok = NULL;
 
 // Don't log login query string
-  if(!strcmp (ri->uri, "/login"))
+  if (!strcmp (ri->uri, "/login"))
     syslog (LOG_INFO, "%s", ri->uri);
-  else if(ri->is_ssl)
+  else if (ri->is_ssl)
     syslog (LOG_INFO, "(SSL) %s?%s", ri->uri, ri->query_string);
   else
     syslog (LOG_INFO, "%s?%s", ri->uri, ri->query_string);
@@ -1281,15 +1317,16 @@ begin_request_handler (struct mg_connection *conn)
 /* Check API authentication (encrypted sessions only--only applies to
  * the listed subset of the available shim API)
  */
-  if(ri->is_ssl                            &&
-     (!strcmp (ri->uri, "/new_session")    ||
-      !strcmp (ri->uri, "/upload_file")    ||
-      !strcmp (ri->uri, "/read_lines")     ||
-      !strcmp (ri->uri, "/read_bytes")     ||
-      !strcmp (ri->uri, "/execute_query")  ||
-      !strcmp (ri->uri, "/loadcsv")        ||
-      !strcmp (ri->uri, "/cancel"))        &&
-      !(tok=check_auth(tokens, conn, ri))) goto end;
+  if (ri->is_ssl &&
+      (!strcmp (ri->uri, "/new_session") ||
+       !strcmp (ri->uri, "/upload_file") ||
+       !strcmp (ri->uri, "/read_lines") ||
+       !strcmp (ri->uri, "/read_bytes") ||
+       !strcmp (ri->uri, "/execute_query") ||
+       !strcmp (ri->uri, "/loadcsv") ||
+       !strcmp (ri->uri, "/cancel")) &&
+      !(tok = check_auth (tokens, conn, ri)))
+    goto end;
 
 // CLIENT API
   if (!strcmp (ri->uri, "/new_session"))
@@ -1309,15 +1346,16 @@ begin_request_handler (struct mg_connection *conn)
   else if (!strcmp (ri->uri, "/execute_query"))
     execute_query (conn, ri);
   else if (!strcmp (ri->uri, "/loadcsv"))
-  {
-    if(!tok)
     {
-      syslog (LOG_ERR, "loadcsv not authorized");
-      respond (conn, plain, 401, strlen("Not authorized"), "Not authorized");
-      goto end;
+      if (!tok)
+        {
+          syslog (LOG_ERR, "loadcsv not authorized");
+          respond (conn, plain, 401, strlen ("Not authorized"),
+                   "Not authorized");
+          goto end;
+        }
+      loadcsv (conn, ri, tok->uid);
     }
-    loadcsv (conn, ri, tok->uid);
-  }
   else if (!strcmp (ri->uri, "/cancel"))
     cancel_query (conn, ri);
 // CONTROL API
@@ -1377,9 +1415,9 @@ parse_args (char **options, int argc, char **argv, int *daemonize)
           break;
         case 'r':
           options[3] = optarg;
-          options[5] = (char *)malloc(PATH_MAX);
-          strncat(options[5],optarg,PATH_MAX);
-          strncat(options[5],"/../ssl_cert.pem",PATH_MAX - 17);
+          options[5] = (char *) malloc (PATH_MAX);
+          strncat (options[5], optarg, PATH_MAX);
+          strncat (options[5], "/../ssl_cert.pem", PATH_MAX - 17);
           break;
         case 's':
           SCIDB_PORT = atoi (optarg);
@@ -1421,29 +1459,30 @@ main (int argc, char **argv)
   options[6] = NULL;
   TMPDIR = DEFAULT_TMPDIR;
   parse_args (options, argc, argv, &daemonize);
-  if(stat(options[5], &check_ssl) < 0)
-  {
+  if (stat (options[5], &check_ssl) < 0)
+    {
 /* Disable SSL  by removing any 's' port options and getting rid of the ssl
  * options.
  */
-    ports = cp = strdup(options[1]);
-    while((cp = strchr(cp, 's')) != NULL) *cp++ = ',';
-    options[1] = ports;
-    options[4] = NULL;
-    options[5] = NULL;
-  }
+      ports = cp = strdup (options[1]);
+      while ((cp = strchr (cp, 's')) != NULL)
+        *cp++ = ',';
+      options[1] = ports;
+      options[4] = NULL;
+      options[5] = NULL;
+    }
   docroot = options[3];
   sessions = (session *) calloc (MAX_SESSIONS, sizeof (session));
   scount = 0;
   memset (&callbacks, 0, sizeof (callbacks));
-  real_uid = getuid();
+  real_uid = getuid ();
 
 /* Set up telemetry storage. It's a fixed buffer. */
-  telemetry = (char **)malloc(TELEMETRY_ENTRIES*sizeof(char *));
-  for(k=0;k<TELEMETRY_ENTRIES;++k)
-  {
-    telemetry[k] = (char *)calloc(TELEMETRY_BUFFER_SIZE, sizeof(char));
-  }
+  telemetry = (char **) malloc (TELEMETRY_ENTRIES * sizeof (char *));
+  for (k = 0; k < TELEMETRY_ENTRIES; ++k)
+    {
+      telemetry[k] = (char *) calloc (TELEMETRY_BUFFER_SIZE, sizeof (char));
+    }
   telemetry_counter = 0;
 
   BASEPATH = dirname (argv[0]);
@@ -1494,11 +1533,11 @@ main (int argc, char **argv)
   callbacks.begin_request = begin_request_handler;
   callbacks.websocket_ready = websocket_ready_handler;
   ctx = mg_start (&callbacks, NULL, (const char **) options);
-  if(!ctx)
-  {
-    syslog (LOG_ERR, "failed to start web service");
-    return -1;
-  }
+  if (!ctx)
+    {
+      syslog (LOG_ERR, "failed to start web service");
+      return -1;
+    }
   syslog (LOG_INFO,
           "SciDB HTTP service started on port(s) %s with web root [%s], talking to SciDB on port %d",
           mg_get_option (ctx, "listening_ports"),
