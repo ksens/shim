@@ -14,6 +14,11 @@
   shape-rendering: crispEdges;
 }
 
+.chart
+{
+  background-color: rgba(0,0,0,0.05);
+}
+
 .axis path,
 .axis line {
   fill: none;
@@ -21,6 +26,16 @@
   shape-rendering: crispEdges;
 }
 
+div.meter
+{
+  float: left;
+  margin-left: 20px;
+  width: 50px;
+  height: 50px;
+  overflow: hidden;
+  border: 1px solid #aaa;
+  resize: both;
+}
 
    body {
      padding-top: 60px;
@@ -40,37 +55,6 @@
      column-gap:40px;
    }
 
-    table.api-param-values {
-        align: center;
-        width: 100%;
-    }
-
-    table.api-param-values th, table.api-param-values td {
-        text-align: left;
-        vertical-align: top;
-        padding: 6px 6px 6px 11px;
-    }
-
-    table.api-param-values tr {
-        width: 20px;
-    }
-
-    table.api-param-values tr:nth-child(2) td {
-        padding-top: 11px;
-    }
-    table.api-param-values tr:last-child td {
-        padding-bottom: 12px;
-    }
-
-    table.center-first-col tr td:first-child, table.center-first-col tr th:first-child {
-        text-align: center;
-        width: 70px;
-    }
-
-    table.api-param-values th {
-        background-color: #fafafa;
-        border-bottom: 1px solid #ddd;
-    }
 
  </style>
  <link href="css/bootstrap-responsive.css" rel="stylesheet">
@@ -108,11 +92,10 @@
     </div>
   </div>
 
-<h2>Example live telemetry data</h2>
-<div style="float: left;" id="loadavg">
+<div id="loadavg" class="meter">
 load average plot
 </div>
-<div style="float: left;" id="freemem">
+<div class="meter" id="freemem">
 percent free memory plot
 </div>
 
@@ -121,6 +104,7 @@ percent free memory plot
 <script language="javascript" type="text/javascript">
 // Global array of raw telemetry data.
 telemetry = [];
+
 
 window.onload = function()
 {
@@ -131,7 +115,7 @@ window.onload = function()
   };
   websocket.onclose = function(ev)
   {
-    location.reload(); // Try to reload page
+//    location.reload(); // Try to reload page
   };
   websocket.onmessage = function(ev)
   {
@@ -142,7 +126,7 @@ window.onload = function()
 // Plot
     var p = ago(telemetry);
     canned_heat(p,2,"Pct free mem","Tens of seconds ago","host","#freemem","#eef","#00f")
-    canned_heat(p,3,"Load avg","Tens of seconds ago","host","#loadavg","#ff5","red")
+    canned_heat(p,3,"CPU Load avg","Tens of seconds ago","host","#loadavg","#ff5","red")
   };
   websocket.onerror = function(ev)
   {
@@ -236,15 +220,19 @@ var example_data =
 var canned_heat = function(heat, pos, name, xlab, ylab, div, lowcol, highcol)
 {
   d3.select(div)[0][0].innerHTML="";
-  var margin = {top: 20, right: 90, bottom: 30, left: 80},
-    width = 500 - margin.left - margin.right,
-    height = 300 - margin.top - margin.bottom;
+  var wd = parseInt(d3.select(div).style("width"));
+  var ht = parseInt(d3.select(div).style("height"));
+  if(wd < 100){wd = 500; d3.select(div).style("width",wd+"px");}
+  if(ht < 100){ht = 300; d3.select(div).style("height",ht+"px");}
+  var margin = {top: 20, right: 110, bottom: 30, left: 90},
+    width = wd - margin.left - margin.right,
+    height = ht - margin.top - margin.bottom;
 
   var svg = d3.select(div).append("svg")
     .attr("width", width + margin.left + margin.right)
     .attr("height", height + margin.top + margin.bottom)
-  .append("g")
     .attr("class", "chart")
+  .append("g")
     .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
 // Let's obtain a list of unqiue host names
