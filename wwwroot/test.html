@@ -1,13 +1,11 @@
 <!DOCTYPE html>
-<meta charset="utf-8" />
-<title>telemetry test</title>
-<meta charset="utf-8">
-<style>
-
-body {
-  font: 10px sans-serif;
-}
-
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>SciDB Simple Telemetry Service</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+ <link href="css/bootstrap.css" rel="stylesheet">
+ <style type="text/css">
 .label {
   font-weight: bold;
 }
@@ -23,19 +21,101 @@ body {
   shape-rendering: crispEdges;
 }
 
-div {font: small Verdana; float: left;}
-</style>
 
+   body {
+     padding-top: 60px;
+     padding-bottom: 40px;
+   }
+   .allgreen
+   {
+     color: #007700;
+   }
+   .instances
+   {
+     -moz-column-count:3; /* Firefox */
+     -webkit-column-count:3; /* Safari and Chrome */
+     column-count:3;
+     -moz-column-gap:40px; /* Firefox */
+     -webkit-column-gap:40px; /* Safari and Chrome */
+     column-gap:40px;
+   }
+
+    table.api-param-values {
+        align: center;
+        width: 100%;
+    }
+
+    table.api-param-values th, table.api-param-values td {
+        text-align: left;
+        vertical-align: top;
+        padding: 6px 6px 6px 11px;
+    }
+
+    table.api-param-values tr {
+        width: 20px;
+    }
+
+    table.api-param-values tr:nth-child(2) td {
+        padding-top: 11px;
+    }
+    table.api-param-values tr:last-child td {
+        padding-bottom: 12px;
+    }
+
+    table.center-first-col tr td:first-child, table.center-first-col tr th:first-child {
+        text-align: center;
+        width: 70px;
+    }
+
+    table.api-param-values th {
+        background-color: #fafafa;
+        border-bottom: 1px solid #ddd;
+    }
+
+ </style>
+ <link href="css/bootstrap-responsive.css" rel="stylesheet">
+ <!-- HTML5 shim, for IE6-8 support of HTML5 elements -->
+ <!--[if lt IE 9]>
+    <script src="../assets/js/html5shiv.js"></script>
+ <![endif]-->
+ <link rel="apple-touch-icon-precomposed" href="img/favicon.png">
+ <link rel="shortcut icon" href="img/favicon.ico">
+</head>
 
 <body>
-<div id="loadavg">
+
+  <div class="navbar navbar-inverse navbar-fixed-top">
+    <div class="navbar-inner">
+      <div class="container">
+        <a class="btn btn-navbar" data-toggle="collapse" data-target=".nav-collapse">
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </a>
+        <a class="brand" href="index.html">SciDB</a>
+        <div class="nav-collapse collapse">
+          <ul class="nav">
+            <li><a href="index.html">Dashboard</a></li>
+            <li><a href="query.html">Interactive Query</a></li>
+          </ul>
+          <div class="pull-right">
+            <ul class="nav">
+            <li><a href="http://paradigm4.com">http://paradigm4.com</a>
+            <ul>
+          </div>
+        </div><!--/.nav-collapse -->
+      </div>
+    </div>
+  </div>
+
+<h2>Example live telemetry data</h2>
+<div style="float: left;" id="loadavg">
 load average plot
 </div>
-<div id="freemem">
+<div style="float: left;" id="freemem">
 percent free memory plot
 </div>
 
-<div id="output"></div>
 </body>
 <script src="js/d3.js"></script>
 <script language="javascript" type="text/javascript">
@@ -61,8 +141,8 @@ window.onload = function()
 // Truncate when it gets too big... XXX TODO
 // Plot
     var p = ago(telemetry);
-    canned_heat(p,2,"Pct free mem","Minutes ago","host","#freemem","#eef","#00f")
-    canned_heat(p,3,"Load avg","Minutes ago","host","#loadavg","#ff5","red")
+    canned_heat(p,2,"Pct free mem","Tens of seconds ago","host","#freemem","#eef","#00f")
+    canned_heat(p,3,"Load avg","Tens of seconds ago","host","#loadavg","#ff5","red")
   };
   websocket.onerror = function(ev)
   {
@@ -87,9 +167,9 @@ var csv2array = function(X)
 var ago = function(X)
 {
   var max_time = d3.max(X, function(x){return x[0];});
-// Divide time into one-minute buckets
+// Divide time into buckets
   var ans = X.map(function(x){
-               return [Math.floor((max_time - x[0])/60), x[1], x[2], x[3]];});
+               return [Math.floor((max_time - x[0])/10), x[1], x[2], x[3]];});
 // Roll up time buckets, applying an average. This is a bit clumsy...certainly
 // must be a more elegant way.
   var a = d3.nest().key(function(x){return x[0];}).sortKeys(d3.ascending).key(function(x){return x[1];}).sortKeys(d3.ascending).rollup(function(x) {return {"N": x.length, "SUM2": d3.sum(x, function(y){return y[2];}), "SUM3": d3.sum(x,function(y){return y[3];}) } }).entries(ans);

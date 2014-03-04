@@ -37,9 +37,10 @@
 #define TIMEOUT 60              // Timeout before a session is declared
                                 // orphaned and reaped
 
-#define TELEMETRY_ENTRIES 512  // Max number of telemetry items (circular buf)
-#define TELEMETRY_BUFFER_SIZE 64  // Max size of a single line of telemetry
+#define TELEMETRY_ENTRIES 10000 // Max number of telemetry items (circular buf)
+#define TELEMETRY_BUFFER_SIZE 128       // Max size of a single line of telemetry
 #define TELEMETRY_UPDATE_INTERVAL 5     // In seconds, update client freq.
+#define WEBSOCKET_FRAME_SIZE 32768
 
 // Minimalist SciDB client API from client.cpp -------------------------------
 void *scidbconnect (const char *host, int port);
@@ -1152,7 +1153,6 @@ measurement (struct mg_connection *conn, const struct mg_request_info *ri)
   snprintf (telemetry[telemetry_counter], TELEMETRY_BUFFER_SIZE, "%ld,%s",
             (long int) t, var);
   telemetry_counter = (telemetry_counter + 1) % TELEMETRY_ENTRIES;
-  syslog (LOG_INFO, "telemetry counter %d", (int) telemetry_counter);
   omp_unset_lock (&biglock);
   respond (conn, plain, 200, 0, NULL);
 }
@@ -1161,76 +1161,112 @@ static void
 websocket_ready_handler (struct mg_connection *conn)
 {
   unsigned char *buf;           // websocket response method
-  unsigned char *p;
+  unsigned char *p;             // generic pointer into buf
   unsigned char x;
   int16_t l;                    // Length of the websocket payload
-  int k;
+  int k, h;
   unsigned int j;
 // tracks the last line that this thread has sent...
   unsigned int counter = TELEMETRY_ENTRIES + 1;
 // The websocket header takes 4 bytes in this case.
-  buf =
-    (unsigned char *) malloc (TELEMETRY_BUFFER_SIZE * TELEMETRY_ENTRIES + 4);
-  buf[0] = 0x81;                // FIN + TEXT (aka a single utf8 text message)
+  buf = (unsigned char *) malloc (WEBSOCKET_FRAME_SIZE);
   buf[1] = 126;                 // -> two-byte length in buf[2], buf[3].
 
   for (;;)
     {
+      buf[0] = 0x81;            // FIN + TEXT (aka a single utf8 text message)
       p = buf + 4;
       l = 0;
       if (counter == telemetry_counter)
         {
 // Nothing new to send.
-syslog(LOG_INFO, "telemetry skip");
           goto skip;
         }
       else if (counter > TELEMETRY_ENTRIES)
         {
-// First message, send everything we got
-syslog(LOG_INFO, "telemetry first");
-          for (j = 0; j < TELEMETRY_ENTRIES; ++j)
+// First message, send everything we got. If the telemetry buffer
+// exceeds the websocket frame limit, we send this as sequence of fragmented
+// frames. It's a bit trcky.
+          buf[0] = 1;           // FIN=0 TEXT (fragmented text message)
+          j = 0;
+          while (j < TELEMETRY_ENTRIES)
             {
-              snprintf ((char * restrict) p, TELEMETRY_BUFFER_SIZE, "%s\n",
+              k = strlen (telemetry[j]) + 1;    // + newline
+              if ((k + (p - buf) + 2) > WEBSOCKET_FRAME_SIZE)   // + 2 = trailing string null + safety margin
+                {
+// The message exceeds a single frame. Send a fragmented frame.
+                  l = (p - buf) - 4;
+                  memcpy ((void *) buf + 2, (const void *) &l, sizeof (l));
+// poor man's htons
+                  x = buf[3];
+                  buf[3] = buf[2];
+                  buf[2] = x;
+                  h = mg_write (conn, buf, l + 4);
+                  syslog (LOG_INFO, "sent %d-byte fragmented frame op 0x%x",
+                          h, buf[0]);
+                  buf[0] = 0;   // Next frame is a continuation frame
+                  p = buf + 4;  // reset the buffer pointer
+                }
+              snprintf ((char *restrict) p, TELEMETRY_BUFFER_SIZE, "%s\n",
                         telemetry[j]);
-              k = strlen (telemetry[j]) + 1;    // newline
+              p = p + k;
 // Note! We intentionally do not include the string's trailing zero byte.
-              p += k;
+              j++;
             }
+          if (buf[0] == 1)
+            {
+              buf[0] = 0x81;    // only one frame
+//syslog(LOG_INFO, "SINGLE FRAME");
+            }
+          else
+            {
+              buf[0] = 128;     // next frame is final
+//syslog(LOG_INFO,"FINAL CONTINUATION FRAME");
+            }
+
         }
       else if (counter < telemetry_counter)
         {
-syslog(LOG_INFO, "telemetry increment");
           for (j = counter; j < telemetry_counter; ++j)
             {
-              snprintf ((char * restrict) p, TELEMETRY_BUFFER_SIZE, "%s\n",
-                        telemetry[j]);
               k = strlen (telemetry[j]) + 1;    // newline
+              if (p + k - buf < WEBSOCKET_FRAME_SIZE)
+                {
+                  snprintf ((char *restrict) p, TELEMETRY_BUFFER_SIZE, "%s\n",
+                            telemetry[j]);
 // Note! We intentionally do not include the string's trailing zero byte.
-              p += k;
+                  p += k;
+                }
             }
         }
       else
         {
-syslog(LOG_INFO, "telemetry increment w/wrap around");
           for (j = counter; j < TELEMETRY_ENTRIES; ++j)
             {
-              snprintf ((char * restrict) p, TELEMETRY_BUFFER_SIZE, "%s\n",
-                        telemetry[j]);
               k = strlen (telemetry[j]) + 1;    // newline
-              p += k;
+              if (p + k - buf < WEBSOCKET_FRAME_SIZE)
+                {
+                  snprintf ((char *restrict) p, TELEMETRY_BUFFER_SIZE, "%s\n",
+                            telemetry[j]);
+                  p += k;
+                }
             }
           for (j = 0; j < telemetry_counter; ++j)
             {
-              snprintf ((char *restrict) p, TELEMETRY_BUFFER_SIZE, "%s\n",
-                        telemetry[j]);
               k = strlen (telemetry[j]) + 1;    // newline
-              p += k;
+              if (p + k - buf < WEBSOCKET_FRAME_SIZE)
+                {
+                  snprintf ((char *restrict) p, TELEMETRY_BUFFER_SIZE, "%s\n",
+                            telemetry[j]);
+                  p += k;
+                }
             }
         }
       counter = telemetry_counter;
       l = (p - buf) - 4;
 // Make sure length of websocket message is in [126,32768) for websocket framing
-// reasons.
+// reasons. If it is too small, pad it with newlines. The client needs to
+// expect empty newlines on occasion and deal with them.
       if (l < 127)
         {
           memset (p, 10, 127);  // Pad out with newlines
@@ -1244,10 +1280,11 @@ syslog(LOG_INFO, "telemetry increment w/wrap around");
       buf[3] = buf[2];
       buf[2] = x;
       k = mg_write (conn, buf, l + 4);
-      syslog (LOG_INFO, "sent %d telemetry bytes (websocket) %d", k, (int)l);
+      syslog (LOG_INFO, "sent %d telemetry bytes op 0x%x", k, buf[0]);
       if (k < 1)
         {
-// The client connection must be closed, break out of loop.
+// The client connection must have closed, break out of loop and terminate
+// this thread.
           syslog (LOG_INFO, "websocket connection closed");
           break;
         }
@@ -1311,7 +1348,10 @@ begin_request_handler (struct mg_connection *conn)
   token_list *tok = NULL;
 
 // Don't log login query string
-  if (!strcmp (ri->uri, "/login"))
+  if (!strcmp (ri->uri, "/measurement"))
+    {
+    }
+  else if (!strcmp (ri->uri, "/login"))
     syslog (LOG_INFO, "%s", ri->uri);
   else if (ri->is_ssl)
     syslog (LOG_INFO, "(SSL) %s?%s", ri->uri, ri->query_string);

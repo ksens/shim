@@ -132,12 +132,12 @@ service takes a single query parameter, data, that the program
 may use to supply an aribtrary string containing its measurements.
 The formatting of the data string is up to the program, but is usually
 comma separated text values. Note that the telemetry data string is limited
-to at most 256 characters, larger data strings return an error.
+to at most 128 characters, larger data strings return an error.
 </p><p>
 Shim maintains a circular buffer for storing measurements. When a new
 measurement is reported, shim inserts it into the buffer along with a 
 pre-pended timestamp in seconds (Unix time) followed by a comma character.
-Each measurement is limited to 256 bytes including the
+Each measurement is limited to 128 bytes including the
 timestamp and comma character, longer measurements are rejected or truncated.
 </p>
 <p>
@@ -157,7 +157,7 @@ and load average.
 <tr><td>METHOD<td>GET
 <tr><td>PARAMETERS
 <td>
-<b>data</b> Free-form data string, limited to 256 bytes.
+<b>data</b> Free-form data string, limited to 128 bytes.
 <tr><td>RESPONSE
 <td>Success: HTTP 200
 <br/>
