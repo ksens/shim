@@ -38,8 +38,8 @@
                                 // orphaned and reaped
 
 #define TELEMETRY_ENTRIES 10000 // Max number of telemetry items (circular buf)
-#define TELEMETRY_BUFFER_SIZE 128       // Max size of a single line of telemetry
-#define TELEMETRY_UPDATE_INTERVAL 5     // In seconds, update client freq.
+#define TELEMETRY_BUFFER_SIZE 128     // Max size of a single line of telemetry
+#define TELEMETRY_UPDATE_INTERVAL 5   // In seconds, update client freq.
 #define WEBSOCKET_FRAME_SIZE 32768
 
 // Minimalist SciDB client API from client.cpp -------------------------------

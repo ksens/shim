@@ -83,7 +83,7 @@
             <li><a href="query.html">Interactive Query</a></li>
             <li><a href="help.html">Help</a></li>
             <li><a href="api.html">HTTP API</a></li>
-            <li class="active"><a href="telemetry.html">Telemetry API</a></li>
+            <li class="active"><a href="telemetry.html">Telemetry Service</a></li>
           </ul>
           <div class="pull-right">
             <ul class="nav">
@@ -97,16 +97,16 @@
 
   <div class="container">
 
-<h2>Shim Telemetry API</h2>
+<h2>Shim Telemetry Services</h2>
 <p>
 In addition to the simple HTTP SciDB query API  outlined in <a
-href="./api.html">api.html</a>, the shim defines a simple service API
+href="./api.html">api.html</a>, the shim defines a simple service
 for collecting and distributing SciDB cluster telemetry data and statistics.
-The telemetry API goals are simplicity, independence from the collected
+The telemetry service goals are simplicity, independence from the collected
 statistics, and efficiency.
 </p>
 <p>
-Shim's telemetry API consists of only two services
+Shim's telemetry API consists of two services
 <ol>
 <li> Collecting telemetry data from nodes in a SciDB cluster
 <li> Reporting a timeseries of collected data to interested clients
@@ -137,8 +137,9 @@ to at most 128 characters, larger data strings return an error.
 Shim maintains a circular buffer for storing measurements. When a new
 measurement is reported, shim inserts it into the buffer along with a 
 pre-pended timestamp in seconds (Unix time) followed by a comma character.
-Each measurement is limited to 128 bytes including the
-timestamp and comma character, longer measurements are rejected or truncated.
+Each measurement is limited to 128 bytes including the shim-applied
+timestamp and comma character and trailing newline character,
+longer measurements are rejected or truncated.
 </p>
 <p>
 It's up to the SciDB nodes to start programs that periodically post telemetry
@@ -153,11 +154,11 @@ and load average.
 <td colspan="2">
 <h3>/measurement</h3>
 <tr><td>DESCRIPTION
-<td>Report measurement data to the telemetry API
+<td>Report measurement data
 <tr><td>METHOD<td>GET
 <tr><td>PARAMETERS
 <td>
-<b>data</b> Free-form data string, limited to 128 bytes.
+<b>data</b> Free-form data string, limited to less than 128 bytes.
 <tr><td>RESPONSE
 <td>Success: HTTP 200
 <br/>
@@ -209,21 +210,22 @@ done
 <br/>
 <h2>Reporting telemetry data</h2>
 <p>
-Shim reports collected telemetry data on a websockets interface. New data
-are streamed to the client websocket as they become available, simplifying
-dynamic display of the data.
+Shim reports collected telemetry data on a websockets interface. New data are
+incrementally streamed to the client websocket as they become available,
+simplifying dynamic display of the data.
 </p>
 <p>
 Clients contact shim and open a websocket connection at the /telemetry
 service as shown in the example below. When the websocket connection is
-first established, shim aggregates all the entries in the telemetry data buffer,
-separating them with the newline character (ASCII/UTF8 code 10), and
-the message is sent to the client over the websocket.
+first established, shim aggregates all the entries in its telemetry data buffer,
+separating them with the newline character (UTF-8/ASCII code 10), and
+sends the aggregated message to the client over the websocket.
 </p>
 <p>
-As new data become available, shim aggregates just the new data--again
-separating each entry with a newline character--and sends just the new
-data to the client over the websocket.
+As new data become available, shim aggregates just the new data that the client
+hasn't recieved yet&#151;again
+separating each entry with a newline character&#151;and sends the new
+data to the client over the websocket (usually a very small message).
 </p>
 <p>
 Although shim maintains a limited circular buffer of telemetry data, the
