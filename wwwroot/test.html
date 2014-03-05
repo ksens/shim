@@ -99,7 +99,9 @@ telemetry = [];
 
 window.onload = function()
 {
-  var url = 'ws://' + window.location.host + '/telemetry';
+  var protocol = "ws://";
+  if(location.protocol == "https:") protocol = "wss://";
+  var url = protocol + window.location.host + "/telemetry";
   websocket = new WebSocket(url);
   websocket.onopen = function(ev)
   {
