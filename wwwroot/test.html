@@ -103,12 +103,9 @@ window.onload = function()
   if(location.protocol == "https:") protocol = "wss://";
   var url = protocol + window.location.host + "/telemetry";
   websocket = new WebSocket(url);
-  websocket.onopen = function(ev)
-  {
-  };
   websocket.onclose = function(ev)
   {
-//    location.reload(); // Try to reload page
+    location.reload(); // Try to reload page? Add delay?
   };
   websocket.onmessage = function(ev)
   {
