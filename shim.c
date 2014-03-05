@@ -1390,16 +1390,7 @@ begin_request_handler (struct mg_connection *conn)
   else if (!strcmp (ri->uri, "/execute_query"))
     execute_query (conn, ri);
   else if (!strcmp (ri->uri, "/loadcsv"))
-    {
-      if (!tok)
-        {
-          syslog (LOG_ERR, "loadcsv not authorized");
-          respond (conn, plain, 401, strlen ("Not authorized"),
-                   "Not authorized");
-          goto end;
-        }
       loadcsv (conn, ri, tok->uid);
-    }
   else if (!strcmp (ri->uri, "/cancel"))
     cancel_query (conn, ri);
 // CONTROL API
