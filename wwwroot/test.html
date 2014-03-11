@@ -112,11 +112,10 @@ window.onload = function()
 // Append or insert new telemetry data
     if(telemetry.length > 2000)
     {
-// Inefficient? Improve this...
-      telemetry = telemetry.slice(telemetry.length - 2000, telemetry.length).concat(csv2array(ev.data));
+      telemetry = telemetry.slice(-2000).concat(csv2array(ev.data));
     } else
     {
-      telemetry = telemetry.concat(csv2array(ev.data));
+      telemetry = telemetry.concat(csv2array(ev.data)).sort(function(a,b){return a[0]>b[0];});
     }
 // Plot
     var p = ago(telemetry);
