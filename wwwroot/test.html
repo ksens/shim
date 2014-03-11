@@ -84,9 +84,7 @@ body {
 load average plot
 </div>
 
-<br/>
-
-<div style="width: 500px;" class="meter" id="freemem">
+<div style="clear: left; width: 500px;" class="meter" id="freemem">
 percent free memory plot
 </div>
 <div style="width: 500px;" class="meter" id="disk">
@@ -98,7 +96,6 @@ percent disk use plot
 <script language="javascript" type="text/javascript">
 // Global array of raw telemetry data.
 telemetry = [];
-
 
 window.onload = function()
 {
@@ -113,9 +110,15 @@ window.onload = function()
   websocket.onmessage = function(ev)
   {
 // Magic happens here
-// Append new telemetry data
-    telemetry = telemetry.concat(csv2array(ev.data));
-// Truncate when it gets too big... XXX TODO
+// Append or insert new telemetry data
+    if(telemetry.length > 2000)
+    {
+// Inefficient? Improve this...
+      telemetry = telemetry.slice(telemetry.length - 2000, telemetry.length);
+    } else
+    {
+      telemetry = telemetry.concat(csv2array(ev.data));
+    }
 // Plot
     var p = ago(telemetry);
     canned_heat(p,2,"% Free mem","Seconds ago","host","#freemem","#eef","#00f")
@@ -213,7 +216,7 @@ var canned_heat = function(heat, pos, name, xlab, ylab, div, lowcol, highcol)
   var x = d3.scale.linear().range([width,0]),
       y = d3.scale.ordinal().domain(hosts).rangeBands([height, 0]),
       z = d3.scale.linear().range([lowcol, highcol]);
-  var xStep = 10;
+  var xStep = 60;
 
   // Compute the scale domains.
   x.domain(d3.extent(heat, function(d) { return d[0]; }));

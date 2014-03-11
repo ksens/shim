@@ -20,5 +20,5 @@ do
   store=$(for x in `ps aux | grep scidb | grep "\-s" | grep "\-p" | sed -e "s/.*-s //" | cut -d ' ' -f 1 | sort | uniq`; do df -h `dirname $x` | sed 1d; done | sort | uniq | tr -s ' ' | cut -d ' ' -f 1,5  |sed -e "s/%//" | sort | uniq | tr '\n' '|')
   msg="${n},${mem},${load},${store}"
   wget -O - -q "http://${1}/measurement?data=${msg}" >/dev/null 2>&1
-  sleep 4
+  sleep 5
 done
