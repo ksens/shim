@@ -114,13 +114,14 @@ window.onload = function()
     if(telemetry.length > 2000)
     {
 // Inefficient? Improve this...
-      telemetry = telemetry.slice(telemetry.length - 2000, telemetry.length);
+      telemetry = telemetry.concat(csv2array(ev.data)).slice(telemetry.length - 2000, telemetry.length);
     } else
     {
       telemetry = telemetry.concat(csv2array(ev.data));
     }
 // Plot
     var p = ago(telemetry);
+A=p;
     canned_heat(p,2,"% Free mem","Seconds ago","host","#freemem","#eef","#00f")
     canned_heat(p,3,"CPU Load avg","Seconds ago","host","#loadavg","#ff5","red")
 // Plot the disk stats...
@@ -198,7 +199,7 @@ var canned_heat = function(heat, pos, name, xlab, ylab, div, lowcol, highcol)
   if(ht < 100){ht = 300; d3.select(div).style("height",ht+"px");}
 
 // obtain a list of unqiue host names
-  var hosts = heat.map(function(x) {return x[1];}).filter(function(value,index,self){return self.indexOf(value) === index;});
+  var hosts = heat.map(function(x) {return x[1];}).filter(function(value,index,self){return self.indexOf(value) === index;}).sort();
   var mxlen = d3.max(hosts.map(function(x){return x.length}));
 
 // Set figure margins
@@ -216,7 +217,7 @@ var canned_heat = function(heat, pos, name, xlab, ylab, div, lowcol, highcol)
   var x = d3.scale.linear().range([width,0]),
       y = d3.scale.ordinal().domain(hosts).rangeBands([height, 0]),
       z = d3.scale.linear().range([lowcol, highcol]);
-  var xStep = 60;
+  var xStep = 240;
 
   // Compute the scale domains.
   x.domain(d3.extent(heat, function(d) { return d[0]; }));
