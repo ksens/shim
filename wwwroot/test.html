@@ -109,12 +109,11 @@ window.onload = function()
   };
   websocket.onmessage = function(ev)
   {
-// Magic happens here
 // Append or insert new telemetry data
     if(telemetry.length > 2000)
     {
 // Inefficient? Improve this...
-      telemetry = telemetry.concat(csv2array(ev.data)).slice(telemetry.length - 2000, telemetry.length);
+      telemetry = telemetry.slice(telemetry.length - 2000, telemetry.length).concat(csv2array(ev.data));
     } else
     {
       telemetry = telemetry.concat(csv2array(ev.data));
