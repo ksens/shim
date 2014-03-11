@@ -112,7 +112,7 @@ window.onload = function()
 // Append or insert new telemetry data
     if(telemetry.length > 2000)
     {
-      telemetry = telemetry.slice(-2000).concat(csv2array(ev.data));
+      telemetry = telemetry.slice(-2000).concat(csv2array(ev.data)).sort(function(a,b){return a[0]>b[0];});
     } else
     {
       telemetry = telemetry.concat(csv2array(ev.data)).sort(function(a,b){return a[0]>b[0];});
