@@ -238,7 +238,7 @@ var canned_heat = function(heat, pos, name, xlab, ylab, div, lowcol, highcol)
 
   // Add a legend for the color values.
   var legend = svg.selectAll(".legend")
-      .data(z.ticks(6).slice(1).reverse())
+      .data(z.ticks(8).slice(1).reverse())
     .enter().append("g")
       .attr("class", "legend")
       .attr("transform", function(d, i) { return "translate(" + (width + 20) + "," + (20 + i * 20) + ")"; });
