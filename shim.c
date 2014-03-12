@@ -1326,7 +1326,7 @@ check_auth (token_list * head, struct mg_connection *conn,
     {
       if (t->val == l)
         {
-/* Authorizedd, we don't repond here since a downstream callback will */
+/* Authorized, we don't repond here since a downstream callback will */
           return t;
         }
       t = (token_list *) t->next;
@@ -1348,10 +1348,10 @@ begin_request_handler (struct mg_connection *conn)
   token_list *tok = NULL;
 
 // Don't log login query string
-  if (!strcmp (ri->uri, "/measurement"))
+  if (strcmp (ri->uri, "/measurement") == 0)
     {
     }
-  else if (!strcmp (ri->uri, "/login"))
+  else if (strcmp (ri->uri, "/login") == 0)
     syslog (LOG_INFO, "%s", ri->uri);
   else if (ri->is_ssl)
     syslog (LOG_INFO, "(SSL) %s?%s", ri->uri, ri->query_string);
@@ -1390,7 +1390,15 @@ begin_request_handler (struct mg_connection *conn)
   else if (!strcmp (ri->uri, "/execute_query"))
     execute_query (conn, ri);
   else if (!strcmp (ri->uri, "/loadcsv"))
-      loadcsv (conn, ri, tok->uid);
+  {
+    if(!tok)
+    {
+      syslog (LOG_ERR, "loadcsv not authorized");
+      respond (conn, plain, 401, strlen("Not authorized"), "Not authorized");
+      goto end;
+    }
+    loadcsv (conn, ri, tok->uid);
+  }
   else if (!strcmp (ri->uri, "/cancel"))
     cancel_query (conn, ri);
 // CONTROL API
