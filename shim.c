@@ -269,7 +269,6 @@ cancel_query (struct mg_connection *conn, const struct mg_request_info *ri)
   if (s && s->queryid > 0)
     {
       syslog (LOG_INFO, "cancel_query %d %llu", id, s->queryid);
-      omp_set_lock (&s->lock);
       if (s->con)
         {
 // Establish a new SciDB context used to issue the cancel query.
@@ -279,7 +278,6 @@ cancel_query (struct mg_connection *conn, const struct mg_request_info *ri)
             {
               syslog (LOG_ERR,
                       "cancel_query error could not connect to SciDB");
-              omp_unset_lock (&s->lock);
               respond (conn, plain, 503,
                        strlen ("Could not connect to SciDB"),
                        "Could not connect to SciDB");
@@ -294,7 +292,6 @@ cancel_query (struct mg_connection *conn, const struct mg_request_info *ri)
           scidbdisconnect (can_con);
         }
       time (&s->time);
-      omp_unset_lock (&s->lock);
       respond (conn, plain, 200, 0, NULL);
     }
   else
