@@ -1439,7 +1439,7 @@ parse_args (char **options, int argc, char **argv, int *daemonize)
           printf
             ("Usage:\nshim [-h] [-f] [-n <PAM service name>] [-p <http port>] [-r <document root>] [-s <scidb port>] [-t <tmp I/O DIR>]\n");
           printf
-            ("Specify -f to run in the foreground.\nDefault http ports are 8080 and 80803(SSL).\nDefault SciDB port is 1239.\nDefault document root is /var/lib/shim/wwwroot.\nDefault PAM service name is 'login'.\n");
+            ("Specify -f to run in the foreground.\nDefault http ports are 8080 and 8083(SSL).\nDefault SciDB port is 1239.\nDefault document root is /var/lib/shim/wwwroot.\nDefault PAM service name is 'login'.\n");
           printf
             ("Start up shim and view http://localhost:8080/api.html from a browser for help with the API.\n\n");
           exit (0);
