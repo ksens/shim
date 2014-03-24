@@ -30,7 +30,7 @@
 #define DEFAULT_HTTP_PORT "8080,8083s"
 #endif
 
-#define DEFAULT_TMPDIR "/dev/shm/"      // Temporary location for I/O buffers
+#define DEFAULT_TMPDIR "/tmp/"  // Temporary location for I/O buffers
 #define PIDFILE "/var/run/shim.pid"
 
 #define WEEK 604800             // One week in seconds
@@ -305,8 +305,8 @@ init_session (session * s)
   omp_set_lock (&s->lock);
   s->ibuf = (char *) malloc (PATH_MAX);
   s->obuf = (char *) malloc (PATH_MAX);
-  snprintf (s->ibuf, PATH_MAX, "%s/scidb_input_buf_XXXXXX", TMPDIR);
-  snprintf (s->obuf, PATH_MAX, "%s/scidb_output_buf_XXXXXX", TMPDIR);
+  snprintf (s->ibuf, PATH_MAX, "%s/shim_input_buf_XXXXXX", TMPDIR);
+  snprintf (s->obuf, PATH_MAX, "%s/shim_output_buf_XXXXXX", TMPDIR);
 // Set up the input buffer
   fd = mkstemp (s->ibuf);
 // XXX We need to make it so that whoever runs scidb can R/W to this file.
