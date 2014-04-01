@@ -136,6 +136,7 @@ ports=8080,80803s
 auth=login
 scidbport=1239
 user=root
+tmp=/tmp
 </pre>
 Each option is described below.
 
@@ -176,6 +177,9 @@ authentication is controlled by the usernames and passwords available
 to the computer that shim is installed on.
 <h3>User</h3>
 The user that the shim service runs under. Shim can run as a non-root user, but then SSL authenticated port logins are limited to the user that shim is running under.
+<h3>Temporary I/O space</h3>
+Shim stores the results of SciDB queries in files in temporary I/O space. (A future version of shim will stream
+query results to the client.) Select a directory that is writable by the shim user (see the user option).
 <h3>TLS/SSL Certificate</h3>
 <p>
 Shim supports TLS/SSL encryption. Packaged versions of shim (RPM and deb
