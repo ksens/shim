@@ -144,9 +144,10 @@ prepare_query(void *result, void *con, char *query, int afl, char *err)
  * returns 0.
  */
 extern "C" unsigned long long
-execute_prepared_query(void *con, struct prep *pq, int afl, char *err)
+execute_prepared_query(void *con, char *query, struct prep *pq, int afl, char *err)
 {
   unsigned long long id = -1;
+  const string &queryString = (const char *)query;
   const scidb::SciDB& db = scidb::getSciDB();
   scidb::QueryResult *q = (scidb::QueryResult *)pq->queryresult;
   if(!q)
@@ -155,7 +156,7 @@ execute_prepared_query(void *con, struct prep *pq, int afl, char *err)
     return 0;
   }
   try{
-    db.executeQuery("", bool(afl), *q, (void *)con);
+    db.executeQuery(queryString, bool(afl), *q, (void *)con);
     id = pq->queryid;
   } catch(std::exception& e)
   {

@@ -54,7 +54,7 @@ struct prep
   unsigned long long queryid;
   void *queryresult;
 };
-unsigned long long execute_prepared_query (void *, struct prep *, int,
+unsigned long long execute_prepared_query (void *, char *, struct prep *, int,
                                            char *);
 // End of mimimalist SciDB client API -----------------------------------------
 
@@ -1056,7 +1056,7 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
   s->queryid = l;
   s->time = time (NULL) + WEEK;
   if (s->con)
-    l = execute_prepared_query (s->con, &pq, 1, SERR);
+    l = execute_prepared_query (s->con, qry, &pq, 1, SERR);
   if (l < 1)
     {
       free (qry);
