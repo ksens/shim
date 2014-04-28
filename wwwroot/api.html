@@ -176,7 +176,9 @@ in /etc/pam.d), and defaults to the login service. That means client
 authentication is controlled by the usernames and passwords available
 to the computer that shim is installed on.
 <p>
-Basic digest access authentication is supported too <a href="https://en.wikipedia.org/wiki/Digest_access_authentication">https://en.wikipedia.org/wiki/Digest_access_authentication</a>. See below for examples.
+Basic digest access authentication is supported too
+(see <a href="https://en.wikipedia.org/wiki/Digest_access_authentication">https://en.wikipedia.org/wiki/Digest_access_authentication</a>).
+See below for examples.
 <h3>User</h3>
 The user that the shim service runs under. Shim can run as a non-root user, but then SSL authenticated port logins are limited to the user that shim is running under.
 <h3>Temporary I/O space</h3>
@@ -219,6 +221,7 @@ request.
 <h4>Basic digest access authentication</h4>
 <p>
 Shim supports basic digest access authentication.
+(See <a href="https://en.wikipedia.org/wiki/Digest_access_authentication">https://en.wikipedia.org/wiki/Digest_access_authentication</a> and the references therein for a good description of the method.)
 Enable digest access authentication by
 creating an <tt>.htpasswd</tt> file in shim's default <tt>/var/lib/shim/wwwroot</tt> directory. The format
 of the file must be:
