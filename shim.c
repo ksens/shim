@@ -1489,14 +1489,16 @@ main (int argc, char **argv)
   struct stat check_ssl;
   struct rlimit resLimit = { 0 };
   char pbuf[MAX_VARLEN];
-  char *options[7];
+  char *options[9];
   options[0] = "listening_ports";
   options[1] = DEFAULT_HTTP_PORT;
   options[2] = "document_root";
   options[3] = "/var/lib/shim/wwwroot";
   options[4] = "ssl_certificate";
   options[5] = "/var/lib/shim/ssl_cert.pem";
-  options[6] = NULL;
+  options[6] = "authentication_domain";
+  options[7] = "";
+  options[8] = NULL;
   TMPDIR = DEFAULT_TMPDIR;
   parse_args (options, argc, argv, &daemonize);
   if (stat (options[5], &check_ssl) < 0)

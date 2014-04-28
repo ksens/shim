@@ -2316,6 +2316,8 @@ static int check_password(const char *method, const char *ha1, const char *uri,
   mg_md5(expected_response, ha1, ":", nonce, ":", nc,
       ":", cnonce, ":", qop, ":", ha2, NULL);
 
+
+
   return mg_strcasecmp(response, expected_response) == 0;
 }
 
@@ -2351,7 +2353,7 @@ static void open_auth_file(struct mg_connection *conn, const char *path,
 
 // Parsed Authorization header
 struct ah {
-  char *user, *uri, *cnonce, *response, *qop, *nc, *nonce;
+  char *user, *uri, *cnonce, *response, *qop, *nc, *nonce, *realm;
 };
 
 // Return 1 on success. Always initializes the ah structure.
@@ -2399,6 +2401,8 @@ static int parse_auth_header(struct mg_connection *conn, char *buf,
       ah->response = value;
     } else if (!strcmp(name, "uri")) {
       ah->uri = value;
+    } else if (!strcmp(name, "realm")) {
+      ah->realm = value;
     } else if (!strcmp(name, "qop")) {
       ah->qop = value;
     } else if (!strcmp(name, "nc")) {
@@ -2445,6 +2449,7 @@ static char *mg_fgets(char *buf, size_t size, struct file *filep, char **p) {
 }
 
 // Authorize against the opened passwords file. Return 1 if authorized.
+/* XXX Original mongoose authorize function...
 static int authorize(struct mg_connection *conn, struct file *filep) {
   struct ah ah;
   char line[256], f_user[256], ha1[256], f_domain[256], buf[MG_BUF_LEN], *p;
@@ -2468,6 +2473,36 @@ static int authorize(struct mg_connection *conn, struct file *filep) {
 
   return 0;
 }
+*/
+static int
+authorize(struct mg_connection *conn, struct file *filep)
+{
+  struct ah ah;
+  char line[256], f_user[256], ha1[33], pwd[256],buf[MG_BUF_LEN], *p;
+
+  if (!parse_auth_header(conn, buf, sizeof(buf), &ah))
+  {
+    return 0;
+  }
+
+  // Loop over passwords file
+  p = (char *) filep->membuf;
+  while (mg_fgets(line, sizeof(line), filep, &p) != NULL)
+  {
+    if (sscanf(line, "%[^:]:%s", f_user, pwd) != 2)
+    {
+      continue;
+    }
+    mg_md5(ha1, f_user, "::", pwd, NULL);
+    if (!strcmp(ah.user, f_user))
+    {
+      return check_password(conn->request_info.request_method, ha1, ah.uri,
+                            ah.nonce, ah.nc, ah.cnonce, ah.qop, ah.response);
+    }
+  }
+  return 0;
+}
+
 
 // Return 1 if request is authorised, 0 otherwise.
 static int check_authorization(struct mg_connection *conn, const char *path) {

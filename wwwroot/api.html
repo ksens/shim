@@ -175,6 +175,8 @@ SSL connections. Shim may use any available PAM service (usually listed
 in /etc/pam.d), and defaults to the login service. That means client
 authentication is controlled by the usernames and passwords available
 to the computer that shim is installed on.
+<p>
+Basic digest access authentication is supported too <a href="https://en.wikipedia.org/wiki/Digest_access_authentication">https://en.wikipedia.org/wiki/Digest_access_authentication</a>. See below for examples.
 <h3>User</h3>
 The user that the shim service runs under. Shim can run as a non-root user, but then SSL authenticated port logins are limited to the user that shim is running under.
 <h3>Temporary I/O space</h3>
@@ -214,6 +216,20 @@ various errors. Returned data may be ASCII or binary depending on the
 request.
 </p>
 <h3>Authentication</h3>
+<h4>Basic digest access authentication</h4>
+<p>
+Shim supports basic digest access authentication.
+Enable digest access authentication by
+creating an <tt>.htaccess</tt> file in shim's default <tt>/var/lib/shim/wwwroot</tt> directory. The format
+of the file must be:
+<pre>
+username1:password1
+username2:password2
+...
+</pre>
+Use plain text passwords in the file, and consider changing the permissions of the
+file to restrict access.
+<h4>TLS/SSL encryption and PAM authentication</h4>
 <p>
 Shim optionally exposes both open and encrypted (SSL or TLS) services.
 Access to most of the API over an encrypted connection requires authentication.
