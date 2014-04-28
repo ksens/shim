@@ -220,7 +220,7 @@ request.
 <p>
 Shim supports basic digest access authentication.
 Enable digest access authentication by
-creating an <tt>.htaccess</tt> file in shim's default <tt>/var/lib/shim/wwwroot</tt> directory. The format
+creating an <tt>.htpasswd</tt> file in shim's default <tt>/var/lib/shim/wwwroot</tt> directory. The format
 of the file must be:
 <pre>
 username1:password1
@@ -228,7 +228,8 @@ username2:password2
 ...
 </pre>
 Use plain text passwords in the file, and consider changing the permissions of the
-file to restrict access.
+file to restrict access. Delete the <tt>.htpasswd</tt> file to disable basic digest
+access authentication.
 <h4>TLS/SSL encryption and PAM authentication</h4>
 <p>
 Shim optionally exposes both open and encrypted (SSL or TLS) services.
