@@ -1413,6 +1413,12 @@ begin_request_handler (struct mg_connection *conn)
   else
     {
 // fallback to http file server
+      if(strstr(ri->uri, ".htpasswd"))
+      {
+        syslog (LOG_ERR, ". character in url");
+        respond (conn, plain, 401, strlen("Not authorized"), "Not authorized");
+        goto end;
+      }
       if (!strcmp (ri->uri, "/"))
         snprintf (buf, MAX_VARLEN, "%s/index.html", docroot);
       else
