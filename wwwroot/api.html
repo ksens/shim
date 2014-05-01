@@ -223,7 +223,7 @@ request.
 Shim supports basic digest access authentication.
 (See <a href="https://en.wikipedia.org/wiki/Digest_access_authentication">https://en.wikipedia.org/wiki/Digest_access_authentication</a> and the references therein for a good description of the method.)
 Enable digest access authentication by
-creating an <tt>.htpasswd</tt> file in shim's default <tt>/var/lib/shim/wwwroot</tt> directory. The format
+creating an <tt>.htpasswd</tt> file in shim's default <tt>/var/lib/shim/wwwroot</tt> directory (the <tt>.htpasswd</tt> file must be located in shim's wwwroot directory, which can be changed with the command line switch <tt>-r</tt>. The format
 of the file must be:
 <pre>
 username1:password1
