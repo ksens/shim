@@ -34,6 +34,7 @@ The wwwroot directory also includes an example simple javascript client.
 This is the fastest/easiest way to install this service.
 The author provides a few pre-built binary packages for SciDB on Ubuntu 12.04 here:
 
+* [http://paradigm4.github.io/shim/shim_14.3-2_amd64.deb](http://paradigm4.github.io/shim/shim_14.3-2_amd64.deb) (Includes requested .htpasswd auth option)
 * [http://paradigm4.github.io/shim/shim_14.3_amd64.deb](http://paradigm4.github.io/shim/shim_14.3_amd64.deb)
 * [http://paradigm4.github.io/shim/shim_13.12_amd64.deb](http://paradigm4.github.io/shim/shim_13.12_amd64.deb)
 * [http://paradigm4.github.io/shim/shim_13.11_amd64.deb](http://paradigm4.github.io/shim/shim_13.11_amd64.deb)
@@ -51,6 +52,7 @@ apt-get remove shim
 
 and for SciDB on RHEL/Centos 6 here:
 
+* [http://paradigm4.github.io/shim/shim-14.3-2.x86_64.rpm](http://paradigm4.github.io/shim/shim-14.3-2.x86_64.rpm) (Includes requested .htpasswd auth option)
 * [http://paradigm4.github.io/shim/shim-14.3-1.x86_64.rpm](http://paradigm4.github.io/shim/shim-14.3-1.x86_64.rpm)
 * [http://paradigm4.github.io/shim/shim-13.12-1.x86_64.rpm](http://paradigm4.github.io/shim/shim-13.12-1.x86_64.rpm)
 * [http://paradigm4.github.io/shim/shim-13.11-1.x86_64.rpm](http://paradigm4.github.io/shim/shim-13.11-1.x86_64.rpm)
