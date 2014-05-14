@@ -77,6 +77,7 @@ auth=login
 ports=8080,8083s
 scidbport=1239
 user=root
+tmp=/tmp
 ```
 If an option is missing from the config file, the default value will be used.
 The options are:
@@ -88,8 +89,11 @@ letter 's' to indicate SSL encryption.
 * `user` The user that the shim service runs under. Shim can run as a non-root
 user, but then SSL authenticated port logins are limited to the user that shim
 is running under.
+* `tmp` Temporary I/O directory used on the server.
 
 Restart shim to effect option changes with `/etc/init.d/shimsvc restart`.
+
+### Note on the SSL Key Certificate Configuration
 
 Shim uses a cryptographic key certificate for SSL encrypted web connections.
 When you instal shim from a binary package, a new certificate key is
@@ -101,6 +105,7 @@ permissions to the SSL certificate is particularly important for general
 machines with many untrusted users (an unlikely setting for an installation of
 SciDB).
 
+
 You can alternatively run `shim` from the command line and use command line
 switches to set the configuration options. Run `shim -h` to see a full list
 of options. When you run shim from a non-standard location, the program
@@ -108,13 +113,21 @@ expects to find the ssl_cert.pem file one directory above the wwwroot
 directory.
 
 ##Compile and Install from Source
-Note that because shim is a SciDB client it needs the boost, log4cpp and log4cxx development libraries installed to compile. And because shim now uses PAM authentication, you'll now need the PAM development libraries for your system installed too. We illustrate installation of Ubuntu build dependencies below:
+Note that because shim is a SciDB client it needs the boost, log4cpp and
+log4cxx development libraries installed to compile. And because shim now uses
+PAM authentication, you'll now need the PAM development libraries for your
+system installed too. We illustrate installation of Ubuntu build dependencies
+below:
 ```
 sudo apt-get install liblog4cpp5-dev liblog4cxx10-dev libboost-dev libboost-system-dev rubygems libpam0g-dev
 sudo apt-get install scidb-14.3-dev scidb-14.3-libboost1.54-all-dev
 gem install fpm
 ```
-Note: `scidb-14.3-libboost1.54-all-dev` and `scidb-14.3-dev` correspond to your installed version of SciDB, replace those package names as required for your version. Use `apt-get search scidb` to find the exact package names. (On RHEL platforms, you will need the `scidb-14.3-libboost-devel.x86_64` and `scidb-14.3-dev.x86_64` packages installed.)
+Note: `scidb-14.3-libboost1.54-all-dev` and `scidb-14.3-dev` correspond to your
+installed version of SciDB, replace those package names as required for your
+version. Use `apt-get search scidb` to find the exact package names. (On RHEL
+platforms, you will need the `scidb-14.3-libboost-devel.x86_64` and
+`scidb-14.3-dev.x86_64` packages installed.)
 
 Once the build dependencies are install, build shim with:
 ```

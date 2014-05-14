@@ -11,10 +11,8 @@ Things to do soon:
   on SIGTERM before exiting.
 * finish the control API, which is partially disabled until authentication
   is added.
-* SciDB port selection from control API (i.e., SciDB db selection)
 
-* Maybe this can be used to identify the present DB when we know its name?:
-# ps axu | grep SciDB | grep dbname | head -n 1 | sed -e s/.*dbname=// | cut -d ' ' -f 1
+Other problems/issues:
 
 Shim employs a really simple scheme to move results from SciDB to web clients.
 Shim asks SciDB to save the results of a query to a file. Then, it returns the
