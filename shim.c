@@ -59,7 +59,11 @@ unsigned long long execute_prepared_query (void *, char *, struct prep *, int,
 // End of mimimalist SciDB client API -----------------------------------------
 
 /* A session consists of client I/O buffers, and an optional SciDB query ID. */
-int scount;
+unsigned long scount;
+typedef enum {
+  SESSION_UNAVAILABLE,
+  SESSION_AVAILABLE
+} available_t;
 typedef struct
 {
   omp_lock_t lock;
@@ -71,6 +75,7 @@ typedef struct
   char *obuf;                   // output buffer name
   void *con;                    // SciDB context
   time_t time;                  // Time value to help decide on orphan sessions
+  available_t available;        // 1 -> available, 0 -> not available
 } session;
 
 /*
@@ -180,7 +185,7 @@ find_session (int id)
     {
       if (sessions[j].sessionid != id)
         continue;
-      ans = &sessions[j];
+      ans = sessions[j].available == SESSION_UNAVAILABLE ? &sessions[j] : NULL;
     }
   return ans;
 }
@@ -192,7 +197,7 @@ void
 cleanup_session (session * s)
 {
   syslog (LOG_INFO, "cleanup_session releasing %d", s->sessionid);
-  s->sessionid = -1;            // -1 indicates availability
+  s->available = SESSION_AVAILABLE;
   s->queryid = 0;
   s->time = 0;
   if (s->pd > 0)
@@ -339,7 +344,7 @@ init_session (session * s)
       return 0;
     }
   time (&s->time);
-  s->sessionid = scount++;
+  s->available = SESSION_UNAVAILABLE;
   omp_unset_lock (&s->lock);
   return 1;
 }
@@ -355,37 +360,30 @@ get_session ()
   int j, id = -1;
   time_t t;
   omp_set_lock (&biglock);
-  for (j = 0; j < MAX_SESSIONS; ++j)
-    {
-      if (sessions[j].sessionid < 0)
-        {
-          if (init_session (&sessions[j]) > 0)
-            {
-              id = j;
-              break;
-            }
-        }
+  for (j = 0; j < MAX_SESSIONS; ++j) {
+    if (sessions[j].available == SESSION_AVAILABLE) {
+      if (init_session (&sessions[j]) > 0) {
+	id = j;
+	break;
+      }
     }
-  if (id < 0)
-    {
-      time (&t);
-/* Couldn't find any available sessions. Check for orphans. */
-      for (j = 0; j < MAX_SESSIONS; ++j)
-        {
-          if (t - sessions[j].time > TIMEOUT)
-            {
-              syslog (LOG_INFO, "get_session reaping session %d", j);
-              omp_set_lock (&sessions[j].lock);
-              cleanup_session (&sessions[j]);
-              omp_unset_lock (&sessions[j].lock);
-              if (init_session (&sessions[j]) > 0)
-                {
-                  id = j;
-                  break;
-                }
-            }
-        }
+  }
+  if (id < 0) {
+    time (&t);
+    /* Couldn't find any available sessions. Check for orphans. */
+    for (j = 0; j < MAX_SESSIONS; ++j) {
+      if (t - sessions[j].time > TIMEOUT) {
+	syslog (LOG_INFO, "get_session reaping session %d", j);
+	omp_set_lock (&sessions[j].lock);
+	cleanup_session (&sessions[j]);
+	omp_unset_lock (&sessions[j].lock);
+	if (init_session (&sessions[j]) > 0) {
+	  id = j;
+	  break;
+	}
+      }
     }
+  }
   omp_unset_lock (&biglock);
   return id;
 }
@@ -1572,11 +1570,11 @@ main (int argc, char **argv)
 
   openlog ("shim", LOG_CONS | LOG_NDELAY, LOG_USER);
   omp_init_lock (&biglock);
-  for (j = 0; j < MAX_SESSIONS; ++j)
-    {
-      sessions[j].sessionid = -1;
-      omp_init_lock (&sessions[j].lock);
-    }
+  for (j = 0; j < MAX_SESSIONS; ++j) {
+    sessions[j].available = SESSION_AVAILABLE;
+    sessions[j].sessionid = ++scount;  // session ids now begin at 1
+    omp_init_lock (&sessions[j].lock);
+  }
 
   callbacks.begin_request = begin_request_handler;
   callbacks.websocket_ready = websocket_ready_handler;
