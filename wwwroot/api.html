@@ -111,7 +111,8 @@ Note that there are more direct ways to talk to SciDB over a network.
 See <a href="https://github.com/artyom-smirnov/scidb4py">https://github.com/artyom-smirnov/scidb4py</a> for a great example of direct network
 communication with SciDB using Python and Google protocol buffers
 (written by Artyom Smirnov, one of the core SciDB developers).
-The protocol buffers approach is comparatively low-level, but more efficient.
+The protocol buffers approach is comparatively low-level, but
+possibly more efficient.
 Shim is designed to be a convenient and super easy way to talk to SciDB.
 Note that both shim and Artyom's Python interface are community open
 source projects; they are not official components of SciDB.
@@ -197,6 +198,7 @@ generated one.
 <h2>API Reference</h2>
 Examples use the URL http://localhost:8080 or https://localhost:8083 (TLS)
 below. Parameters are required unless marked <i>optional</i>.
+All shim API services support CORS.
 <h3>Limits</h3>
 <p>
 All HTTP query parameters are passed to the service
