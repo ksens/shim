@@ -38,11 +38,6 @@
 #define TIMEOUT 60              // Timeout before a session is declared
                                 // orphaned and reaped
 
-#define TELEMETRY_ENTRIES 2000  // Max number of telemetry items (circular buf)
-#define TELEMETRY_BUFFER_SIZE 128       // Max size of a single line of telemetry
-#define TELEMETRY_UPDATE_INTERVAL 10    // In seconds, update client freq.
-#define WEBSOCKET_FRAME_SIZE 32768
-
 // Minimalist SciDB client API from client.cpp -------------------------------
 void *scidbconnect (const char *host, int port);
 void scidbdisconnect (void *con);
@@ -117,10 +112,6 @@ omp_lock_t biglock;
 char *BASEPATH;
 char *TMPDIR;                   // temporary files go here
 token_list *tokens = NULL;      // the head of the list
-
-/* Telemetry data */
-char **telemetry;
-unsigned int telemetry_counter;
 
 /*
  * conn: A mongoose client connection
@@ -1161,173 +1152,6 @@ startscidb (struct mg_connection *conn, const struct mg_request_info *ri)
   respond (conn, plain, 200, 0, NULL);
 }
 
-/* Telemetry and log callbacks
- * - measurement uploads new telemetry data
- * - webocket_ready_handler periodically sends telemetry data to an open
- *   client websocket connection, it's a mongoose callback function that
- *   gets instantiated as a thread for each websocket connection.
- */
-void
-measurement (struct mg_connection *conn, const struct mg_request_info *ri)
-{
-  int k;
-  char var[TELEMETRY_BUFFER_SIZE];
-  time_t t;
-  if (!ri->query_string)
-    {
-      respond (conn, plain, 400, 0, NULL);
-      syslog (LOG_ERR, "measurement error invalid http query");
-      return;
-    }
-  k = strlen (ri->query_string);
-  mg_get_var (ri->query_string, k, "data", var, TELEMETRY_BUFFER_SIZE);
-  omp_set_lock (&biglock);
-  time (&t);
-// Add current server time in seconds to the measurement
-  snprintf (telemetry[telemetry_counter], TELEMETRY_BUFFER_SIZE, "%ld,%s",
-            (long int) t, var);
-  telemetry_counter = (telemetry_counter + 1) % TELEMETRY_ENTRIES;
-  omp_unset_lock (&biglock);
-  respond (conn, plain, 200, 0, NULL);
-}
-
-static void
-websocket_ready_handler (struct mg_connection *conn)
-{
-  unsigned char *buf;           // websocket response method
-  unsigned char *p;             // generic pointer into buf
-  unsigned char x;
-  int16_t l;                    // Length of the websocket payload
-  int k, h;
-  unsigned int j;
-// tracks the last line that this thread has sent...
-  unsigned int counter = TELEMETRY_ENTRIES + 1;
-// The websocket header takes 4 bytes in this case.
-  buf = (unsigned char *) malloc (WEBSOCKET_FRAME_SIZE);
-  buf[1] = 126;                 // -> two-byte length in buf[2], buf[3].
-
-  for (;;)
-    {
-      buf[0] = 0x81;            // FIN + TEXT (aka a single utf8 text message)
-      p = buf + 4;
-      l = 0;
-      if (counter == telemetry_counter)
-        {
-// Nothing new to send.
-          goto skip;
-        }
-      else if (counter > TELEMETRY_ENTRIES)
-        {
-// First message, send everything we got. If the telemetry buffer
-// exceeds the websocket frame limit, we send this as sequence of fragmented
-// frames. It's a bit trcky.
-          buf[0] = 1;           // FIN=0 TEXT (fragmented text message)
-          j = 0;
-          while (j < TELEMETRY_ENTRIES)
-            {
-              k = strlen (telemetry[j]) + 1;    // + newline
-              if ((k + (p - buf) + 2) > WEBSOCKET_FRAME_SIZE)   // + 2 = trailing string null + safety margin
-                {
-// The message exceeds a single frame. Send a fragmented frame.
-                  l = (p - buf) - 4;
-                  memcpy ((void *) buf + 2, (const void *) &l, sizeof (l));
-// poor man's htons
-                  x = buf[3];
-                  buf[3] = buf[2];
-                  buf[2] = x;
-                  h = mg_write (conn, buf, l + 4);
-                  syslog (LOG_INFO, "sent %d-byte fragmented frame op 0x%x",
-                          h, buf[0]);
-                  buf[0] = 0;   // Next frame is a continuation frame
-                  p = buf + 4;  // reset the buffer pointer
-                }
-              snprintf ((char *restrict) p, TELEMETRY_BUFFER_SIZE, "%s\n",
-                        telemetry[j]);
-              p = p + k;
-// Note! We intentionally do not include the string's trailing zero byte.
-              j++;
-            }
-          if (buf[0] == 1)
-            {
-              buf[0] = 0x81;    // only one frame
-//syslog(LOG_INFO, "SINGLE FRAME");
-            }
-          else
-            {
-              buf[0] = 128;     // next frame is final
-//syslog(LOG_INFO,"FINAL CONTINUATION FRAME");
-            }
-
-        }
-      else if (counter < telemetry_counter)
-        {
-          for (j = counter; j < telemetry_counter; ++j)
-            {
-              k = strlen (telemetry[j]) + 1;    // newline
-              if (p + k - buf < WEBSOCKET_FRAME_SIZE)
-                {
-                  snprintf ((char *restrict) p, TELEMETRY_BUFFER_SIZE, "%s\n",
-                            telemetry[j]);
-// Note! We intentionally do not include the string's trailing zero byte.
-                  p += k;
-                }
-            }
-        }
-      else
-        {
-          for (j = counter; j < TELEMETRY_ENTRIES; ++j)
-            {
-              k = strlen (telemetry[j]) + 1;    // newline
-              if (p + k - buf < WEBSOCKET_FRAME_SIZE)
-                {
-                  snprintf ((char *restrict) p, TELEMETRY_BUFFER_SIZE, "%s\n",
-                            telemetry[j]);
-                  p += k;
-                }
-            }
-          for (j = 0; j < telemetry_counter; ++j)
-            {
-              k = strlen (telemetry[j]) + 1;    // newline
-              if (p + k - buf < WEBSOCKET_FRAME_SIZE)
-                {
-                  snprintf ((char *restrict) p, TELEMETRY_BUFFER_SIZE, "%s\n",
-                            telemetry[j]);
-                  p += k;
-                }
-            }
-        }
-      counter = telemetry_counter;
-      l = (p - buf) - 4;
-// Make sure length of websocket message is in [126,32768) for websocket framing
-// reasons. If it is too small, pad it with newlines. The client needs to
-// expect empty newlines on occasion and deal with them.
-      if (l < 127)
-        {
-          memset (p, 10, 127);  // Pad out with newlines
-          memset (p + 127, 0, 1);
-          p += 128;
-        }
-      l = (p - buf) - 4;
-      memcpy ((void *) buf + 2, (const void *) &l, sizeof (l));
-// poor man's htons
-      x = buf[3];
-      buf[3] = buf[2];
-      buf[2] = x;
-      k = mg_write (conn, buf, l + 4);
-      syslog (LOG_INFO, "sent %d telemetry bytes op 0x%x", k, buf[0]);
-      if (k < 1)
-        {
-// The client connection must have closed, break out of loop and terminate
-// this thread.
-          syslog (LOG_INFO, "websocket connection closed");
-          break;
-        }
-    skip:
-      sleep (TELEMETRY_UPDATE_INTERVAL);
-    }
-  free (buf);
-}
-
 void
 getlog (struct mg_connection *conn, const struct mg_request_info *ri)
 {
@@ -1446,11 +1270,6 @@ begin_request_handler (struct mg_connection *conn)
 //        startscidb (conn, ri);
   else if (!strcmp (ri->uri, "/get_log"))
     getlog (conn, ri);
-/* Telemetry API */
-  else if (!strcmp (ri->uri, "/measurement"))
-    measurement (conn, ri);
-  else if (!strcmp (ri->uri, "/telemetry"))
-    return 0;
   else
     {
 // fallback to http file server
@@ -1580,14 +1399,6 @@ main (int argc, char **argv)
   real_uid = getuid ();
   signal (SIGTERM, signalHandler);
 
-/* Set up telemetry storage. It's a fixed buffer. */
-  telemetry = (char **) malloc (TELEMETRY_ENTRIES * sizeof (char *));
-  for (k = 0; k < TELEMETRY_ENTRIES; ++k)
-    {
-      telemetry[k] = (char *) calloc (TELEMETRY_BUFFER_SIZE, sizeof (char));
-    }
-  telemetry_counter = 0;
-
   BASEPATH = dirname (argv[0]);
 
 /* Daemonize */
@@ -1635,7 +1446,6 @@ main (int argc, char **argv)
     }
 
   callbacks.begin_request = begin_request_handler;
-  callbacks.websocket_ready = websocket_ready_handler;
   ctx = mg_start (&callbacks, NULL, (const char **) options);
   if (!ctx)
     {
