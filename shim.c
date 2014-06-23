@@ -14,6 +14,7 @@
 #include <unistd.h>
 #include <time.h>
 #include <omp.h>
+#include <signal.h>
 #include "mongoose.h"
 #include "pam.h"
 #include <pwd.h>
@@ -38,8 +39,8 @@
                                 // orphaned and reaped
 
 #define TELEMETRY_ENTRIES 2000  // Max number of telemetry items (circular buf)
-#define TELEMETRY_BUFFER_SIZE 128     // Max size of a single line of telemetry
-#define TELEMETRY_UPDATE_INTERVAL 10   // In seconds, update client freq.
+#define TELEMETRY_BUFFER_SIZE 128       // Max size of a single line of telemetry
+#define TELEMETRY_UPDATE_INTERVAL 10    // In seconds, update client freq.
 #define WEBSOCKET_FRAME_SIZE 32768
 
 // Minimalist SciDB client API from client.cpp -------------------------------
@@ -60,7 +61,8 @@ unsigned long long execute_prepared_query (void *, char *, struct prep *, int,
 
 /* A session consists of client I/O buffers, and an optional SciDB query ID. */
 unsigned long scount;
-typedef enum {
+typedef enum
+{
   SESSION_UNAVAILABLE,
   SESSION_AVAILABLE
 } available_t;
@@ -147,12 +149,14 @@ respond (struct mg_connection *conn, enum mimetype type, int code, int length,
           mg_printf (conn, "HTTP/1.1 %d ERROR\r\n"
                      "Content-Length: %lu\r\n"
                      "Cache-Control: no-cache\r\n"
-	             "Access-Control-Allow-Origin: *\r\n"
+                     "Access-Control-Allow-Origin: *\r\n"
                      "Content-Type: text/html\r\n\r\n", code, strlen (data));
           mg_write (conn, data, strlen (data));
         }
       else                      // error without any payload
-        mg_printf (conn, "HTTP/1.1 %d ERROR\r\nCache-Control: no-cache\r\nAccess-Control-Allow-Origin: *\r\n\r\n", code);
+        mg_printf (conn,
+                   "HTTP/1.1 %d ERROR\r\nCache-Control: no-cache\r\nAccess-Control-Allow-Origin: *\r\n\r\n",
+                   code);
       return;
     }
   switch (type)
@@ -161,21 +165,21 @@ respond (struct mg_connection *conn, enum mimetype type, int code, int length,
       mg_printf (conn, "HTTP/1.1 200 OK\r\n"
                  "Content-Length: %d\r\n"
                  "Cache-Control: no-cache\r\n"
-	         "Access-Control-Allow-Origin: *\r\n"
+                 "Access-Control-Allow-Origin: *\r\n"
                  "Content-Type: text/html\r\n\r\n", length);
       break;
     case plain:
       mg_printf (conn, "HTTP/1.1 200 OK\r\n"
                  "Content-Length: %d\r\n"
                  "Cache-Control: no-cache\r\n"
-	         "Access-Control-Allow-Origin: *\r\n"
+                 "Access-Control-Allow-Origin: *\r\n"
                  "Content-Type: text/plain\r\n\r\n", length);
       break;
     case binary:
       mg_printf (conn, "HTTP/1.1 200 OK\r\n"
                  "Content-Length: %d\r\n"
                  "Cache-Control: no-cache\r\n"
-	         "Access-Control-Allow-Origin: *\r\n"
+                 "Access-Control-Allow-Origin: *\r\n"
                  "Content-Type: application/octet-stream\r\n\r\n", length);
       break;
     }
@@ -193,7 +197,8 @@ find_session (int id)
     {
       if (sessions[j].sessionid != id)
         continue;
-      ans = sessions[j].available == SESSION_UNAVAILABLE ? &sessions[j] : NULL;
+      ans =
+        sessions[j].available == SESSION_UNAVAILABLE ? &sessions[j] : NULL;
     }
   return ans;
 }
@@ -368,30 +373,37 @@ get_session ()
   int j, id = -1;
   time_t t;
   omp_set_lock (&biglock);
-  for (j = 0; j < MAX_SESSIONS; ++j) {
-    if (sessions[j].available == SESSION_AVAILABLE) {
-      if (init_session (&sessions[j]) > 0) {
-	id = j;
-	break;
-      }
+  for (j = 0; j < MAX_SESSIONS; ++j)
+    {
+      if (sessions[j].available == SESSION_AVAILABLE)
+        {
+          if (init_session (&sessions[j]) > 0)
+            {
+              id = j;
+              break;
+            }
+        }
     }
-  }
-  if (id < 0) {
-    time (&t);
-    /* Couldn't find any available sessions. Check for orphans. */
-    for (j = 0; j < MAX_SESSIONS; ++j) {
-      if (t - sessions[j].time > TIMEOUT) {
-	syslog (LOG_INFO, "get_session reaping session %d", j);
-	omp_set_lock (&sessions[j].lock);
-	cleanup_session (&sessions[j]);
-	omp_unset_lock (&sessions[j].lock);
-	if (init_session (&sessions[j]) > 0) {
-	  id = j;
-	  break;
-	}
-      }
+  if (id < 0)
+    {
+      time (&t);
+      /* Couldn't find any available sessions. Check for orphans. */
+      for (j = 0; j < MAX_SESSIONS; ++j)
+        {
+          if (t - sessions[j].time > TIMEOUT)
+            {
+              syslog (LOG_INFO, "get_session reaping session %d", j);
+              omp_set_lock (&sessions[j].lock);
+              cleanup_session (&sessions[j]);
+              omp_unset_lock (&sessions[j].lock);
+              if (init_session (&sessions[j]) > 0)
+                {
+                  id = j;
+                  break;
+                }
+            }
+        }
     }
-  }
   omp_unset_lock (&biglock);
   return id;
 }
@@ -1415,15 +1427,16 @@ begin_request_handler (struct mg_connection *conn)
   else if (!strcmp (ri->uri, "/execute_query"))
     execute_query (conn, ri);
   else if (!strcmp (ri->uri, "/loadcsv"))
-  {
-    if(!tok)
     {
-      syslog (LOG_ERR, "loadcsv not authorized");
-      respond (conn, plain, 401, strlen("Not authorized"), "Not authorized");
-      goto end;
+      if (!tok)
+        {
+          syslog (LOG_ERR, "loadcsv not authorized");
+          respond (conn, plain, 401, strlen ("Not authorized"),
+                   "Not authorized");
+          goto end;
+        }
+      loadcsv (conn, ri, tok->uid);
     }
-    loadcsv (conn, ri, tok->uid);
-  }
   else if (!strcmp (ri->uri, "/cancel"))
     cancel_query (conn, ri);
 // CONTROL API
@@ -1441,12 +1454,13 @@ begin_request_handler (struct mg_connection *conn)
   else
     {
 // fallback to http file server
-      if(strstr(ri->uri, ".htpasswd"))
-      {
-        syslog (LOG_ERR, ". character in url");
-        respond (conn, plain, 401, strlen("Not authorized"), "Not authorized");
-        goto end;
-      }
+      if (strstr (ri->uri, ".htpasswd"))
+        {
+          syslog (LOG_ERR, ". character in url");
+          respond (conn, plain, 401, strlen ("Not authorized"),
+                   "Not authorized");
+          goto end;
+        }
       if (!strcmp (ri->uri, "/"))
         snprintf (buf, MAX_VARLEN, "%s/index.html", docroot);
       else
@@ -1479,7 +1493,7 @@ parse_args (char **options, int argc, char **argv, int *daemonize)
           exit (0);
           break;
         case 'v':
-          printf("%s\n", VERSION);
+          printf ("%s\n", VERSION);
           exit (0);
           break;
         case 'f':
@@ -1509,6 +1523,21 @@ parse_args (char **options, int argc, char **argv, int *daemonize)
     }
 }
 
+static void
+signalHandler (int sig)
+{
+  /* catch termination signals and shut down gracefully */
+   int j;
+  signal (sig, signalHandler);
+  omp_set_lock (&biglock);
+  for (j = 0; j < MAX_SESSIONS; ++j)
+    {
+      syslog (LOG_INFO, "terminating, reaping session %d", j);
+      cleanup_session (&sessions[j]);
+    }
+  omp_unset_lock (&biglock);
+  exit (0);
+}
 
 int
 main (int argc, char **argv)
@@ -1549,6 +1578,7 @@ main (int argc, char **argv)
   scount = 0;
   memset (&callbacks, 0, sizeof (callbacks));
   real_uid = getuid ();
+  signal (SIGTERM, signalHandler);
 
 /* Set up telemetry storage. It's a fixed buffer. */
   telemetry = (char **) malloc (TELEMETRY_ENTRIES * sizeof (char *));
@@ -1597,11 +1627,12 @@ main (int argc, char **argv)
 
   openlog ("shim", LOG_CONS | LOG_NDELAY, LOG_USER);
   omp_init_lock (&biglock);
-  for (j = 0; j < MAX_SESSIONS; ++j) {
-    sessions[j].available = SESSION_AVAILABLE;
-    sessions[j].sessionid = ++scount;  // session ids now begin at 1
-    omp_init_lock (&sessions[j].lock);
-  }
+  for (j = 0; j < MAX_SESSIONS; ++j)
+    {
+      sessions[j].available = SESSION_AVAILABLE;
+      sessions[j].sessionid = ++scount; // session ids now begin at 1
+      omp_init_lock (&sessions[j].lock);
+    }
 
   callbacks.begin_request = begin_request_handler;
   callbacks.websocket_ready = websocket_ready_handler;
