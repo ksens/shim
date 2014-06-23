@@ -550,6 +550,25 @@ new_session (struct mg_connection *conn)
     }
 }
 
+
+/* Return shim's version build
+ * Respond as follows:
+ * 200 OK
+ * version ID
+ *
+ * An error usually means all the sessions are consumed.
+ */
+void
+version (struct mg_connection *conn)
+{
+  char buf[MAX_VARLEN];
+  syslog (LOG_INFO, "version \n");
+  snprintf (buf, MAX_VARLEN, "%s\r\n", VERSION);
+  respond (conn, plain, 200, strlen (buf), buf);
+}
+
+
+
 /* Experimental: Load an uploaded CSV file with loadcsv
  * NOTE! This is an experimental function and presently limited to
  * secure connections. And the user must have write privilege to
@@ -1362,7 +1381,8 @@ begin_request_handler (struct mg_connection *conn)
     syslog (LOG_INFO, "%s?%s", ri->uri, ri->query_string);
 
 /* Check API authentication (encrypted sessions only--only applies to
- * the listed subset of the available shim API)
+ * the listed subset of the available shim API--API services not listed
+ * below work over https without needing auth)
  */
   if (ri->is_ssl &&
       (!strcmp (ri->uri, "/new_session") ||
@@ -1378,6 +1398,8 @@ begin_request_handler (struct mg_connection *conn)
 // CLIENT API
   if (!strcmp (ri->uri, "/new_session"))
     new_session (conn);
+  else if (!strcmp (ri->uri, "/version"))
+    version (conn);
   else if (!strcmp (ri->uri, "/login"))
     login (conn, ri);
   else if (!strcmp (ri->uri, "/logout"))
@@ -1443,17 +1465,21 @@ void
 parse_args (char **options, int argc, char **argv, int *daemonize)
 {
   int c;
-  while ((c = getopt (argc, argv, "hfn:p:r:s:t:")) != -1)
+  while ((c = getopt (argc, argv, "hvfn:p:r:s:t:")) != -1)
     {
       switch (c)
         {
         case 'h':
           printf
-            ("Usage:\nshim [-h] [-f] [-n <PAM service name>] [-p <http port>] [-r <document root>] [-s <scidb port>] [-t <tmp I/O DIR>]\n");
+            ("Usage:\nshim [-h] [-v] [-f] [-n <PAM service name>] [-p <http port>] [-r <document root>] [-s <scidb port>] [-t <tmp I/O DIR>]\n");
           printf
-            ("Specify -f to run in the foreground.\nDefault http ports are 8080 and 8083(SSL).\nDefault SciDB port is 1239.\nDefault document root is /var/lib/shim/wwwroot.\nDefault PAM service name is 'login'.\n");
+            ("The -v option prints the version build ID and exits.\nSpecify -f to run in the foreground.\nDefault http ports are 8080 and 8083(SSL).\nDefault SciDB port is 1239.\nDefault document root is /var/lib/shim/wwwroot.\nDefault PAM service name is 'login'.\nDefault temporary I/O directory is /tmp.\n");
           printf
             ("Start up shim and view http://localhost:8080/api.html from a browser for help with the API.\n\n");
+          exit (0);
+          break;
+        case 'v':
+          printf("%s\n", VERSION);
           exit (0);
           break;
         case 'f':
@@ -1484,13 +1510,6 @@ parse_args (char **options, int argc, char **argv, int *daemonize)
 }
 
 
-
-
-
-/* Usage:
- * shim [-h] [-f] [-p port] [-r path] [-s scidb_port]
- * See mongoose manual for specifying multiple http ports.
- */
 int
 main (int argc, char **argv)
 {

@@ -104,7 +104,7 @@ to interact with SciDB over HTTP connections.
 The API consists of a small number of URIs
 (described in detail below), including:
 /login, /new_session, /release_session, /execute_query, /cancel,
-/read_lines, /read_bytes, /upload_file, and /logout.
+/read_lines, /read_bytes, /upload_file, /version, and /logout.
 </p>
 <p>
 Note that there are more direct ways to talk to SciDB over a network.
@@ -320,6 +320,30 @@ Again, simply append your authentication token to your HTTP requests to use the 
 <h2>API Service URIs</h2>
 <div class="api">
 <table class="api-param-values">
+<tr>
+<td colspan="2">
+<h3>/version</h3>
+<tr><td>DESCRIPTION
+<td>Print the shim code version string
+<tr><td>METHOD<td>GET
+<tr><td>PARAMETERS
+<tr><td>RESPONSE
+<td>Success: HTTP 200 and text version string value in text/plain payload
+<br/>
+<tr><td>EXAMPLE
+<td>
+http://localhost:8080/version
+<br/><br/>
+<pre>
+HTTP/1.1 200 OK
+Content-Length: 16
+Cache-Control: no-cache
+Access-Control-Allow-Origin: *
+Content-Type: text/plain
+
+v14.3-15-gd71f
+</pre>
+<td>
 <tr>
 <td colspan="2">
 <h3>/new_session</h3>
