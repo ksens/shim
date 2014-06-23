@@ -146,11 +146,13 @@ respond (struct mg_connection *conn, enum mimetype type, int code, int length,
         {
           mg_printf (conn, "HTTP/1.1 %d ERROR\r\n"
                      "Content-Length: %lu\r\n"
+                     "Cache-Control: no-cache\r\n"
+	             "Access-Control-Allow-Origin: *\r\n"
                      "Content-Type: text/html\r\n\r\n", code, strlen (data));
           mg_write (conn, data, strlen (data));
         }
       else                      // error without any payload
-        mg_printf (conn, "HTTP/1.1 %d ERROR\r\n\r\n", code);
+        mg_printf (conn, "HTTP/1.1 %d ERROR\r\nCache-Control: no-cache\r\nAccess-Control-Allow-Origin: *\r\n\r\n", code);
       return;
     }
   switch (type)
@@ -158,16 +160,22 @@ respond (struct mg_connection *conn, enum mimetype type, int code, int length,
     case html:
       mg_printf (conn, "HTTP/1.1 200 OK\r\n"
                  "Content-Length: %d\r\n"
+                 "Cache-Control: no-cache\r\n"
+	         "Access-Control-Allow-Origin: *\r\n"
                  "Content-Type: text/html\r\n\r\n", length);
       break;
     case plain:
       mg_printf (conn, "HTTP/1.1 200 OK\r\n"
                  "Content-Length: %d\r\n"
+                 "Cache-Control: no-cache\r\n"
+	         "Access-Control-Allow-Origin: *\r\n"
                  "Content-Type: text/plain\r\n\r\n", length);
       break;
     case binary:
       mg_printf (conn, "HTTP/1.1 200 OK\r\n"
                  "Content-Length: %d\r\n"
+                 "Cache-Control: no-cache\r\n"
+	         "Access-Control-Allow-Origin: *\r\n"
                  "Content-Type: application/octet-stream\r\n\r\n", length);
       break;
     }
