@@ -129,9 +129,9 @@ unsigned int telemetry_counter;
  * Write an HTTP response to client connection, it's OK for length=0 and
  * data=NULL.  This routine generates the http header.
  *
- * Response messages are http 1.0 with OK/ERROR header, content length, data.
+ * Response messages are http 1.1 with OK/ERROR header, content length, data.
  * example:
- * HTTP/1.0 <code> OK\r\n
+ * HTTP/1.1 <code> OK\r\n
  * Content-Length: <length>\r\n
  * Content-Type: text/html\r\n\r\n
  * <DATA>
@@ -144,29 +144,29 @@ respond (struct mg_connection *conn, enum mimetype type, int code, int length,
     {
       if (data)                 // error with data payload (always presented as text/html here)
         {
-          mg_printf (conn, "HTTP/1.0 %d ERROR\r\n"
+          mg_printf (conn, "HTTP/1.1 %d ERROR\r\n"
                      "Content-Length: %lu\r\n"
                      "Content-Type: text/html\r\n\r\n", code, strlen (data));
           mg_write (conn, data, strlen (data));
         }
       else                      // error without any payload
-        mg_printf (conn, "HTTP/1.0 %d ERROR\r\n\r\n", code);
+        mg_printf (conn, "HTTP/1.1 %d ERROR\r\n\r\n", code);
       return;
     }
   switch (type)
     {
     case html:
-      mg_printf (conn, "HTTP/1.0 200 OK\r\n"
+      mg_printf (conn, "HTTP/1.1 200 OK\r\n"
                  "Content-Length: %d\r\n"
                  "Content-Type: text/html\r\n\r\n", length);
       break;
     case plain:
-      mg_printf (conn, "HTTP/1.0 200 OK\r\n"
+      mg_printf (conn, "HTTP/1.1 200 OK\r\n"
                  "Content-Length: %d\r\n"
                  "Content-Type: text/plain\r\n\r\n", length);
       break;
     case binary:
-      mg_printf (conn, "HTTP/1.0 200 OK\r\n"
+      mg_printf (conn, "HTTP/1.1 200 OK\r\n"
                  "Content-Length: %d\r\n"
                  "Content-Type: application/octet-stream\r\n\r\n", length);
       break;
