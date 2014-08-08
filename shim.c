@@ -19,8 +19,8 @@
 #include "pam.h"
 #include <pwd.h>
 
-#define MAX_SESSIONS 30         // Maximum number of simultaneous http sessions
-#define MAX_VARLEN 4096         // Static buffer length to hold http query params
+#define MAX_SESSIONS 30        // Maximum number of simultaneous http sessions
+#define MAX_VARLEN 4096        // Static buffer length to hold http query params
 #define LCSV_MAX 16384
 #ifndef PATH_MAX
 #define PATH_MAX 4096
@@ -55,7 +55,6 @@ unsigned long long execute_prepared_query (void *, char *, struct prep *, int,
 // End of mimimalist SciDB client API -----------------------------------------
 
 /* A session consists of client I/O buffers, and an optional SciDB query ID. */
-unsigned long scount;
 typedef enum
 {
   SESSION_UNAVAILABLE,
@@ -99,17 +98,19 @@ typedef struct
  * Their time values are set to the current time when such operations complete.
  *
  */
-
 enum mimetype
 { html, plain, binary };
 
 const char SCIDB_HOST[] = "localhost";
 int SCIDB_PORT = 1239;
-session *sessions;              // Fixed pool of web client sessions
+session *sessions;            // Fixed pool of web client sessions
 char *docroot;
-static uid_t real_uid;          // For setting uid to logged in user when required
-char *PAM_service_name = "login";       // Default PAM service name
-/* Big giant lock used to serialize many operations: */
+static uid_t real_uid;        // For setting uid to logged in user when required
+char *PAM_service_name = "login";       // Default PAM service name XXX make opt
+/* Big common lock used to serialize global operations.
+ * Each session also has a separate session lock. All the locks support
+ * nesting/recursion.
+ */
 omp_lock_t biglock;
 char *BASEPATH;
 char *TMPDIR;                   // temporary files go here
@@ -132,12 +133,12 @@ token_list *tokens = NULL;      // the head of the list
  * <DATA>
  */
 void
-respond (struct mg_connection *conn, enum mimetype type, int code, int length,
-         char *data)
+respond (struct mg_connection *conn, enum mimetype type, int code,
+         size_t length, char *data)
 {
-  if (code != 200)              // error
+  if (code != 200)  // error
     {
-      if (data)                 // error with data payload (always presented as text/html here)
+      if (data) // error with data payload (always presented as text/html here)
         {
           mg_printf (conn, "HTTP/1.1 %d ERROR\r\n"
                      "Content-Length: %lu\r\n"
@@ -156,21 +157,21 @@ respond (struct mg_connection *conn, enum mimetype type, int code, int length,
     {
     case html:
       mg_printf (conn, "HTTP/1.1 200 OK\r\n"
-                 "Content-Length: %d\r\n"
+                 "Content-Length: %lu\r\n"
                  "Cache-Control: no-cache\r\n"
                  "Access-Control-Allow-Origin: *\r\n"
                  "Content-Type: text/html\r\n\r\n", length);
       break;
     case plain:
       mg_printf (conn, "HTTP/1.1 200 OK\r\n"
-                 "Content-Length: %d\r\n"
+                 "Content-Length: %lu\r\n"
                  "Cache-Control: no-cache\r\n"
                  "Access-Control-Allow-Origin: *\r\n"
                  "Content-Type: text/plain\r\n\r\n", length);
       break;
     case binary:
       mg_printf (conn, "HTTP/1.1 200 OK\r\n"
-                 "Content-Length: %d\r\n"
+                 "Content-Length: %lu\r\n"
                  "Cache-Control: no-cache\r\n"
                  "Access-Control-Allow-Origin: *\r\n"
                  "Content-Type: application/octet-stream\r\n\r\n", length);
@@ -360,11 +361,13 @@ init_session (session * s)
       omp_unset_lock (&s->lock);
       return 0;
     }
-// Set up the output pipe
-// XXX We need to create a unique name for the pipe.  Since mkstemp can
-// only be used to create files, we will create the pipe with a generic
-// name (under the lock), then use mkstemp to create file with a unique
-// name, then rename the pipe on top of the file.
+
+/* Set up the output pipe
+ * We need to create a unique name for the pipe.  Since mkstemp can only be
+ * used to create files, we will create the pipe with a generic name, then use
+ * mkstemp to create file with a unique name, then rename the pipe on top of
+ * the file.
+ */
   fd = mkstemp (s->opipe);
   if (fd >= 0)
     close (fd);
@@ -377,13 +380,11 @@ init_session (session * s)
     }
   char* pipename;
   pipename = (char *) malloc (PATH_MAX);
-  snprintf (pipename, PATH_MAX, "%s/shim_generic_pipe", TMPDIR);
+  snprintf (pipename, PATH_MAX, "%s/shim_generic_pipe%d", TMPDIR,s->sessionid);
   syslog (LOG_ERR, "creating generic pipe: %s", pipename);
-  fd = mkfifo (pipename, 0777);
+  fd = mkfifo (pipename, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
   chmod(pipename, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
-  if (fd >= 0)
-    close (fd);
-  else
+  if (fd != 0)
     {
       syslog (LOG_ERR, "init_session can't create pipe, error");
       cleanup_session (s);
@@ -391,7 +392,8 @@ init_session (session * s)
       omp_unset_lock (&s->lock);
       return 0;
     }
-  if (rename (pipename, s->opipe))
+  fd = rename(pipename, s->opipe);
+  if (fd!=0)
     {
       syslog (LOG_ERR, "init_session can't rename pipe");
       unlink(pipename);
@@ -416,14 +418,15 @@ init_session (session * s)
 int
 get_session ()
 {
-  int j, id = -1;
+  int k, j, id = -1;
   time_t t;
   omp_set_lock (&biglock);
   for (j = 0; j < MAX_SESSIONS; ++j)
     {
       if (sessions[j].available == SESSION_AVAILABLE)
         {
-          if (init_session (&sessions[j]) > 0)
+          k = init_session(&sessions[j]);
+          if (k > 0)
             {
               id = j;
               break;
@@ -1032,7 +1035,7 @@ readlines (struct mg_connection *conn, const struct mg_request_info *ri)
 void
 execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
 {
-  int id, k, rel = 0, async = 0, stream = 0;
+  int id, k, rel = 0, stream = 0;
   unsigned long long l;
   session *s;
   char var[MAX_VARLEN];
@@ -1057,15 +1060,9 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
   if (strlen (var) > 0)
     rel = atoi (var);
   memset (var, 0, MAX_VARLEN);
-  mg_get_var (ri->query_string, k, "async", var, MAX_VARLEN);
-  if (strlen (var) > 0)
-    async = atoi (var);
-  memset (var, 0, MAX_VARLEN);
   mg_get_var (ri->query_string, k, "stream", var, MAX_VARLEN);
   if (strlen (var) > 0)
     stream = atoi (var);
-  if (rel == 0)
-    async = 0;
   syslog (LOG_INFO, "execute_query for session id %d", id);
   s = find_session (id);
   if (!s)
@@ -1100,12 +1097,6 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
     {
       syslog (LOG_INFO, "execute_query stream indicated");
     }
-// XXX Experimental async flag, if set respond immediately
-  if (async)
-    {
-      syslog (LOG_INFO, "execute_query async indicated");
-      respond (conn, plain, 200, 0, NULL);
-    }
   omp_set_lock (&s->lock);
   memset (var, 0, MAX_VARLEN);
   mg_get_var (ri->query_string, k, "save", save, MAX_VARLEN);
@@ -1125,8 +1116,7 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
       free (qry);
       free (qrybuf);
       syslog (LOG_ERR, "execute_query error could not connect to SciDB");
-      if (!async)
-        respond (conn, plain, 503, strlen ("Could not connect to SciDB"),
+      respond (conn, plain, 503, strlen ("Could not connect to SciDB"),
                  "Could not connect to SciDB");
       cleanup_session (s);
       omp_unset_lock (&s->lock);
@@ -1142,8 +1132,7 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
       free (qry);
       free (qrybuf);
       syslog (LOG_ERR, "execute_query error %s", SERR);
-      if (!async)
-        respond (conn, plain, 500, strlen (SERR), SERR);
+      respond (conn, plain, 500, strlen (SERR), SERR);
       if (s->con)
         scidbdisconnect (s->con);
       s->con = NULL;
@@ -1151,7 +1140,7 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
       omp_unset_lock (&s->lock);
       return;
     }
-/* Set the queryID for potential future cancel event
+/* Set the queryID for potential future cancel event.
  * The time flag is set to a future value to prevent get_session from
  * declaring this session orphaned while a query is running. This
  * session cannot be reclaimed until the query finishes, since the
@@ -1164,7 +1153,13 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
     {
       if (stream)
       {
-        omp_unset_lock (&s->lock);   /// XXX ask Steve ?
+/* Respond with the query ID before it runs.
+ * We have to release the lock to allow a client to run read_bytes or
+ * read_lines to pull from the pipe. Also set rel=1 in case it isn't
+ * already.
+ */
+        rel = 1;
+        omp_unset_lock (&s->lock);
         snprintf (buf, MAX_VARLEN, "%llu", l);        // Return the query ID
         respond (conn, plain, 200, strlen (buf), buf);
       }
@@ -1178,7 +1173,7 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
       free (qry);
       free (qrybuf);
       syslog (LOG_ERR, "execute_prepared_query error %s", SERR);
-      if (!async)
+      if(!stream)
         respond (conn, plain, 500, strlen (SERR), SERR);
       if (s->con)
         scidbdisconnect (s->con);
@@ -1205,9 +1200,11 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
   time (&s->time);
   omp_unset_lock (&s->lock);
 // Respond to the client
-  snprintf (buf, MAX_VARLEN, "%llu", l);        // Return the query ID
-  if (!async)
+  if(!stream)
+  {
+    snprintf (buf, MAX_VARLEN, "%llu", l);        // Return the query ID
     respond (conn, plain, 200, strlen (buf), buf);
+  }
 }
 
 
@@ -1440,6 +1437,9 @@ signalHandler (int sig)
   for (j = 0; j < MAX_SESSIONS; ++j)
     {
       syslog (LOG_INFO, "terminating, reaping session %d", j);
+/* note: we intentionally forget about acquiring locks here,
+ * we are about to exit!
+ */
       cleanup_session (&sessions[j]);
     }
   omp_unset_lock (&biglock);
@@ -1482,7 +1482,6 @@ main (int argc, char **argv)
     }
   docroot = options[3];
   sessions = (session *) calloc (MAX_SESSIONS, sizeof (session));
-  scount = 0;
   memset (&callbacks, 0, sizeof (callbacks));
   real_uid = getuid ();
   signal (SIGTERM, signalHandler);
@@ -1529,7 +1528,7 @@ main (int argc, char **argv)
   for (j = 0; j < MAX_SESSIONS; ++j)
     {
       sessions[j].available = SESSION_AVAILABLE;
-      sessions[j].sessionid = ++scount; // session ids now begin at 1
+      sessions[j].sessionid = j+1; // session ids begin at 1
       omp_init_lock (&sessions[j].lock);
     }
 

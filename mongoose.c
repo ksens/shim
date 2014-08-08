@@ -2913,7 +2913,8 @@ static void handle_directory_request(struct mg_connection *conn,
 }
 
 // Send bytes from the opened pipe to the client.
-static void send_pipe_data(struct mg_connection *conn, int pipefd) {
+static void send_pipe_data(struct mg_connection *conn, int pipefd)
+{
   char buf[MG_BUF_LEN];
   int to_read, num_read, num_written;
   while (1)
@@ -2928,10 +2929,12 @@ static void send_pipe_data(struct mg_connection *conn, int pipefd) {
     }
 
     // Send read bytes to the client, exit the loop on error
-    if (mg_printf(conn, "%X\r\n", num_read) == 0) {
+    if (mg_printf(conn, "%X\r\n", num_read) == 0)
+    {
       break;
     }
-    if ((num_written = mg_write(conn, buf, (size_t) num_read)) != num_read) {
+    if ((num_written = mg_write(conn, buf, (size_t) num_read)) != num_read)
+    {
       break;
     }
     if (mg_printf(conn, "\r\n") != 2) {
@@ -2941,6 +2944,7 @@ static void send_pipe_data(struct mg_connection *conn, int pipefd) {
     // Both read and were successful, adjust counters
     conn->num_bytes_sent += num_written;
   }
+  mg_printf(conn, "0\r\n\r\n");
 }
 
 
