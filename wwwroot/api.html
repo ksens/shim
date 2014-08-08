@@ -181,9 +181,18 @@ Basic digest access authentication is supported too
 See below for examples.
 <h3>User</h3>
 The user that the shim service runs under. Shim can run as a non-root user, but then SSL authenticated port logins are limited to the user that shim is running under.
-<h3>Temporary I/O space</h3>
-Shim stores the results of SciDB queries in files in temporary I/O space. (A future version of shim will stream
-query results to the client.) Select a directory that is writable by the shim user (see the user option).
+<h3>Temporary I/O space and streaming</h3>
+Shim's default behavior caches the output of SciDB queries in files on the
+SciDB server; set that file directory location with the config file tmp
+option or the command-line -t argument. This temporary director is also
+used to upload data from clients over the http connection for input into SciDB.
+Select a directory that is writable by the shim user (see the user option).
+<p>
+Specify stream=1 in the /execute_query service endpoint to stream SciDB results
+directly to the client using the HTTP 1.1 chunked transfer encoding mechanism.
+With this option, a named pipe is created in the temporary I/O directory
+instead of a file. See the /execute_query doc below for more information.
+
 <h3>TLS/SSL Certificate</h3>
 <p>
 Shim supports TLS/SSL encryption. Packaged versions of shim (RPM and deb
@@ -200,23 +209,23 @@ below. Parameters are required unless marked <i>optional</i>.
 All shim API services support CORS.
 <h3>Limits</h3>
 <p>
-All HTTP query parameters are passed to the service
-as string values. They are limited to a maximum of 4096 characters unless
-otherwise indicated (a notable exception is the SciDB query string parameter,
-limited to 1,000,000 characers).
+HTTP 1.1 clients or greater are required.
+<p>
+All HTTP query parameters are passed to the service as string values. They are
+limited to a maximum of 4096 characters unless otherwise indicated (a notable
+exception is the SciDB query string parameter, limited to 1,000,000 characers).
 </p><p>
-HTTP query string parameters that represent numbers have limits.
-Unless otherwise indicated whole-number values (session ID, number
-of bytes to return, etc.) are interpreted by shim as signed 32-bit
-integers and are generally limited to values between zero and 2147483647.
-Values outside that range will result in an HTTP 400 error (invalid query).
+HTTP query string parameters that represent numbers have limits.  Unless
+otherwise indicated whole-number values (session ID, number of bytes to return,
+etc.) are interpreted by shim as signed 32-bit integers and are generally
+limited to values between zero and 2147483647.  Values outside that range will
+result in an HTTP 400 error (invalid query).
 </p>
 <h3>Response codes</h3>
 <p>
-Possible responses for each URI are listed below. HTTP status code 200
-always indicates success; other standard HTTP status codes indicate
-various errors. Returned data may be ASCII or binary depending on the
-request.
+Possible responses for each URI are listed below. HTTP status code 200 always
+indicates success; other standard HTTP status codes indicate various errors.
+Returned data may be ASCII or binary depending on the request.
 </p>
 <h3>Authentication</h3>
 <h4>Basic digest access authentication</h4>
@@ -231,17 +240,16 @@ username1:password1
 username2:password2
 ...
 </pre>
-Use plain text passwords in the file, and consider changing the permissions of the
-file to restrict access. Delete the <tt>.htpasswd</tt> file to disable basic digest
-access authentication.
+Use plain text passwords in the file, and consider changing the permissions of
+the file to restrict access. Delete the <tt>.htpasswd</tt> file to disable
+basic digest access authentication.
 
 <h4>TLS/SSL encryption and PAM authentication</h4>
 <p>
-Shim optionally exposes both open and encrypted (SSL or TLS) services.
-Access to most of the API over an encrypted connection requires authentication.
-API URIs that require authentication include:
-/new_session /upload_file /read_lines /read_bytes /execute_query
-and /cancel.
+Shim optionally exposes both open and encrypted (SSL or TLS) services.  Access
+to most of the API over an encrypted connection requires authentication.  API
+URIs that require authentication include: /new_session /upload_file /read_lines
+/read_bytes /execute_query and /cancel.
 </p><p>
 Authentication is very simple to use:
 <ol>
@@ -422,11 +430,8 @@ Content-Type: text/plain
 format for subsequent download
 by read_lines or read_bytes. If the save parameter is not
 specified, don't save the query output. <br/>
-<b>release</b>  <i>optional</i> 0 or 1: if 1 then release_session as soon as query completes.
-The default value is 0 if not specified.<br/>
-Do <i>not</i> specify both save and release or your data will be
-lost as soon as the query finishes.
-<b>stream</b> <i>optional</i> 0 or 1: if 1 then stream query result; otherwise send query result through a server-side output file (the default).<br/>
+<b>release</b>  <i>optional</i> 0 or 1: if 1 then release_session as soon as query completes.  The default value is 0 if not specified (see additional notes below).<br/>
+<b>stream</b> <i>optional</i> 0 or 1: if 1 then stream query result; otherwise send query result through a server-side output file (the default). steam=1 also sets release=1.<br/>
 <b>auth</b> <i>optional</i> authentication token (required for encrypted connections).
 </br>
 <tr><td>RESPONSE
@@ -457,10 +462,27 @@ This method blocks until the query completes unless stream=1.
 When stream=1, this method returns immediately with the query ID (before
 the query complets).
 <br/><br/>
-Do not specify the
-option release=1 when the save option is also set, or output will not be
-available to read_bytes or read_lines. Instead, explicitly call release_session
-after reading is complete.
+Do not specify the option release=1 when stream=0 and when the save option is
+also set, or output will not be available to read_bytes or read_lines. Instead,
+explicitly call release_session after reading is complete.
+
+<br/><br/>
+Setting stream=1 is an experimental feature added after version 14.7. Setting
+stream=1 sends query results through a server-side named pipe into the client
+without storing the query results on the server. This option uses the
+HTTP 1.1 chunked transfer encoding; stream termination is indicated by a
+chunk of length zero.
+<br/><br/>
+When stream=1 is set then release=1 is also automatically set. That means
+that clients are free to not call /release_session after receiving their
+stream data via /read_lines or /read_bytes;however,
+calling /release_session will not cause problems and
+clients can still do it if they wish.
+<br/><br/>
+NOTE: WHEN stream=1, SciDB QUERIES REMAIN ACTIVE UNTIL THE CLIENT COMPLETES
+RECIEVING THE RESULT DATA. IT'S UP TO THE CLIENT TO RECEIVE THE DATA TO
+TERMINATE THE QUERY.
+
 <tr><td>EXAMPLE
 <td>
 http://localhost:8080/execute_query?id=0&amp;query=remove(x)&amp;release=1
