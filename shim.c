@@ -68,8 +68,10 @@ typedef struct
   unsigned long long queryid;   // SciDB query identifier
   int pd;                       // output buffer file descrptor
   FILE *pf;                     //   and FILE pointer
+  int stream;                   // non-zero if output streaming enabled
   char *ibuf;                   // input buffer name
-  char *obuf;                   // output buffer name
+  char *obuf;                   // output (file) buffer name
+  char *opipe;                  // output pipe name
   void *con;                    // SciDB context
   time_t time;                  // Time value to help decide on orphan sessions
   available_t available;        // 1 -> available, 0 -> not available
@@ -219,6 +221,13 @@ cleanup_session (session * s)
       free (s->obuf);
       s->obuf = NULL;
     }
+  if (s->opipe)
+    {
+      syslog (LOG_INFO, "cleanup_session unlinking %s", s->opipe);
+      unlink (s->opipe);
+      free (s->opipe);
+      s->opipe = NULL;
+    }
 }
 
 /* Release a session defined in the client mg_request_info object 'id'
@@ -312,10 +321,12 @@ init_session (session * s)
 {
   int fd;
   omp_set_lock (&s->lock);
-  s->ibuf = (char *) malloc (PATH_MAX);
-  s->obuf = (char *) malloc (PATH_MAX);
+  s->ibuf  = (char *) malloc (PATH_MAX);
+  s->obuf  = (char *) malloc (PATH_MAX);
+  s->opipe = (char *) malloc (PATH_MAX);
   snprintf (s->ibuf, PATH_MAX, "%s/shim_input_buf_XXXXXX", TMPDIR);
   snprintf (s->obuf, PATH_MAX, "%s/shim_output_buf_XXXXXX", TMPDIR);
+  snprintf (s->opipe, PATH_MAX, "%s/shim_output_pipe_XXXXXX", TMPDIR);
 // Set up the input buffer
   fd = mkstemp (s->ibuf);
 // XXX We need to make it so that whoever runs scidb can R/W to this file.
@@ -323,7 +334,7 @@ init_session (session * s)
 // general, shim runs as a service we have a mismatch. Right now, we set it so
 // that anyone can write to these to work around this. But really, these files
 // should be owned by the scidb process user. Hmmm.  (See also below for output
-// buffer.)
+// buffer and pipe.)
   chmod (s->ibuf, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
   if (fd > 0)
     close (fd);
@@ -336,6 +347,8 @@ init_session (session * s)
     }
 // Set up the output buffer
   s->pd = 0;
+// Set default behavior to not stream
+  s->stream = 0;
   fd = mkstemp (s->obuf);
   chmod (s->obuf, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
   if (fd > 0)
@@ -347,6 +360,48 @@ init_session (session * s)
       omp_unset_lock (&s->lock);
       return 0;
     }
+// Set up the output pipe
+// XXX We need to create a unique name for the pipe.  Since mkstemp can
+// only be used to create files, we will create the pipe with a generic
+// name (under the lock), then use mkstemp to create file with a unique
+// name, then rename the pipe on top of the file.
+  fd = mkstemp (s->opipe);
+  if (fd >= 0)
+    close (fd);
+  else
+    {
+      syslog (LOG_ERR, "init_session can't create pipefile");
+      cleanup_session (s);
+      omp_unset_lock (&s->lock);
+      return 0;
+    }
+  char* pipename;
+  pipename = (char *) malloc (PATH_MAX);
+  snprintf (pipename, PATH_MAX, "%s/shim_generic_pipe", TMPDIR);
+  syslog (LOG_ERR, "creating generic pipe: %s", pipename);
+  fd = mkfifo (pipename, 0777);
+  chmod(pipename, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
+  if (fd >= 0)
+    close (fd);
+  else
+    {
+      syslog (LOG_ERR, "init_session can't create pipe, error");
+      cleanup_session (s);
+      free(pipename);
+      omp_unset_lock (&s->lock);
+      return 0;
+    }
+  if (rename (pipename, s->opipe))
+    {
+      syslog (LOG_ERR, "init_session can't rename pipe");
+      unlink(pipename);
+      free(pipename);
+      cleanup_session (s);
+      omp_unset_lock (&s->lock);
+      return 0;      
+    }
+  free(pipename);
+
   time (&s->time);
   s->available = SESSION_UNAVAILABLE;
   omp_unset_lock (&s->lock);
@@ -542,8 +597,9 @@ new_session (struct mg_connection *conn)
   syslog (LOG_INFO, "new_session %d", j);
   if (j > -1)
     {
-      syslog (LOG_INFO, "new_session session id=%d ibuf=%s obuf=%s",
-              sessions[j].sessionid, sessions[j].ibuf, sessions[j].obuf);
+      syslog (LOG_INFO, "new_session session id=%d ibuf=%s obuf=%s opipe=%s",
+              sessions[j].sessionid, sessions[j].ibuf, sessions[j].obuf,
+              sessions[j].opipe);
       snprintf (buf, MAX_VARLEN, "%d\r\n", sessions[j].sessionid);
       respond (conn, plain, 200, strlen (buf), buf);
     }
@@ -741,7 +797,11 @@ readbytes (struct mg_connection *conn, const struct mg_request_info *ri)
 // Check to see if the output buffer is open for reading, if not do so.
   if (s->pd < 1)
     {
-      s->pd = open (s->obuf, O_RDONLY | O_NONBLOCK);
+      s->pd = 
+          s->stream ? 
+          open(s->opipe, O_RDONLY) :
+          open (s->obuf, O_RDONLY | O_NONBLOCK);
+
       if (s->pd < 1)
         {
           syslog (LOG_ERR, "readbytes error opening output buffer");
@@ -757,7 +817,10 @@ readbytes (struct mg_connection *conn, const struct mg_request_info *ri)
   if (n < 1)
     {
       syslog (LOG_INFO, "readbytes returning entire buffer");
-      mg_send_file (conn, s->obuf);
+      if (s->stream)
+        mg_send_pipe (conn, s->opipe);
+      else
+        mg_send_file (conn, s->obuf);
       omp_unset_lock (&s->lock);
       return;
     }
@@ -844,7 +907,11 @@ readlines (struct mg_connection *conn, const struct mg_request_info *ri)
   if (n < 1)
     {
       syslog (LOG_INFO, "readlines returning entire buffer");
-      mg_send_file (conn, s->obuf);
+      if (s->stream)
+        mg_send_pipe (conn, s->opipe);
+      else
+        mg_send_file (conn, s->obuf);
+
       omp_unset_lock (&s->lock);
       return;
     }
@@ -852,7 +919,7 @@ readlines (struct mg_connection *conn, const struct mg_request_info *ri)
   syslog (LOG_INFO, "readlines opening buffer");
   if (s->pd < 1)
     {
-      s->pd = open (s->obuf, O_RDONLY | O_NONBLOCK);
+      s->pd = open (s->stream ? s->opipe : s->obuf, O_RDONLY | O_NONBLOCK);
       if (s->pd > 0)
         s->pf = fdopen (s->pd, "r");
       if (s->pd < 1 || !s->pf)
@@ -956,7 +1023,8 @@ readlines (struct mg_connection *conn, const struct mg_request_info *ri)
  *   release > 0 invokes release_session after completeQuery.
  * save=<format string> (optional, default 0-length string)
  *   set the save format to something to wrap the query in a save
- * to the session pipe.
+ * stream={0 or 1} (optional, default 0)
+ *   stream = 1 indicates stream output to pipe instead of buffering in file
  *
  * Any error that occurs during execute_query that is associated
  * with a valid session ID results in the release of the session.
@@ -964,7 +1032,7 @@ readlines (struct mg_connection *conn, const struct mg_request_info *ri)
 void
 execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
 {
-  int id, k, rel = 0, async = 0;
+  int id, k, rel = 0, async = 0, stream = 0;
   unsigned long long l;
   session *s;
   char var[MAX_VARLEN];
@@ -992,6 +1060,10 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
   mg_get_var (ri->query_string, k, "async", var, MAX_VARLEN);
   if (strlen (var) > 0)
     async = atoi (var);
+  memset (var, 0, MAX_VARLEN);
+  mg_get_var (ri->query_string, k, "stream", var, MAX_VARLEN);
+  if (strlen (var) > 0)
+    stream = atoi (var);
   if (rel == 0)
     async = 0;
   syslog (LOG_INFO, "execute_query for session id %d", id);
@@ -1024,6 +1096,10 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
       omp_unset_lock (&s->lock);
       return;
     }
+  if (stream)
+    {
+      syslog (LOG_INFO, "execute_query stream indicated");
+    }
 // XXX Experimental async flag, if set respond immediately
   if (async)
     {
@@ -1036,8 +1112,8 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
   mg_get_var (ri->query_string, k, "query", qrybuf, k);
 // If save is indicated, modify query
   if (strlen (save) > 0)
-    snprintf (qry, k + MAX_VARLEN, "save(%s,'%s',0,'%s')", qrybuf, s->obuf,
-              save);
+    snprintf (qry, k + MAX_VARLEN, "save(%s,'%s',0,'%s')", qrybuf, 
+              stream ? s->opipe : s->obuf, save);
   else
     snprintf (qry, k + MAX_VARLEN, "%s", qrybuf);
 
@@ -1083,8 +1159,20 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
  */
   s->queryid = l;
   s->time = time (NULL) + WEEK;
+  s->stream = stream;
   if (s->con)
-    l = execute_prepared_query (s->con, qry, &pq, 1, SERR);
+    {
+      if (stream)
+      {
+        omp_unset_lock (&s->lock);   /// XXX ask Steve ?
+        snprintf (buf, MAX_VARLEN, "%llu", l);        // Return the query ID
+        respond (conn, plain, 200, strlen (buf), buf);
+      }
+      l = execute_prepared_query (s->con, qry, &pq, 1, SERR);
+      if (stream)
+        omp_set_lock (&s->lock);
+    }
+
   if (l < 1)
     {
       free (qry);

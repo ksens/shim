@@ -419,10 +419,14 @@ Content-Type: text/plain
 <b>id</b> (an HTTP session ID)<br/>
 <b>query</b> (AFL query string, encoded for use in URL as required, limited to a maximum of 1,000,000 characters)<br/>
 <b>save</b> <i>optional</i> (format string, limited to a maximum of 4096 characters) Save the query output in the specified,
-format for subsequent by read_lines or read_bytes. If the save parameter is not
+format for subsequent download
+by read_lines or read_bytes. If the save parameter is not
 specified, don't save the query output. <br/>
 <b>release</b>  <i>optional</i> 0 or 1: if 1 then release_session as soon as query completes.
 The default value is 0 if not specified.<br/>
+Do <i>not</i> specify both save and release or your data will be
+lost as soon as the query finishes.
+<b>stream</b> <i>optional</i> 0 or 1: if 1 then stream query result; otherwise send query result through a server-side output file (the default).<br/>
 <b>auth</b> <i>optional</i> authentication token (required for encrypted connections).
 </br>
 <tr><td>RESPONSE
@@ -447,7 +451,13 @@ fall of 2014.
 <br/><br/>
 500 and 503 errors result in removal of the web session ID and related
 resources (thus, release_session does not have to be called after such an
-error). This method blocks until the query completes. Do not specify the
+error).
+<br/><br/>
+This method blocks until the query completes unless stream=1.
+When stream=1, this method returns immediately with the query ID (before
+the query complets).
+<br/><br/>
+Do not specify the
 option release=1 when the save option is also set, or output will not be
 available to read_bytes or read_lines. Instead, explicitly call release_session
 after reading is complete.
@@ -788,7 +798,7 @@ new session request is unable to be satisfied. Until that event occurs,
 sessions are free to last indefinitely.
 </p>
 <p>
-Shim does not presently protect against uploading gigantic files nor from
+Shim does not protect against uploading gigantic files nor from
 running many long-running SciDB queries. The service may become unavailable if
 too many query and/or upload operations are in flight; an HTTP 503 (Service
 Unavailable) error code is returned in that case.

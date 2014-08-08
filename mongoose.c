@@ -66,6 +66,7 @@
 #include <limits.h>
 #include <stddef.h>
 #include <stdio.h>
+#include <syslog.h>
 
 #if defined(_WIN32) && !defined(__SYMBIAN32__) // Windows specific
 #undef _WIN32_WINNT
@@ -2911,6 +2912,38 @@ static void handle_directory_request(struct mg_connection *conn,
   conn->status_code = 200;
 }
 
+// Send bytes from the opened pipe to the client.
+static void send_pipe_data(struct mg_connection *conn, int pipefd) {
+  char buf[MG_BUF_LEN];
+  int to_read, num_read, num_written;
+  while (1)
+  {
+    // Calculate how much to read from the file in the buffer
+    to_read = sizeof(buf);
+
+    // Read from file, exit the loop on error
+    if ((num_read = read(pipefd, buf, (size_t) to_read)) <= 0)
+    {
+      break;
+    }
+
+    // Send read bytes to the client, exit the loop on error
+    if (mg_printf(conn, "%X\r\n", num_read) == 0) {
+      break;
+    }
+    if ((num_written = mg_write(conn, buf, (size_t) num_read)) != num_read) {
+      break;
+    }
+    if (mg_printf(conn, "\r\n") != 2) {
+      break;
+    }
+
+    // Both read and were successful, adjust counters
+    conn->num_bytes_sent += num_written;
+  }
+}
+
+
 // Send len bytes from the opened file to the client.
 static void send_file_data(struct mg_connection *conn, struct file *filep,
                            int64_t offset, int64_t len) {
@@ -3054,12 +3087,55 @@ static void handle_file_request(struct mg_connection *conn, const char *path,
   mg_fclose(filep);
 }
 
+static void handle_pipe_request(struct mg_connection *conn, const char *path) {
+  char date[64];
+  const char *msg = "OK";
+  time_t curtime = time(NULL);
+  struct vec mime_vec;
+  int pipefd = -1;
+
+  get_mime_type(conn->ctx, path, &mime_vec);
+  conn->status_code = 200;
+
+  if ((pipefd = open(path, O_RDONLY)) < 0) {
+    send_http_error(conn, 500, http_500_error,
+                    "open(%s): %s", path, strerror(ERRNO));
+    return;
+  }
+
+  set_close_on_exec(pipefd);
+  gmt_time_string(date, sizeof(date), &curtime);
+
+  (void) mg_printf(conn,
+      "HTTP/1.1 %d %s\r\n"
+      "Transfer-Encoding: Chunked\r\n"
+      "Date: %s\r\n"
+      "Content-Type: %.*s\r\n"
+      "Connection: %s\r\n\r\n",
+      conn->status_code, msg, date, (int) mime_vec.len,
+      mime_vec.ptr, suggest_connection_header(conn));
+
+  if (strcmp(conn->request_info.request_method, "HEAD") != 0) {
+    send_pipe_data(conn, pipefd);
+  }
+  close(pipefd);
+}
+
 void mg_send_file(struct mg_connection *conn, const char *path) {
   struct file file = STRUCT_FILE_INITIALIZER;
   if (mg_stat(conn, path, &file)) {
     handle_file_request(conn, path, &file);
   } else {
     send_http_error(conn, 404, "Not Found", "%s", "File not found");
+  }
+}
+
+void mg_send_pipe(struct mg_connection *conn, const char *path) {
+  struct stat st;
+  if (stat(path, &st) == 0) {
+    handle_pipe_request(conn, path);
+  } else {
+    send_http_error(conn, 404, "Not Found", "%s", "Pipe not found");
   }
 }
 
@@ -4937,6 +5013,7 @@ static int load_dll(struct mg_context *ctx, const char *dll_name,
 
   if ((dll_handle = dlopen(dll_name, RTLD_LAZY)) == NULL) {
     cry(fc(ctx), "%s: cannot load %s", __func__, dll_name);
+    syslog(LOG_ERR, "%s: cannot load %s", __func__, dll_name);
     return 0;
   }
 
@@ -4976,6 +5053,7 @@ static int set_ssl_option(struct mg_context *ctx) {
 #if !defined(NO_SSL_DL)
   if (!load_dll(ctx, SSL_LIB, ssl_sw) ||
       !load_dll(ctx, CRYPTO_LIB, crypto_sw)) {
+    syslog(LOG_ERR, "set_ssl_option:  failed to load dll");
     return 0;
   }
 #endif // NO_SSL_DL
@@ -4986,6 +5064,7 @@ static int set_ssl_option(struct mg_context *ctx) {
 
   if ((ctx->ssl_ctx = SSL_CTX_new(SSLv23_server_method())) == NULL) {
     cry(fc(ctx), "SSL_CTX_new (server) error: %s", ssl_error());
+    syslog(LOG_ERR, "set_ssl_option: SSL_CTX_new (server) error: %s", ssl_error());
     return 0;
   }
 
@@ -4996,6 +5075,7 @@ static int set_ssl_option(struct mg_context *ctx) {
       (SSL_CTX_use_certificate_file(ctx->ssl_ctx, pem, 1) == 0 ||
        SSL_CTX_use_PrivateKey_file(ctx->ssl_ctx, pem, 1) == 0)) {
     cry(fc(ctx), "%s: cannot open %s: %s", __func__, pem, ssl_error());
+    syslog(LOG_ERR, "set_ssl_option: %s: cannot open %s: %s", __func__, pem, ssl_error());
     return 0;
   }
 
@@ -5008,6 +5088,7 @@ static int set_ssl_option(struct mg_context *ctx) {
   size = sizeof(pthread_mutex_t) * CRYPTO_num_locks();
   if ((ssl_mutexes = (pthread_mutex_t *) malloc((size_t)size)) == NULL) {
     cry(fc(ctx), "%s: cannot allocate mutexes: %s", __func__, ssl_error());
+    syslog(LOG_ERR, "set_ssl_option: %s: cannot allocate mutexes: %s", __func__, ssl_error());
     return 0;
   }
 
@@ -5598,6 +5679,7 @@ struct mg_context *mg_start(const struct mg_callbacks *callbacks,
       !set_uid_option(ctx) ||
 #endif
       !set_acl_option(ctx)) {
+    syslog (LOG_ERR, "mg_start: failed to set option.");
     free_context(ctx);
     return NULL;
   }
