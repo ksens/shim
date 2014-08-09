@@ -208,6 +208,7 @@ int mg_modify_passwords_file(const char *passwords_file_name,
 // Return information associated with the request.
 struct mg_request_info *mg_get_request_info(struct mg_connection *);
 
+int mg_get_basic_auth(struct mg_connection *);
 
 // Send data to the client.
 // Return:

@@ -530,7 +530,14 @@ struct mg_connection {
   int throttle;               // Throttling, bytes/sec. <= 0 means no throttle
   time_t last_throttle_time;  // Last time throttled data was sent
   int64_t last_throttle_bytes;// Bytes sent this second
+  int auth;                   // 1 if basic digest auth is ok
 };
+
+int
+mg_get_basic_auth(struct mg_connection *conn)
+{
+  return conn->auth;
+}
 
 // Directory entry
 struct de {
@@ -2479,6 +2486,7 @@ static int
 authorize(struct mg_connection *conn, struct file *filep)
 {
   struct ah ah;
+  int check;
   char line[256], f_user[256], ha1[33], pwd[256],buf[MG_BUF_LEN], *p;
 
   if (!parse_auth_header(conn, buf, sizeof(buf), &ah))
@@ -2497,8 +2505,10 @@ authorize(struct mg_connection *conn, struct file *filep)
     mg_md5(ha1, f_user, "::", pwd, NULL);
     if (!strcmp(ah.user, f_user))
     {
-      return check_password(conn->request_info.request_method, ha1, ah.uri,
+      check = check_password(conn->request_info.request_method, ha1, ah.uri,
                             ah.nonce, ah.nc, ah.cnonce, ah.qop, ah.response);
+      conn->auth = check;
+      return check;
     }
   }
   return 0;
@@ -2525,6 +2535,7 @@ static int check_authorization(struct mg_connection *conn, const char *path) {
     }
   }
 
+  conn->auth = 0;
   if (!is_file_opened(&file)) {
     open_auth_file(conn, path, &file);
   }

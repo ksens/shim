@@ -1261,6 +1261,9 @@ check_auth (token_list * head, struct mg_connection *conn,
       syslog (LOG_ERR, "authentication error invalid http query");
       return NULL;
     }
+/* Basic digest authentication check */
+  if(mg_get_basic_auth(conn)==1) return t;
+
   k = strlen (ri->query_string);
   mg_get_var (ri->query_string, k, "auth", var, MAX_VARLEN);
   l = strtoul (var, NULL, 0);
@@ -1360,7 +1363,7 @@ begin_request_handler (struct mg_connection *conn)
 // fallback to http file server
       if (strstr (ri->uri, ".htpasswd"))
         {
-          syslog (LOG_ERR, ". character in url");
+          syslog (LOG_ERR, "client trying to read password file");
           respond (conn, plain, 401, strlen ("Not authorized"),
                    "Not authorized");
           goto end;
