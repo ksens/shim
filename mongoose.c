@@ -2553,6 +2553,7 @@ static void send_authorization_request(struct mg_connection *conn) {
   mg_printf(conn,
             "HTTP/1.1 401 Unauthorized\r\n"
             "Content-Length: 0\r\n"
+            "Set-Cookie: digest=1\r\n"
             "WWW-Authenticate: Digest qop=\"auth\", "
             "realm=\"%s\", nonce=\"%lu\"\r\n\r\n",
             conn->ctx->config[AUTHENTICATION_DOMAIN],
