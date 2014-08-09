@@ -115,6 +115,8 @@ omp_lock_t biglock;
 char *BASEPATH;
 char *TMPDIR;                   // temporary files go here
 token_list *tokens = NULL;      // the head of the list
+token_list default_token;       // used by digest authentication
+
 
 /*
  * conn: A mongoose client connection
@@ -1255,14 +1257,17 @@ check_auth (token_list * head, struct mg_connection *conn,
   unsigned long l;
   char var[MAX_VARLEN];
   token_list *t = head;
+/* Check for basic digest authentication first */
+  if(mg_get_basic_auth(conn)==1)
+  {
+    return &default_token;
+  }
   if (!ri->query_string)
     {
       respond (conn, plain, 400, 0, NULL);
-      syslog (LOG_ERR, "authentication error invalid http query");
+      syslog (LOG_ERR, "authentication error");
       return NULL;
     }
-/* Basic digest authentication check */
-  if(mg_get_basic_auth(conn)==1) return t;
 
   k = strlen (ri->query_string);
   mg_get_var (ri->query_string, k, "auth", var, MAX_VARLEN);
@@ -1470,6 +1475,15 @@ main (int argc, char **argv)
   options[7] = "";
   options[8] = NULL;
   TMPDIR = DEFAULT_TMPDIR;
+
+/* Set up a default token for digest authentication. This
+ * is only really needed for the experimental loadcsv interface.
+ */
+  default_token.val = 1;
+  default_token.time = 0;
+  default_token.uid = getuid();
+  default_token.next = NULL;
+
   parse_args (options, argc, argv, &daemonize);
   if (stat (options[5], &check_ssl) < 0)
     {

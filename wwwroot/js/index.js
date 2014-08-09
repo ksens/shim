@@ -95,8 +95,9 @@ function do_login(sq, numlines)
 
 function hello_maybe(sq, numlines)
 {
-  cook = getCookie("authtok");
-  if(location.protocol == "https:" && (cook=="null" || cook==null))
+  var cook = getCookie("authtok");
+  var digest = getCookie("digest");
+  if(location.protocol == "https:" && (cook=="null" || cook==null) && (digest=="null" || digest==null))
   {
     do_login_maybe();
   } else
