@@ -8,7 +8,7 @@ openssl req -new -newkey rsa:4096 -days 3650 -nodes -x509 -subj "/C=US/ST=MA/L=W
 ./shim -p ${port}s -r $td/wwwroot  -f &
 sleep 1
 
-curl s -k "https://${host}:${port}/version"
+curl -s -k "https://${host}:${port}/version"
 
 rm -rf $td
 kill -9 %1
