@@ -96,3 +96,20 @@ rpm-pkg: shim
 
 clean:
 	rm -fr *.o *.so shim pkgroot *.rpm *.deb
+
+
+test1: shim
+	@echo "Non-authenticated test"
+	@LD_LIBRARY_PATH="$(SCIDB)/3rdparty/boost/lib" ./tests/test_noauth.sh
+
+test2: shim
+	@echo "Basic digest authentication"
+	@LD_LIBRARY_PATH="$(SCIDB)/3rdparty/boost/lib" ./tests/test_noauth.sh
+
+test3: shim
+	@echo "TLS without authentication"
+	@LD_LIBRARY_PATH="$(SCIDB)/3rdparty/boost/lib" ./tests/test_tls.sh
+
+test4: shim
+	@echo "TLS with digest authentication"
+	@LD_LIBRARY_PATH="$(SCIDB)/3rdparty/boost/lib" ./tests/test_tls_digest.sh
