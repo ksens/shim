@@ -77,7 +77,7 @@
 <div class="span4">
   <select id="numlines">
   <option value="20">Return at most 20 lines.</option>
-  <option value="200">Return at most 200 lines.</option>
+  <option value="1000">Return at most 1000 lines.</option>
   <option value="-1">Return everything.</option>
   </select>
 </div>
@@ -87,8 +87,10 @@
 <br/>
 <i>Shortcut: Press SHIFT + ENTER to execute query and return the result.</i>
 <br/>
+<i>Use the 'Execute' button for queries using operators that don't return results like remove.</i>
 <br/>
-<i>Note: This interface supports SciDB AFL queries.</i>
+<br/>
+<i>Note: This interface supports SciDB AFL queries. The upload file interface is experimental and only available for PAM-authenticated secure connections.</i>
 </div>
 
 </div> <!-- /container -->
@@ -142,6 +144,19 @@
 <script src="js/scidb.js"></script>
 <script src="js/spin.min.js"></script>
 <script src="js/spin.js"></script>
+
+<script>
+<!--Disable upload if not https-->
+  $(document).ready(
+    function()
+    {
+      var digest = getCookie("digest");
+      if(location.protocol != "https:")
+      {
+        $("#uplo").addClass("disabled");
+      }
+    });
+</script>
 
 </body>
 </html>

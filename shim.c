@@ -726,17 +726,12 @@ loadcsv (struct mg_connection *conn, const struct mg_request_info *ri,
       goto bail;
     }
   LD = getenv ("LD_LIBRARY_PATH");
-// User access is restricted by seteuid and then su. We add su to allow
-// use of LD_LIBRARY_PATH.
-//  snprintf (cmd, LCSV_MAX,
-//            "su %s -c \"/bin/bash -c \\\"umask 022; export LD_LIBRARY_PATH=%s ; %s/csv2scidb  -s %d < %s > %s.scidb ; %s/iquery -naq 'remove(%s)' 2>>/tmp/log; %s/iquery -naq 'create_array(%s,%s)' 2>>/tmp/log; %s/iquery -naq \\\\\\\"store(input(%s,'%s.scidb',0),%s)\\\\\\\" 2>>/tmp/log;rm -f %s.scidb\\\" \" ",
-//            pwd.pw_name, LD, BASEPATH, n, s->ibuf, s->ibuf, BASEPATH,
-//            arrayname, BASEPATH, arrayname, schema, BASEPATH, schema, s->ibuf,
-//            arrayname, s->ibuf);
-
+// Check to make sure that we can use su...
+  if(getuid()!=0) goto bail;
+// User access is restricted by seteuid and then su.
   snprintf (cmd, LCSV_MAX,
-            "/bin/bash -c \\\"umask 022; export LD_LIBRARY_PATH=%s ; %s/csv2scidb  -s %d < %s > %s.scidb ; %s/iquery -naq 'remove(%s)' 2>>/tmp/log; %s/iquery -naq 'create_array(%s,%s)' 2>>/tmp/log; %s/iquery -naq \\\\\\\"store(input(%s,'%s.scidb',0),%s)\\\\\\\" 2>>/tmp/log;rm -f %s.scidb\\\" ",
-            LD, BASEPATH, n, s->ibuf, s->ibuf, BASEPATH,
+            "su %s -c \"/bin/bash -c \\\"umask 022; export LD_LIBRARY_PATH=%s ; %s/csv2scidb  -s %d < %s > %s.scidb ; %s/iquery -naq 'remove(%s)' ; %s/iquery -naq 'create_array(%s,%s)' ; %s/iquery -naq \\\\\\\"store(input(%s,'%s.scidb',0),%s)\\\\\\\" ;rm -f %s.scidb\\\" \" ",
+            pwd.pw_name, LD, BASEPATH, n, s->ibuf, s->ibuf, BASEPATH,
             arrayname, BASEPATH, arrayname, schema, BASEPATH, schema, s->ibuf,
             arrayname, s->ibuf);
 
