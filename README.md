@@ -86,7 +86,7 @@ tmp=/tmp
 If an option is missing from the config file, the default value will be used.
 The options are:
 
-* `auth` A PAM authentication method (presently limited to 'login').
+* `auth` A PAM authentication method (limited to 'login' for now).
 * `ports` A comma-delimited list of HTTP listening ports. Append the lowercase
 letter 's' to indicate SSL encryption.
 * `scidbport` The local port to talk to SciDB on.
