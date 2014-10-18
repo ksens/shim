@@ -104,24 +104,6 @@ allversions(A)
 </div><br/>
 
 
-<a class="op" name="analyze"></a><h2 >analyze</h2>
-<i>analyze(array[,attribute1, attribute2, ...])</i>
-<p/>Create an array that  characterize the contents of an existing array. Each cell in the result array includes
-the following attributes:
-<ul>
-<li>attribute_number: An index for the one-dimensional result array.
-<li>atttribute_name: The name of an attribute from the source array.
-<li>min: The lowest value for the attribute in the source array.
-<li>max: The highest value for the attribute in the source array.
-<li>distinct_count: An estimate of the number of different values appearing in the source array.
-<li>non_null_count: The number of cells in the array with non-null values for the attribute.
-</ul>
-<br/>
-<div class="x">
-store(build_sparse(&lt;x:double&gt;[i=1:10,10,0],2*i,i&lt;5), A)
-analyze(x)
-
-</div><br/>
 
 <a class="op" name="apply"></a><h2 >apply</h2>
 <i>apply(source_array,new_attribute1,function1[,new_attribute2,function2]...)</i>
@@ -357,18 +339,6 @@ merge(A, build(&lt;x:double&gt;[i=1:10,5,0], i))
 </div><br/>
 
 
-<a class="op" name="normalize"></a><h2 >normalize</h2>
-<i>normalize(array)</i>
-<p/>Create a new array from the one-dimensional
-input array with a single, numeric-valued
-attribute, by dividing by the square root of the sum of the squares of the
-attribute values in the input array.
-<br/>
-<div class="x">
-normalize(build(&lt;val:double&gt;[i=0:10,10,0],cos(i/3)))
-
-</div><br/>
-
 
 <a class="op" name="project"></a><h2 >project</h2>
 <i>project(array, attribute[, attribute[,...]])</i>
@@ -388,8 +358,9 @@ project(A, y)
 <p/>Create an array that assigns rank order to elements of specified array.
 <br/>
 <div class="x">
-store(build(&lt;x:double&gt;[i=1:10,10,0], random()%7/1.0), A)
-rank(A, x)
+rank(
+  build(<x:double>[i=1:10,10,0], random()%7/1.0),
+  x) 
 
 </div><br/>
 
@@ -490,16 +461,6 @@ reshape(A, &lt;x:double&gt;[i=1:5,5,0,j=1:5,5,0,k=1:4,4,0])
 
 </div><br/>
 
-
-<a class="op" name="reverse"></a><h2 >reverse</h2>
-<i>reverse(array)</i>
-<p/>Create a copy of the input array with cells reversed in each array dimension.
-<br/>
-<div class="x">
-store(build(&lt;x:double&gt;[i=1:10,10,0,j=1:10,10,1],i+j),A)
-reverse(A)
-
-</div><br/>
 
 
 <a class="op" name="save"></a><h2 >save</h2>
@@ -660,16 +621,6 @@ substitute(A, build(&lt;u:double&gt;[j=0:0,1,0],0), y)
 
 </div><br/>
 
-
-<a class="op" name="thin"></a><h2 >thin</h2>
-<i>thin(array, start1, step1, start2, step2, ...)</i>
-<p/>Create an array that selects data from an array at fixed intervals along each dimension. A dimension chunk size must be evenly divisible by its step size and must evenly divide the corresponding array dimension upper bound (in the case of an explicitly bounded dimension).
-<br/>
-<div class="x">
-store(build(&lt;x:double&gt;[i=1:10,10,0,j=1:10,10,0], i+j),A)
-thin(A, 2, 5, 1, 2)
-
-</div><br/>
 
 
 <a class="op" name="unpack"></a><h2 >unpack</h2>
@@ -891,7 +842,7 @@ remove(A)
 window.onload = function()
 {
   var a = $(".op");
-  var s = "<a href='http://scidb.org/HTMLmanual/14.7/scidb_ug/'>This is just a sample of available operators. Full online documentation available from the SciDB forum</a>";
+  var s = "<a href='http://paradigm4.com/documentation/'>This is just a sample of available operators. Full online documentation available from <u>Paradigm4</u></a>";
   s = s + "<br/><br/><ul id='operators' class='nav nav-list'>";
   s = s + "<li class='nav-header'>Operators</li>";
   for(var j=0;j<a.length;j++)
