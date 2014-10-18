@@ -192,6 +192,12 @@ Specify stream=1 in the /execute_query service endpoint to stream SciDB results
 directly to the client using the HTTP 1.1 chunked transfer encoding mechanism.
 With this option, a named pipe is created in the temporary I/O directory
 instead of a file. See the /execute_query doc below for more information.
+<p>
+Specify stream=2 in /execute_query to stream gzip compressed (RFC 1952)
+results directly to the client using HTTP 1.1 chunked transfer encoding.
+The stream compression level can be modified by the optional compression
+query parameter in the range 1,2,...,9 (1 fast but poor compression to
+9 slow but great compression). It's up to the client to decompress the data.
 
 <h3>TLS/SSL Certificate</h3>
 <p>
@@ -431,7 +437,8 @@ format for subsequent download
 by read_lines or read_bytes. If the save parameter is not
 specified, don't save the query output. <br/>
 <b>release</b>  <i>optional</i> 0 or 1: if 1 then release_session as soon as query completes.  The default value is 0 if not specified (see additional notes below).<br/>
-<b>stream</b> <i>optional</i> 0 or 1: if 1 then stream query result; otherwise send query result through a server-side output file (the default). steam=1 also sets release=1.<br/>
+<b>stream</b> <i>optional</i> 0, 1 or 2: if 1 then stream query result; if 2 then stream a gzip compressed (RFC 1952) query result; otherwise send query result through a server-side output file (the default). steam&gt;0 also sets release=1.<br/>
+<b>compression</b> <i>optional</i> 1 to 9: Only meaningful when stream=2, sets the compression level from 1 (fast/light compression) to 9 (slow/high compression).<br/>
 <b>auth</b> <i>optional</i> authentication token (required for encrypted connections).
 </br>
 <tr><td>RESPONSE
@@ -482,6 +489,11 @@ clients can still do it if they wish.
 NOTE: WHEN stream=1, SciDB QUERIES REMAIN ACTIVE UNTIL THE CLIENT COMPLETES
 RECIEVING THE RESULT DATA. IT'S UP TO THE CLIENT TO RECEIVE THE DATA TO
 TERMINATE THE QUERY.
+<br/><br/>
+Set stream=2 to enable gzip-compressed streaming (RFC 1952). When stream=2
+one may also set the compression level with the compression option in the
+range 1 to 9.
+
 
 <tr><td>EXAMPLE
 <td>
@@ -510,6 +522,21 @@ Error description: Query processor error. Array 'x' does not exist.
 remove(x)
        ^
 Failed query id: 1100994052246
+</pre>
+<tr><td>EXAMPLE STREAMING DATA USING wget
+<td>
+<pre>
+# Obtain a shim session ID:
+s=`wget -O - -q http://localhost:8080/new_session`
+echo "session: $s"
+
+# Run a query, requesting compressed streaming output with stream=2:
+wget -O - -q "http://localhost:8080/execute_query?id=${s}&amp;query=list('functions')&amp;save=dcsv&amp;stream=2"
+
+# Retrieve the results, placing them in a file locally:
+wget -O - -q "http://localhost:8080/read_bytes?id=${s}&amp;n=0" &gt; /tmp/z.gz
+
+# now we can gunzip this, for example: gunzip /tmp/z.gz &amp;&amp;cat /tmp/z
 </pre>
 
 <tr>

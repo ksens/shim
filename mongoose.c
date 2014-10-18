@@ -214,6 +214,10 @@ struct pollfd {
 #include <inttypes.h>
 #include <netdb.h>
 
+#include <zlib.h>
+#define windowBits 15
+#define GZIP_ENCODING 16
+
 #include <pwd.h>
 #include <unistd.h>
 #include <dirent.h>
@@ -2959,6 +2963,65 @@ static void send_pipe_data(struct mg_connection *conn, int pipefd)
   mg_printf(conn, "0\r\n\r\n");
 }
 
+// Send gzip compressed (RFC 1952) bytes from the opened pipe to the client.
+// opt specifies the compression level
+static void send_pipe_data_gz(struct mg_connection *conn, int pipefd, int opt)
+{
+  int flush, ret;
+  unsigned have, num_written;
+  z_stream strm;
+  unsigned char in[MG_BUF_LEN];
+  unsigned char out[MG_BUF_LEN];
+  FILE *source = fdopen(pipefd,"r");
+  int level = Z_DEFAULT_COMPRESSION;
+  /* check that user supplied a valid compression level */
+  if(opt>0 && opt < 10) level = opt;
+
+  /* allocate deflate state */
+  strm.zalloc = Z_NULL;
+  strm.zfree = Z_NULL;
+  strm.opaque = Z_NULL;
+
+  ret = deflateInit2(&strm, level, Z_DEFLATED, windowBits | GZIP_ENCODING, 8, Z_DEFAULT_STRATEGY);
+  if (ret != Z_OK) goto bail;
+
+  /* compress until end of file */
+  do
+  {
+    strm.avail_in = fread(in, 1, MG_BUF_LEN, source);
+    if (ferror(source))
+    {
+        (void)deflateEnd(&strm);
+        goto end;
+    }
+    flush = feof(source) ? Z_FINISH : Z_NO_FLUSH;
+    strm.next_in = in;
+
+    /* run deflate() on input until output buffer not full, finish
+       compression if all of source has been read in */
+    do
+    {
+        strm.avail_out = MG_BUF_LEN;
+        strm.next_out = out;
+        ret = deflate(&strm, flush);
+        have = MG_BUF_LEN - strm.avail_out;
+
+        // Send read bytes to the client, exit the loop on error
+        if (mg_printf(conn, "%X\r\n", have) <= 0) goto bail;
+        if ((num_written = mg_write(conn, out, (size_t) have)) != have)
+          goto bail;
+        if (mg_printf(conn, "\r\n") != 2) goto bail;
+        /* read and were successful, adjust counter */
+        conn->num_bytes_sent += num_written;
+    } while (strm.avail_out == 0);
+    /* done when last data in file processed */
+  } while (flush != Z_FINISH);
+bail:
+  (void)deflateEnd(&strm);
+  fclose(source);
+end:
+  mg_printf(conn, "0\r\n\r\n");
+}
 
 // Send len bytes from the opened file to the client.
 static void send_file_data(struct mg_connection *conn, struct file *filep,
@@ -3103,7 +3166,9 @@ static void handle_file_request(struct mg_connection *conn, const char *path,
   mg_fclose(filep);
 }
 
-static void handle_pipe_request(struct mg_connection *conn, const char *path) {
+static void handle_pipe_request(struct mg_connection *conn,
+                                const char *path, int opt, int level)
+{
   char date[64];
   const char *msg = "OK";
   time_t curtime = time(NULL);
@@ -3131,8 +3196,10 @@ static void handle_pipe_request(struct mg_connection *conn, const char *path) {
       conn->status_code, msg, date, (int) mime_vec.len,
       mime_vec.ptr, suggest_connection_header(conn));
 
-  if (strcmp(conn->request_info.request_method, "HEAD") != 0) {
-    send_pipe_data(conn, pipefd);
+  if (strcmp(conn->request_info.request_method, "HEAD") != 0)
+  {
+    if(opt==1) send_pipe_data(conn, pipefd);
+    else send_pipe_data_gz(conn, pipefd, level);
   }
   close(pipefd);
 }
@@ -3146,10 +3213,11 @@ void mg_send_file(struct mg_connection *conn, const char *path) {
   }
 }
 
-void mg_send_pipe(struct mg_connection *conn, const char *path) {
+void mg_send_pipe(struct mg_connection *conn, const char *path, int opt, int level)
+{
   struct stat st;
   if (stat(path, &st) == 0) {
-    handle_pipe_request(conn, path);
+    handle_pipe_request(conn, path, opt, level);
   } else {
     send_http_error(conn, 404, "Not Found", "%s", "Pipe not found");
   }

@@ -68,6 +68,7 @@ typedef struct
   int pd;                       // output buffer file descrptor
   FILE *pf;                     //   and FILE pointer
   int stream;                   // non-zero if output streaming enabled
+  int compression;              // gzip compression level for stream
   char *ibuf;                   // input buffer name
   char *obuf;                   // output (file) buffer name
   char *opipe;                  // output pipe name
@@ -352,6 +353,7 @@ init_session (session * s)
   s->pd = 0;
 // Set default behavior to not stream
   s->stream = 0;
+  s->compression = -1;
   fd = mkstemp (s->obuf);
   chmod (s->obuf, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
   if (fd > 0)
@@ -825,7 +827,7 @@ readbytes (struct mg_connection *conn, const struct mg_request_info *ri)
     {
       syslog (LOG_INFO, "readbytes returning entire buffer");
       if (s->stream)
-        mg_send_pipe (conn, s->opipe);
+        mg_send_pipe (conn, s->opipe, s->stream, s->compression);
       else
         mg_send_file (conn, s->obuf);
       omp_unset_lock (&s->lock);
@@ -915,7 +917,7 @@ readlines (struct mg_connection *conn, const struct mg_request_info *ri)
     {
       syslog (LOG_INFO, "readlines returning entire buffer");
       if (s->stream)
-        mg_send_pipe (conn, s->opipe);
+        mg_send_pipe (conn, s->opipe, s->stream, s->compression);
       else
         mg_send_file (conn, s->obuf);
 
@@ -1030,8 +1032,11 @@ readlines (struct mg_connection *conn, const struct mg_request_info *ri)
  *   release > 0 invokes release_session after completeQuery.
  * save=<format string> (optional, default 0-length string)
  *   set the save format to something to wrap the query in a save
- * stream={0 or 1} (optional, default 0)
- *   stream = 1 indicates stream output to pipe instead of buffering in file
+ * stream={0,1,2} (optional, default 0)
+ *   stream = 0 indicates no streaming, save query output to server file
+ *   stream = 1 indicates stream output through server named pipe
+ *   stream = 2 indicates stream compressed output through server named pipe
+ * compression={0,1,...,9} (optional compression level when stream=2, deflt -1.
  *
  * Any error that occurs during execute_query that is associated
  * with a valid session ID results in the release of the session.
@@ -1039,7 +1044,7 @@ readlines (struct mg_connection *conn, const struct mg_request_info *ri)
 void
 execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
 {
-  int id, k, rel = 0, stream = 0;
+  int id, k, rel = 0, stream = 0, compression = -1;
   unsigned long long l;
   session *s;
   char var[MAX_VARLEN];
@@ -1067,6 +1072,10 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
   mg_get_var (ri->query_string, k, "stream", var, MAX_VARLEN);
   if (strlen (var) > 0)
     stream = atoi (var);
+  memset (var, 0, MAX_VARLEN);
+  mg_get_var (ri->query_string, k, "compression", var, MAX_VARLEN);
+  if (strlen (var) > 0)
+    compression = atoi (var);
   syslog (LOG_INFO, "execute_query for session id %d", id);
   s = find_session (id);
   if (!s)
@@ -1100,6 +1109,10 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
   if (stream)
     {
       syslog (LOG_INFO, "execute_query stream indicated");
+    }
+  if (stream>1)
+    {
+      syslog (LOG_INFO, "gzip compressed stream indicated, compression level %d", compression);
     }
   omp_set_lock (&s->lock);
   memset (var, 0, MAX_VARLEN);
@@ -1153,6 +1166,7 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
   s->queryid = l;
   s->time = time (NULL) + WEEK;
   s->stream = stream;
+  s->compression = compression;
   if (s->con)
     {
       if (stream)

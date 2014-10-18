@@ -270,7 +270,11 @@ int mg_printf(struct mg_connection *,
 void mg_send_file(struct mg_connection *conn, const char *path);
 
 // Send contents of the pipe together with HTTP headers.
-void mg_send_pipe(struct mg_connection *conn, const char *path);
+// opt is an integer indicating:
+// 1: stream plain bytes
+// 2: stream gzip compressed bytes
+// level is the gzip compression level
+void mg_send_pipe(struct mg_connection *conn, const char *path, int opt, int level);
 
 // Read data from the remote end, return number of bytes read.
 // Return:
