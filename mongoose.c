@@ -2963,8 +2963,13 @@ static void send_pipe_data(struct mg_connection *conn, int pipefd)
   mg_printf(conn, "0\r\n\r\n");
 }
 
-// Send gzip compressed (RFC 1952) bytes from the opened pipe to the client.
-// opt specifies the compression level
+/* Send gzip compressed (RFC 1952) bytes from the opened pipe to the client.
+ * opt specifies the compression level
+ * Adapted from:
+ *   zpipe.c example of proper use of zlib's inflate() and deflate()
+ *   Not copyrighted -- provided to the public domain
+ *   Version 1.4  11 December 2005  Mark Adler
+ */
 static void send_pipe_data_gz(struct mg_connection *conn, int pipefd, int opt)
 {
   int flush, ret;
