@@ -158,8 +158,9 @@ attributes(A)
 <p/>Create an array with an attribute that ranks an existing array attribute along one or more dimensions, averaging ties. The rank attribute name is the original attribute name plus "_rank." The original array attribute is also returned in the output array.
 <br/>
 <div class="x">
-store(build(&lt;x:double&gt;[i=1:4,4,0,j=1:4,4,0],10*double(random())/2147483647 + 1),A)
-avg_rank(A,x,i)
+avg_rank(
+  build(&lt;x:double&gt;[i=1:4,4,0,j=1:4,4,0],10*double(random())/2147483647 + 1),
+  x, i)
 
 </div><br/>
 
@@ -355,12 +356,13 @@ project(A, y)
 
 <a class="op" name="rank"></a><h2 >rank</h2>
 <i>rank(array[, attribute[, dimension1[, dimension2, ...]]])</i>
-<p/>Create an array that assigns rank order to elements of specified array.
+<p/>Create an array that assigns rank order to elements of specified attribute.
+The rank attribute name is the original attribute name plus "_rank." The original array attribute is also returned in the output array.
 <br/>
 <div class="x">
 rank(
   build(<x:double>[i=1:10,10,0], random()%7/1.0),
-  x) 
+x) 
 
 </div><br/>
 
