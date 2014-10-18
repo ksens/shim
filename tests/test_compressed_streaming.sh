@@ -4,7 +4,9 @@ echo "session: $s"
 wget -O - -q "http://localhost:8080/execute_query?id=${s}&query=list('functions')&save=dcsv&stream=2"
 echo
 wget -O - -q "http://localhost:8080/read_bytes?id=${s}&n=0" >/tmp/z.gz
-# now we can gunzip this, for example: gunzip /tmp/z.gz && cat /tmp/z
+# Decompress
+gunzip -c /tmp/z.gz
+rm /tmp/z.gz
 
 
 # Compressed stream example specifying level:
@@ -13,4 +15,6 @@ echo "session: $s"
 wget -O - -q "http://localhost:8080/execute_query?id=${s}&query=list('functions')&save=dcsv&stream=2&compression=9"
 echo
 wget -O - -q "http://localhost:8080/read_bytes?id=${s}&n=0" >/tmp/z.gz
-# now we can gunzip this, for example: gunzip /tmp/z.gz && cat /tmp/z
+# Decompress
+gunzip -c /tmp/z.gz
+rm /tmp/z.gz
