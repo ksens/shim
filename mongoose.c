@@ -2990,6 +2990,7 @@ static void send_pipe_data_gz(struct mg_connection *conn, int pipefd, int opt)
   ret = deflateInit2(&strm, level, Z_DEFLATED, windowBits | GZIP_ENCODING, 8, Z_DEFAULT_STRATEGY);
   if (ret != Z_OK) goto bail;
 
+  syslog(LOG_INFO, "send_pipe_data_gz HELLO");
   /* compress until end of file */
   do
   {
@@ -3014,7 +3015,10 @@ static void send_pipe_data_gz(struct mg_connection *conn, int pipefd, int opt)
         // Send read bytes to the client, exit the loop on error
         if (mg_printf(conn, "%X\r\n", have) <= 0) goto bail;
         if ((num_written = mg_write(conn, out, (size_t) have)) != have)
+        {
+          syslog(LOG_ERR, "send_pipe_data_gz ERROR WRITING TO PIPE");
           goto bail;
+        }
         if (mg_printf(conn, "\r\n") != 2) goto bail;
         /* read and were successful, adjust counter */
         conn->num_bytes_sent += num_written;
@@ -3026,6 +3030,7 @@ bail:
   fclose(source);
 end:
   mg_printf(conn, "0\r\n\r\n");
+  syslog(LOG_INFO, "send_pipe_data_gz DONE");
 }
 
 // Send len bytes from the opened file to the client.
