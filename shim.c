@@ -19,7 +19,7 @@
 #include "pam.h"
 #include <pwd.h>
 
-#define MAX_SESSIONS 30        // Maximum number of simultaneous http sessions
+#define MAX_SESSIONS 100       // Maximum number of simultaneous http sessions
 #define MAX_VARLEN 4096        // Static buffer length to hold http query params
 #define LCSV_MAX 16384
 #ifndef PATH_MAX
