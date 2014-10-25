@@ -121,3 +121,7 @@ test5: shim
 test6: shim
 	@echo "Streaming with compression"
 	@LD_LIBRARY_PATH="$(SCIDB)/3rdparty/boost/lib" ./tests/compressed_stream.sh
+
+test7: shim
+	@echo "multiuser streaming test"
+	@LD_LIBRARY_PATH="$(SCIDB)/3rdparty/boost/lib" ./tests/multiple_users_stream.sh
