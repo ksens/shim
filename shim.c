@@ -642,6 +642,7 @@ version (struct mg_connection *conn)
   respond (conn, plain, 200, strlen (buf), buf);
 }
 
+#ifdef DEBUG
 void
 debug (struct mg_connection *conn)
 {
@@ -659,9 +660,9 @@ debug (struct mg_connection *conn)
     p = p + l;
   }
   omp_unset_lock (&biglock);
-
   respond (conn, plain, 200, strlen (buf), buf);
 }
+#endif
 
 
 /* Experimental: Load an uploaded CSV file with loadcsv
@@ -1377,8 +1378,10 @@ begin_request_handler (struct mg_connection *conn)
     new_session (conn);
   else if (!strcmp (ri->uri, "/version"))
     version (conn);
+#ifdef DEBUG
   else if (!strcmp (ri->uri, "/debug"))
     debug (conn);
+#endif
   else if (!strcmp (ri->uri, "/login"))
     login (conn, ri);
   else if (!strcmp (ri->uri, "/logout"))
