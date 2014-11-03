@@ -3012,16 +3012,20 @@ static void send_pipe_data_gz(struct mg_connection *conn, int pipefd, int opt)
         ret = deflate(&strm, flush);
         have = MG_BUF_LEN - strm.avail_out;
 
-        // Send read bytes to the client, exit the loop on error
-        if (mg_printf(conn, "%X\r\n", have) <= 0) goto bail;
-        if ((num_written = mg_write(conn, out, (size_t) have)) != have)
-        {
-          syslog(LOG_ERR, "send_pipe_data_gz ERROR WRITING TO PIPE");
-          goto bail;
-        }
-        if (mg_printf(conn, "\r\n") != 2) goto bail;
-        /* read and were successful, adjust counter */
-        conn->num_bytes_sent += num_written;
+	// we can't send 0-size payloads here, or
+	// it signals the end of a payload
+	if (have > 0) {
+	  // Send read bytes to the client, exit the loop on error
+	  if (mg_printf(conn, "%X\r\n", have) <= 0) goto bail;
+	  if ((num_written = mg_write(conn, out, (size_t) have)) != have)
+	    {
+	      syslog(LOG_ERR, "send_pipe_data_gz ERROR WRITING TO PIPE");
+	      goto bail;
+	    }
+	  if (mg_printf(conn, "\r\n") != 2) goto bail;
+	  /* read and were successful, adjust counter */
+	  conn->num_bytes_sent += num_written;
+	}
     } while (strm.avail_out == 0);
     /* done when last data in file processed */
   } while (flush != Z_FINISH);
