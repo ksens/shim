@@ -1066,7 +1066,9 @@ readlines (struct mg_connection *conn, const struct mg_request_info *ri)
  *   stream = 0 indicates no streaming, save query output to server file
  *   stream = 1 indicates stream output through server named pipe
  *   stream = 2 indicates stream compressed output through server named pipe
- * compression={0,1,...,9} (optional compression level when stream=2, deflt -1.
+ * compression={-1,0,1,...,9}
+ *   optional compression level when stream=2. If compression>=0, then this
+ *   automatically sets stream=2.
  *
  * Any error that occurs during execute_query that is associated
  * with a valid session ID results in the release of the session.
@@ -1105,7 +1107,10 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
   memset (var, 0, MAX_VARLEN);
   mg_get_var (ri->query_string, k, "compression", var, MAX_VARLEN);
   if (strlen (var) > 0)
+  {
     compression = atoi (var);
+  }
+  if(compression> -1) stream=2;
   syslog (LOG_INFO, "execute_query for session id %d", id);
   s = find_session (id);
   if (!s)

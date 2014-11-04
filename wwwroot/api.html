@@ -189,16 +189,19 @@ option or the command-line -t argument. This temporary director is also
 used to upload data from clients over the http connection for input into SciDB.
 Select a directory that is writable by the shim user (see the user option).
 <p>
-Specify stream=1 in the /execute_query service endpoint to stream SciDB results
+Specify streamstream=1gt;0 in the /execute_query service endpoint to stream SciDB results
 directly to the client using the HTTP 1.1 chunked transfer encoding mechanism.
 With this option, a named pipe is created in the temporary I/O directory
 instead of a file. See the /execute_query doc below for more information.
+This option is automatically set by the compression option below.
 <p>
-Specify stream=2 in /execute_query to stream gzip compressed (RFC 1952)
-results directly to the client using HTTP 1.1 chunked transfer encoding.
-The stream compression level can be modified by the optional compression
-query parameter in the range 1,2,...,9 (1 fast but poor compression to
-9 slow but great compression). It's up to the client to decompress the data.
+Specify compression=n, for values of n in 0,1,...,9 in /excute_query to stream
+gzip compressed (RFC 1952) results directly to the client using HTTP 1.1
+chunked transfer encoding.  The stream compression level is set by the
+compression query parameter in the range 0,2,...,9 (1 fast but poor compression
+to 9 slow but great compression). It's up to the client to decompress the data.
+Setting this option autmatically also sets the stream option to a nonzero value
+of 2 indicating compressed streaming.
 
 <h3>TLS/SSL Certificate</h3>
 <p>
@@ -438,8 +441,8 @@ format for subsequent download
 by read_lines or read_bytes. If the save parameter is not
 specified, don't save the query output. <br/>
 <b>release</b>  <i>optional</i> 0 or 1: if 1 then release_session as soon as query completes.  The default value is 0 if not specified (see additional notes below).<br/>
-<b>stream</b> <i>optional</i> 0, 1 or 2: if 1 then stream query result; if 2 then stream a gzip compressed (RFC 1952) query result; otherwise send query result through a server-side output file (the default). steam&gt;0 also sets release=1.<br/>
-<b>compression</b> <i>optional</i> 1 to 9: Only meaningful when stream=2, sets the compression level from 1 (fast/light compression) to 9 (slow/high compression).<br/>
+<b>stream</b> <i>optional</i> 0, 1 or 2: if 1 then stream query result; if 2 then stream a gzip compressed (RFC 1952) query result with an unspecified (automatic) compression level; otherwise send query result through a server-side output file (the default). steam&gt;0 also sets release=1.<br/>
+<b>compression</b> <i>optional</i> 0 to 9: Sets the steaming compression level from 0 (no compression), 1 (fast/light compression) to 9 (slow/high compression). Setting this option automatically also sets the stream option to <b>stream=2</b>.<br/>
 <b>auth</b> <i>optional</i> authentication token (required for encrypted connections).
 </br>
 <tr><td>RESPONSE
@@ -466,8 +469,8 @@ fall of 2014.
 resources (thus, release_session does not have to be called after such an
 error).
 <br/><br/>
-This method blocks until the query completes unless stream=1.
-When stream=1, this method returns immediately with the query ID (before
+This method blocks until the query completes unless stream&gt;0.
+When stream&gt;0, this method returns immediately with the query ID (before
 the query complets).
 <br/><br/>
 Do not specify the option release=1 when stream=0 and when the save option is
@@ -475,25 +478,26 @@ also set, or output will not be available to read_bytes or read_lines. Instead,
 explicitly call release_session after reading is complete.
 
 <br/><br/>
-Setting stream=1 is an experimental feature added after version 14.7. Setting
-stream=1 sends query results through a server-side named pipe into the client
+Setting stream &gt; 0 is an experimental feature added after version 14.7. Setting
+stream &gt; 0 sends query results through a server-side named pipe into the client
 without storing the query results on the server. This option uses the
 HTTP 1.1 chunked transfer encoding; stream termination is indicated by a
 chunk of length zero.
 <br/><br/>
-When stream=1 is set then release=1 is also automatically set. That means
+When stream&gt;0 is set then release=1 is also automatically set. That means
 that clients are free to not call /release_session after receiving their
 stream data via /read_lines or /read_bytes;however,
 calling /release_session will not cause problems and
 clients can still do it if they wish.
 <br/><br/>
-NOTE: WHEN stream=1, SciDB QUERIES REMAIN ACTIVE UNTIL THE CLIENT COMPLETES
+NOTE: WHEN stream&gt;0, SciDB QUERIES REMAIN ACTIVE UNTIL THE CLIENT COMPLETES
 RECIEVING THE RESULT DATA. IT'S UP TO THE CLIENT TO RECEIVE THE DATA TO
 TERMINATE THE QUERY.
 <br/><br/>
 Set stream=2 to enable gzip-compressed streaming (RFC 1952). When stream=2
 one may also set the compression level with the compression option in the
-range 1 to 9.
+range 0 to 9. If the compression query parameter is specified, then stream is
+automatically set to 2.
 
 
 <tr><td>EXAMPLE
@@ -531,8 +535,8 @@ Failed query id: 1100994052246
 s=`wget -O - -q http://localhost:8080/new_session`
 echo "session: $s"
 
-# Run a query, requesting compressed streaming output with stream=2:
-wget -O - -q "http://localhost:8080/execute_query?id=${s}&amp;query=list('functions')&amp;save=dcsv&amp;stream=2"
+# Run a query, requesting compressed streaming output with high compression:
+wget -O - -q "http://localhost:8080/execute_query?id=${s}&amp;query=list('functions')&amp;save=dcsv&amp;compression=9"
 
 # Retrieve the results, placing them in a file locally:
 wget -O - -q "http://localhost:8080/read_bytes?id=${s}&amp;n=0" &gt; /tmp/z.gz
