@@ -19,5 +19,5 @@ curl --verbose -k --digest --user homer:elmo "https://${host}:${port}/execute_qu
 curl -s -k --digest --user homer:elmo "https://${host}:${port}/read_lines?id=${id}&n=0"
 curl -s -k --digest --user homer:elmo "https://${host}:${port}/release_session?id=${id}"
 
+killall shim
 rm -rf $td
-kill -9 %1

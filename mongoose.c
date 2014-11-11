@@ -3012,16 +3012,20 @@ static void send_pipe_data_gz(struct mg_connection *conn, int pipefd, int opt)
         ret = deflate(&strm, flush);
         have = MG_BUF_LEN - strm.avail_out;
 
-        // Send read bytes to the client, exit the loop on error
-        if (mg_printf(conn, "%X\r\n", have) <= 0) goto bail;
-        if ((num_written = mg_write(conn, out, (size_t) have)) != have)
-        {
-          syslog(LOG_ERR, "send_pipe_data_gz ERROR WRITING TO PIPE");
-          goto bail;
-        }
-        if (mg_printf(conn, "\r\n") != 2) goto bail;
-        /* read and were successful, adjust counter */
-        conn->num_bytes_sent += num_written;
+	// we can't send 0-size payloads here, or
+	// it signals the end of a payload
+	if (have > 0) {
+	  // Send read bytes to the client, exit the loop on error
+	  if (mg_printf(conn, "%X\r\n", have) <= 0) goto bail;
+	  if ((num_written = mg_write(conn, out, (size_t) have)) != have)
+	    {
+	      syslog(LOG_ERR, "send_pipe_data_gz ERROR WRITING TO PIPE");
+	      goto bail;
+	    }
+	  if (mg_printf(conn, "\r\n") != 2) goto bail;
+	  /* read and were successful, adjust counter */
+	  conn->num_bytes_sent += num_written;
+	}
     } while (strm.avail_out == 0);
     /* done when last data in file processed */
   } while (flush != Z_FINISH);
@@ -3161,13 +3165,13 @@ static void handle_file_request(struct mg_connection *conn, const char *path,
       "Date: %s\r\n"
       "Last-Modified: %s\r\n"
       "Etag: %s\r\n"
-      "Content-Type: %.*s\r\n"
+      "Content-Type: application/octet-stream\r\n"
       "Content-Length: %" INT64_FMT "\r\n"
       "Connection: %s\r\n"
       "Accept-Ranges: bytes\r\n"
       "%s%s%s\r\n",
-      conn->status_code, msg, date, lm, etag, (int) mime_vec.len,
-      mime_vec.ptr, cl, suggest_connection_header(conn), range, encoding,
+      conn->status_code, msg, date, lm, etag,
+      cl, suggest_connection_header(conn), range, encoding,
       EXTRA_HTTP_HEADERS);
 
   if (strcmp(conn->request_info.request_method, "HEAD") != 0) {
@@ -3181,11 +3185,12 @@ static void handle_pipe_request(struct mg_connection *conn,
 {
   char date[64];
   const char *msg = "OK";
+  const char *encoding = "";
   time_t curtime = time(NULL);
-  struct vec mime_vec;
   int pipefd = -1;
 
-  get_mime_type(conn->ctx, path, &mime_vec);
+  if(opt>1) encoding = "Content-Encoding: gzip\r\n";
+
   conn->status_code = 200;
 
   if ((pipefd = open(path, O_RDONLY)) < 0) {
@@ -3201,10 +3206,10 @@ static void handle_pipe_request(struct mg_connection *conn,
       "HTTP/1.1 %d %s\r\n"
       "Transfer-Encoding: Chunked\r\n"
       "Date: %s\r\n"
-      "Content-Type: %.*s\r\n"
+      "Content-Type: application/octet-stream\r\n"
+      "%s"
       "Connection: %s\r\n\r\n",
-      conn->status_code, msg, date, (int) mime_vec.len,
-      mime_vec.ptr, suggest_connection_header(conn));
+      conn->status_code, msg, date, encoding, suggest_connection_header(conn));
 
   if (strcmp(conn->request_info.request_method, "HEAD") != 0)
   {

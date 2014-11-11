@@ -19,8 +19,8 @@
 #include "pam.h"
 #include <pwd.h>
 
-#define MAX_SESSIONS 100       // Maximum number of simultaneous http sessions
-#define MAX_VARLEN 4096        // Static buffer length to hold http query params
+#define MAX_SESSIONS 25       // Maximum number of simultaneous http sessions
+#define MAX_VARLEN 4096       // Static buffer length to hold http query params
 #define LCSV_MAX 16384
 #ifndef PATH_MAX
 #define PATH_MAX 4096
@@ -117,6 +117,8 @@ char *BASEPATH;
 char *TMPDIR;                   // temporary files go here
 token_list *tokens = NULL;      // the head of the list
 token_list default_token;       // used by digest authentication
+
+int counter;                    // Used to label sessionid
 
 
 /*
@@ -320,11 +322,18 @@ cancel_query (struct mg_connection *conn, const struct mg_request_info *ri)
     respond (conn, plain, 404, 0, NULL);        // not found
 }
 
+
+/* Initialize a session. Obtain the big lock before calling this.
+ * returns 1 on success, 0 otherwise.
+ */
 int
 init_session (session * s)
 {
   int fd;
   omp_set_lock (&s->lock);
+  s->sessionid = counter;
+  counter++;
+  if(counter<0) counter=1;
   s->ibuf  = (char *) malloc (PATH_MAX);
   s->obuf  = (char *) malloc (PATH_MAX);
   s->opipe = (char *) malloc (PATH_MAX);
@@ -633,6 +642,27 @@ version (struct mg_connection *conn)
   respond (conn, plain, 200, strlen (buf), buf);
 }
 
+#ifdef DEBUG
+void
+debug (struct mg_connection *conn)
+{
+  int j;
+  char buf[MAX_VARLEN];
+  char *p = buf;
+  size_t l, k = MAX_VARLEN;
+  syslog (LOG_INFO, "debug \n");
+  omp_set_lock (&biglock);
+  for (j = 0; j < MAX_SESSIONS; ++j)
+  {
+    l = snprintf (p, k, "j=%d id=%d a=%d p=%s\n",j,sessions[j].sessionid, sessions[j].available,sessions[j].opipe);
+    k = k - l;
+    if(k<=0) break;
+    p = p + l;
+  }
+  omp_unset_lock (&biglock);
+  respond (conn, plain, 200, strlen (buf), buf);
+}
+#endif
 
 
 /* Experimental: Load an uploaded CSV file with loadcsv
@@ -1036,7 +1066,9 @@ readlines (struct mg_connection *conn, const struct mg_request_info *ri)
  *   stream = 0 indicates no streaming, save query output to server file
  *   stream = 1 indicates stream output through server named pipe
  *   stream = 2 indicates stream compressed output through server named pipe
- * compression={0,1,...,9} (optional compression level when stream=2, deflt -1.
+ * compression={-1,0,1,...,9}
+ *   optional compression level when stream=2. If compression>=0, then this
+ *   automatically sets stream=2.
  *
  * Any error that occurs during execute_query that is associated
  * with a valid session ID results in the release of the session.
@@ -1075,7 +1107,10 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
   memset (var, 0, MAX_VARLEN);
   mg_get_var (ri->query_string, k, "compression", var, MAX_VARLEN);
   if (strlen (var) > 0)
+  {
     compression = atoi (var);
+  }
+  if(compression> -1) stream=2;
   syslog (LOG_INFO, "execute_query for session id %d", id);
   s = find_session (id);
   if (!s)
@@ -1182,11 +1217,14 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
         respond (conn, plain, 200, strlen (buf), buf);
       }
       l = execute_prepared_query (s->con, qry, &pq, 1, SERR);
+/* execute_prepared_query blocks until the query completes. That means
+ * that, by the time we get here the client read_bytes is done and we
+ * can safely re-acquire the lock without risking deadlock.
+ */
       if (stream)
         omp_set_lock (&s->lock);
     }
-
-  if (l < 1)
+  if (l < 1) // something went wrong
     {
       free (qry);
       free (qrybuf);
@@ -1345,6 +1383,10 @@ begin_request_handler (struct mg_connection *conn)
     new_session (conn);
   else if (!strcmp (ri->uri, "/version"))
     version (conn);
+#ifdef DEBUG
+  else if (!strcmp (ri->uri, "/debug"))
+    debug (conn);
+#endif
   else if (!strcmp (ri->uri, "/login"))
     login (conn, ri);
   else if (!strcmp (ri->uri, "/logout"))
@@ -1491,6 +1533,7 @@ main (int argc, char **argv)
   options[7] = "";
   options[8] = NULL;
   TMPDIR = DEFAULT_TMPDIR;
+  counter = 19;
 
 /* Set up a default token for digest authentication. This
  * is only really needed for the experimental loadcsv interface.
@@ -1561,7 +1604,7 @@ main (int argc, char **argv)
   for (j = 0; j < MAX_SESSIONS; ++j)
     {
       sessions[j].available = SESSION_AVAILABLE;
-      sessions[j].sessionid = j+1; // session ids begin at 1
+      sessions[j].sessionid = 0;
       omp_init_lock (&sessions[j].lock);
     }
 

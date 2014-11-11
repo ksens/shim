@@ -7,7 +7,7 @@ ifeq ($(SCIDB),)
 endif
 GIT_VERSION := $(shell git describe --abbrev=4 --dirty --always)
 
-CFLAGS=-fopenmp -DVERSION=\"$(GIT_VERSION)\"
+CFLAGS=-fopenmp -g -DVERSION=\"$(GIT_VERSION)\"
 INC=-I. -DPROJECT_ROOT="\"$(SCIDB)\"" -I"$(SCIDB)/3rdparty/boost/include/" -I"$(SCIDB)/include" -DSCIDB_CLIENT
 LIBS=-ldl -lz -lpthread -L"$(SCIDB)/3rdparty/boost/lib" -L"$(SCIDB)/lib" -lscidbclient -lboost_system -lpam -Wl,-rpath,$(SCIDB)/lib:$(RPATH)
 # default: empty DESTDIR implicitly installs to /
@@ -125,3 +125,5 @@ test6: shim
 test7: shim
 	@echo "multiuser streaming test"
 	@LD_LIBRARY_PATH="$(SCIDB)/3rdparty/boost/lib" ./tests/multiple_users_stream.sh
+
+alltests: test1 test2 test3 test4 test5 test6 test7
