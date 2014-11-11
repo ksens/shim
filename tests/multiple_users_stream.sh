@@ -26,6 +26,14 @@ download(){
 }
 
 j=0
+echo Round 1
+while test $j -lt $N;do
+  download 10000000 &
+  j=$(($j + 1))
+done
+sleep 5
+j=0
+echo "Round 2 (many expected to have resource unavailable errors)"
 while test $j -lt $N;do
   download 10000000 &
   j=$(($j + 1))
