@@ -189,19 +189,19 @@ option or the command-line -t argument. This temporary director is also
 used to upload data from clients over the http connection for input into SciDB.
 Select a directory that is writable by the shim user (see the user option).
 <p>
-Specify streamstream=1gt;0 in the /execute_query service endpoint to stream SciDB results
+Specify stream&gt;0 in the /execute_query service endpoint to stream SciDB results
 directly to the client using the HTTP 1.1 chunked transfer encoding mechanism.
 With this option, a named pipe is created in the temporary I/O directory
 instead of a file. See the /execute_query doc below for more information.
 This option is automatically set by the compression option below.
 <p>
-Specify compression=n, for values of n in 0,1,...,9 in /excute_query to stream
+Specify compression=n, for values of n in 1,...,9 in /excute_query to stream
 gzip compressed (RFC 1952) results directly to the client using HTTP 1.1
 chunked transfer encoding.  The stream compression level is set by the
-compression query parameter in the range 0,2,...,9 (1 fast but poor compression
+compression query parameter in the range 1,...,9 (1 fast but poor compression
 to 9 slow but great compression). It's up to the client to decompress the data.
 Setting this option autmatically also sets the stream option to a nonzero value
-of 2 indicating compressed streaming.
+of 2 indicating gzip-compressed streaming.
 
 <h3>TLS/SSL Certificate</h3>
 <p>
