@@ -31,7 +31,18 @@ You can also preview the api.html page directly from github at:
 The wwwroot directory also includes an example simple javascript client.
 
 ##Installation from binary packages
-This is the fastest/easiest way to install this service.
+
+### NOTE!
+
+The SciDB developers package a version of shim in SciDB pacakges with the
+phrase  "dev-tools" in them. *Do not install that package and also follow the
+instructions below--they are unfortunately not compatible with each other.* You
+can run shim from the SciDB packages but you need to manually configure the
+service.
+
+## Non-dev-tools package installation.
+
+This is the fastest/easiest way to install shim as a system service.
 The author provides a few pre-built binary packages for SciDB on Ubuntu 12.04 here:
 
 * [http://paradigm4.github.io/shim/shim_14.8_amd64-experimental.deb](http://paradigm4.github.io/shim/shim_14.8_amd64-experimental.deb)
