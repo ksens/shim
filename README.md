@@ -45,6 +45,7 @@ service.
 This is the fastest/easiest way to install shim as a system service.
 The author provides a few pre-built binary packages for SciDB on Ubuntu 12.04 here:
 
+* [http://paradigm4.github.io/shim/shim_14.12_amd64.deb](http://paradigm4.github.io/shim/shim_14.12_amd64.deb)
 * [http://paradigm4.github.io/shim/shim_14.8_amd64-experimental.deb](http://paradigm4.github.io/shim/shim_14.8_amd64-experimental.deb)
 * [http://paradigm4.github.io/shim/shim_14.8_amd64.deb](http://paradigm4.github.io/shim/shim_14.8_amd64.deb)
 * [http://paradigm4.github.io/shim/shim_14.3-2_amd64.deb](http://paradigm4.github.io/shim/shim_14.3-2_amd64.deb) (Includes requested .htpasswd auth option)
@@ -57,7 +58,7 @@ The author provides a few pre-built binary packages for SciDB on Ubuntu 12.04 he
 
 ```
 # Install with:
-sudo gdebi shim_14.8_amd64.deb
+sudo gdebi shim_14.12_amd64.deb
 
 # Uninstall with (be sure to uninstall any existing copy before re-installing shim):
 apt-get remove shim
@@ -65,6 +66,7 @@ apt-get remove shim
 
 and for SciDB on RHEL/Centos 6 here:
 
+* [http://paradigm4.github.io/shim/shim-14.12-1.x86_64.rpm](http://paradigm4.github.io/shim/shim-14.12-1.x86_64.rpm)
 * [http://paradigm4.github.io/shim/shim-14.8-1-experimental.x86_64.rpm](http://paradigm4.github.io/shim/shim-14.8-1-experimental.x86_64.rpm)
 * [http://paradigm4.github.io/shim/shim-14.8-1.x86_64.rpm](http://paradigm4.github.io/shim/shim-14.8-1.x86_64.rpm)
 * [http://paradigm4.github.io/shim/shim-14.3-2.x86_64.rpm](http://paradigm4.github.io/shim/shim-14.3-2.x86_64.rpm) (Includes requested .htpasswd auth option)
@@ -77,7 +79,7 @@ and for SciDB on RHEL/Centos 6 here:
 
 ```
 # Install with:
-rpm -i shim-14.8-1.x86_64.rpm
+rpm -i shim-14.12-1.x86_64.rpm
 # shim depends on libgomp. If installation fails, install libgomp and try again:
 yum install libgomp
 
@@ -137,14 +139,20 @@ system installed too. We illustrate installation of Ubuntu build dependencies
 below:
 ```
 sudo apt-get install liblog4cpp5-dev liblog4cxx10-dev libboost-dev libboost-system-dev rubygems libpam0g-dev zlib1g-dev lib64z1-dev
-sudo apt-get install scidb-14.8-dev scidb-14.8-libboost1.54-all-dev
+sudo apt-get install scidb-14.12-dev scidb-14.12-libboost1.54-all-dev
 gem install fpm
 ```
-Note: `scidb-14.8-libboost1.54-all-dev` and `scidb-14.8-dev` correspond to your
+Note: `scidb-14.12-libboost1.54-all-dev` and `scidb-14.12-dev` correspond to your
 installed version of SciDB, replace those package names as required for your
 version. Use `apt-get search scidb` to find the exact package names. (On RHEL
-platforms, you will need the `scidb-14.8-libboost-devel.x86_64` and
-`scidb-14.8-dev.x86_64` packages installed.)
+platforms, you will need the `scidb-14.12-libboost-devel.x86_64` and
+`scidb-14.12-dev.x86_64` packages installed.)
+
+For CentOS
+```
+sudo yum install pam-devel ruby-devel rubygems rpm-build
+sudo yum install --enablerepo=scidb3rdparty scidb-14.12-dev scidb-14.12-libboost-devel-1.54.0
+```
 
 Once the build dependencies are install, build shim with:
 ```
@@ -152,16 +160,16 @@ make
 sudo make install
 
 # Or, if SCIDB is not in the PATH, can set a Make variable SCIDB that points
-# to the SCIDB home directory, for example for version 14.8:
+# to the SCIDB home directory, for example for version 14.12:
 
-make SCIDB=/opt/scidb/14.8
-sudo make SCIDB=/opt/scidb/14.8 install
+make SCIDB=/opt/scidb/14.12
+sudo make SCIDB=/opt/scidb/14.12 install
 
 ```
 ### Optionally install as a service
 You can install shim as a system service so that it just runs all the time with:
 ```
-sudo make SCIDB=/opt/scidb/14.8 service
+sudo make SCIDB=/opt/scidb/14.12 service
 ```
 If you install shim as a service and want to change its default options, for example the default HTTP port or port to talk to SciDB on, you'll need to edit the shim configuration file. See the discussion of command line parameters below.
 ### Optionally build deb or rpm packages
@@ -188,7 +196,7 @@ If you installed the service version, then you can control when shim is running 
 ## Uninstall
 We explicitly define our SCIDB home directory for Make in the example below:
 ```
-sudo make SCIDB=/opt/scidb/14.8 uninstall
+sudo make SCIDB=/opt/scidb/14.12 uninstall
 ```
 
 
