@@ -97,7 +97,7 @@
 
 <h2>The Shim HTTP API for SciDB</h2>
 <p>
-Shim is a network service that exposes a very simple API for clients
+Shim is a web service that exposes a very simple API for clients
 to interact with SciDB over HTTP connections.
 The API consists of a small number of URIs
 (described in detail below), including:
@@ -105,19 +105,21 @@ The API consists of a small number of URIs
 /read_lines, /read_bytes, /upload_file, /version, and /logout.
 </p>
 <p>
-Note that there are more direct ways to talk to SciDB over a network.
+There are more direct ways to talk to SciDB over a network.
 See <a href="https://github.com/artyom-smirnov/scidb4py">https://github.com/artyom-smirnov/scidb4py</a> for a great example of direct network
 communication with SciDB using Python and Google protocol buffers
 (written by Artyom Smirnov, one of the core SciDB developers).
 The protocol buffers approach is comparatively low-level, but
-possibly more efficient.
-Shim is designed to be a convenient and super easy way to talk to SciDB.
+possibly more efficient than shim.
+Shim is designed to be a convenient and easy way to talk to SciDB.
+<b>
 Note that both shim and Artyom's Python interface are community open
 source projects; they are not official components of SciDB.
+</b>
 </p>
 <p>
 Shim clients begin by requesting a <b>session ID</b> from the service, then
-running a query and releasing the session ID when done. Note that session IDs
+running a query and releasing the session ID when done. Session IDs
 are distinct from SciDB query IDs--a session ID groups a SciDB query together
 with server resources for input and output to the client.
 </p>
@@ -180,7 +182,7 @@ Basic digest access authentication is supported too
 (see <a href="https://en.wikipedia.org/wiki/Digest_access_authentication">https://en.wikipedia.org/wiki/Digest_access_authentication</a>).
 See below for examples.
 <h3>User</h3>
-The user that the shim service runs under. Shim can run as a non-root user, but then SSL authenticated port logins are limited to the user that shim is running under.
+The user that the shim service runs under. Shim can run as a non-root user, but then PAM-based SSL authenticated logins are limited to the user that shim is running under.
 <h3>Temporary I/O space and streaming</h3>
 Shim's default behavior caches the output of SciDB queries in files on the
 SciDB server; set that file directory location with the config file tmp
@@ -234,7 +236,10 @@ result in an HTTP 400 error (invalid query).
 <p>
 Possible responses for each URI are listed below. HTTP status code 200 always
 indicates success; other standard HTTP status codes indicate various errors.
-Returned data may be ASCII or binary depending on the request.
+The returned data may be UTF-8 or binary depending on the request and is always
+returned using the generic application/octet-stream MIME type. Depending on
+the request, data may used chunked HTTP transfer encoding and may also use
+gzip content encoding.
 </p>
 <h3>Authentication</h3>
 <h4>Basic digest access authentication</h4>
@@ -252,10 +257,15 @@ username2:password2
 Use plain text passwords in the file, and consider changing the permissions of
 the file to restrict access. Delete the <tt>.htpasswd</tt> file to disable
 basic digest access authentication.
+<p>
+Basic digest authentication works on plain or TLS-encrypted connections and
+takes precedence over PAM authentication when used on TLS-encrypted
+connections (see below).
+</p>
 
 <h4>TLS/SSL encryption and PAM authentication</h4>
 <p>
-Shim optionally exposes both open and encrypted (SSL or TLS) services.  Access
+Shim optionally exposes both open and encrypted (TLS) services.  Access
 to most of the API over an encrypted connection requires authentication.  API
 URIs that require authentication include: /new_session /upload_file /read_lines
 /read_bytes /execute_query and /cancel.
@@ -590,7 +600,7 @@ Content-Type: text/plain
 <b>auth</b> <i>optional</i> authentication token (required for encrypted connections).
 <br/>
 <tr><td>RESPONSE
-<td>Success: HTTP 200 followed by text/plain query result (up to <b>n</b> lines)
+<td>Success: HTTP 200 followed by application/octet-stream query result (up to <b>n</b> lines)
 <br/>
 Failure (invalid HTTP query string): HTTP 400 <br/>
 Failure (session not found): HTTP 404 <br/>
@@ -610,7 +620,7 @@ http://localhost:8080/read_lines?id=0&amp;n=20
 <pre>
 HTTP/1.0 200 OK
 Content-Length: 903
-Content-Type: text/plain
+Content-Type: application/octet-stream
 
 {No} name,profile,deterministic,library
 {0} "%","double %(double,double)",true,"scidb"
@@ -636,11 +646,12 @@ Content-Type: text/plain
 <tr><td>NOTES
 <td>
 <ol>
-<li>Set n=0 to download the entire output buffer.
+<li><b>Set n=0 to download the entire output buffer.</b>
 <li>Be sure to properly url-encode special characters like the plus sign (+) in the request.
 <li>When n&gt;0, iterative requests to read_lines are allowed,
 and will return at most the next n lines of output.
 Use the 410 error code to detect end of file output.
+<li>Note that query results are always returned as application/octet-stream.
 </ol>
 
 <tr>
