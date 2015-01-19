@@ -1,6 +1,6 @@
 #!/bin/bash
 host=localhost
-port=8080
+port=8088
 td=$(mktemp -d)
 
 mkdir -p $td/wwwroot

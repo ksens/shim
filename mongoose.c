@@ -15,6 +15,7 @@
 // Alternatively, you can license this library under a commercial
 // license, as set out in <http://cesanta.com/products.html>.
 
+
 #if defined(_WIN32)
 #if !defined(_CRT_SECURE_NO_WARNINGS)
 #define _CRT_SECURE_NO_WARNINGS // Disable deprecation warning in VS2005
@@ -470,7 +471,7 @@ static const char *config_options[] = {
   "put_delete_auth_file", NULL,
   "cgi_interpreter", NULL,
   "protect_uri", NULL,
-  "authentication_domain", "mydomain.com",
+  "authentication_domain", "",
   "ssi_pattern", "**.shtml$|**.shtm$",
   "throttle", NULL,
   "access_log_file", NULL,
@@ -2327,8 +2328,6 @@ static int check_password(const char *method, const char *ha1, const char *uri,
   mg_md5(ha2, method, ":", uri, NULL);
   mg_md5(expected_response, ha1, ":", nonce, ":", nc,
       ":", cnonce, ":", qop, ":", ha2, NULL);
-
-
 
   return mg_strcasecmp(response, expected_response) == 0;
 }

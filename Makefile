@@ -101,30 +101,30 @@ clean:
 
 test1: shim
 	@echo "Non-authenticated test"
-	@LD_LIBRARY_PATH="$(SCIDB)/3rdparty/boost/lib" ./tests/noauth.sh
+	@LD_LIBRARY_PATH="$(SCIDB)/lib:$(SCIDB)/3rdparty/boost/lib" ./tests/noauth.sh
 
 test2: shim
 	@echo "Basic digest authentication"
-	@LD_LIBRARY_PATH="$(SCIDB)/3rdparty/boost/lib" ./tests/digest_auth.sh
+	@LD_LIBRARY_PATH="$(SCIDB)/lib:$(SCIDB)/3rdparty/boost/lib" ./tests/digest_auth.sh
 
 test3: shim
 	@echo "TLS without authentication"
-	@LD_LIBRARY_PATH="$(SCIDB)/3rdparty/boost/lib" ./tests/tls.sh
+	@LD_LIBRARY_PATH="$(SCIDB)/lib:$(SCIDB)/3rdparty/boost/lib" ./tests/tls.sh
 
 test4: shim
 	@echo "TLS with digest authentication"
-	@LD_LIBRARY_PATH="$(SCIDB)/3rdparty/boost/lib" ./tests/tls_digest.sh
+	@LD_LIBRARY_PATH="$(SCIDB)/lib:$(SCIDB)/3rdparty/boost/lib" ./tests/tls_digest.sh
 
 test5: shim
 	@echo "Streaming"
-	@LD_LIBRARY_PATH="$(SCIDB)/3rdparty/boost/lib" ./tests/stream.sh
+	@LD_LIBRARY_PATH="$(SCIDB)/lib:$(SCIDB)/3rdparty/boost/lib" ./tests/stream.sh
 
 test6: shim
 	@echo "Streaming with compression"
-	@LD_LIBRARY_PATH="$(SCIDB)/3rdparty/boost/lib" ./tests/compressed_stream.sh
+	@LD_LIBRARY_PATH="$(SCIDB)/lib:$(SCIDB)/3rdparty/boost/lib" ./tests/compressed_stream.sh
 
 test7: shim
 	@echo "multiuser streaming test"
-	@LD_LIBRARY_PATH="$(SCIDB)/3rdparty/boost/lib" ./tests/multiple_users_stream.sh
+	@LD_LIBRARY_PATH="$(SCIDB)/lib:$(SCIDB)/3rdparty/boost/lib" ./tests/multiple_users_stream.sh
 
-alltests: test1 test2 test3 test4 test5 test6 test7
+alltests: test1 test2 test3 test4 test5 test6
