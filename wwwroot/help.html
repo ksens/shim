@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>SciDB Dashboard</title>
+  <title>SciDB Simple HTTP Service</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
  <link href="css/bootstrap.css" rel="stylesheet">
  <style type="text/css">
@@ -10,15 +10,60 @@
      padding-top: 60px;
      padding-bottom: 40px;
    }
-  div.x { background: #eee; font-family: 'Courier New', monospace !important; white-space: pre; width: 100%; font-size: 0.85em; border: 1px solid #bbbbbb; padding-left:15px;}
+   .allgreen
+   {
+     color: #007700;
+   }
+   .instances
+   {
+     -moz-column-count:3; /* Firefox */
+     -webkit-column-count:3; /* Safari and Chrome */
+     column-count:3;
+     -moz-column-gap:40px; /* Firefox */
+     -webkit-column-gap:40px; /* Safari and Chrome */
+     column-gap:40px;
+   }
+
+    table.api-param-values {
+        align: center;
+        width: 100%;
+    }
+
+    table.api-param-values th, table.api-param-values td {
+        text-align: left;
+        vertical-align: top;
+        padding: 6px 6px 6px 11px;
+    }
+
+    table.api-param-values tr {
+        width: 20px;
+    }
+
+    table.api-param-values tr:nth-child(2) td {
+        padding-top: 11px;
+    }
+    table.api-param-values tr:last-child td {
+        padding-bottom: 12px;
+    }
+
+    table.center-first-col tr td:first-child, table.center-first-col tr th:first-child {
+        text-align: center;
+        width: 70px;
+    }
+
+    table.api-param-values th {
+        background-color: #fafafa;
+        border-bottom: 1px solid #ddd;
+    }
+
  </style>
  <link href="css/bootstrap-responsive.css" rel="stylesheet">
  <!-- HTML5 shim, for IE6-8 support of HTML5 elements -->
  <!--[if lt IE 9]>
     <script src="../assets/js/html5shiv.js"></script>
  <![endif]-->
- <link rel="apple-touch-icon-precomposed" href="favicon.png">
- <link rel="shortcut icon" href="favicon.ico">
+ <link rel="apple-touch-icon-precomposed" href="img/favicon.png">
+ <link rel="shortcut icon" href="img/favicon.ico">
 </head>
 
 <body>
@@ -36,8 +81,7 @@
           <ul class="nav">
             <li><a href="index.html">Dashboard</a></li>
             <li><a href="query.html">Interactive Query</a></li>
-            <li class="active"><a href="help.html">Help</a></li>
-            <li><a href="api.html">HTTP API</a></li>
+            <li><a href="help.html">Help</a></li>
           </ul>
           <div class="pull-right">
             <ul class="nav">
@@ -49,829 +93,780 @@
     </div>
   </div>
 
-  <div class="container-fluid">
+  <div class="container">
 
-      <div class="row-fluid">
-        <div class="span3">
-          <div id="sbar" class="well sidebar-nav">
-          </div><!--/.well -->
-        </div><!--/span-->
-        <div id="ref" class="span9">
-
-
-<h1>SciDB Operators</h1>
-<h2>What is a SciDB operator?</h2>
-
+<h2>The Shim HTTP API for SciDB</h2>
 <p>
-SciDB <i>operators</i> map zero or more input
-arguments to a SciDB array. The arguments may be a mix of constant 
-scalar values, scalar-valued functions,
-and SciDB arrays depending on the operator. All
-operators produce output arrays. Some operators also produce side-effects by
-modifying SciDB system state or saving data to files, etc.
-</p><p>
-SciDB operators can be composed&mdash;that is, the output of an operator
-may provide array input into another operator.
+Shim is a network service that exposes a very simple API for clients
+to interact with SciDB over HTTP connections.
+The API consists of a small number of URIs
+(described in detail below), including:
+/login, /new_session, /release_session, /execute_query, /cancel,
+/read_lines, /read_bytes, /upload_file, /version, and /logout.
+</p>
+<p>
+Note that there are more direct ways to talk to SciDB over a network.
+See <a href="https://github.com/artyom-smirnov/scidb4py">https://github.com/artyom-smirnov/scidb4py</a> for a great example of direct network
+communication with SciDB using Python and Google protocol buffers
+(written by Artyom Smirnov, one of the core SciDB developers).
+The protocol buffers approach is comparatively low-level, but
+possibly more efficient.
+Shim is designed to be a convenient and super easy way to talk to SciDB.
+Note that both shim and Artyom's Python interface are community open
+source projects; they are not official components of SciDB.
+</p>
+<p>
+Shim clients begin by requesting a <b>session ID</b> from the service, then
+running a query and releasing the session ID when done. Note that session IDs
+are distinct from SciDB query IDs--a session ID groups a SciDB query together
+with server resources for input and output to the client.
 </p>
 
-
-<hr/>
-
-
-<a class="op" name="aggregate"></a><h2 >aggregate</h2>
-<i>aggregate(array, aggregate_expression1 [as label1] [,aggregate_expression2 as label2, ...] [,dimension1, dimension2, ...])</i>
-<p/>Aggregate values through a SciDB aggregation function, optionally grouped
-by the specified dimensions. See the index for a list of available aggregation
-functions.
-<br/>
-<div class="x">
-store(build(&lt;x:double&gt;[i=1:10,10,0,j=1:5,5,0],i*j), A)
-aggregate(A, avg(x) as mean, j)
-
-</div><br/>
-
-<a class="op" name="allversions"></a><h2 >allversions</h2>
-<i>allversions(array)</i>
-<p/>Create an array that contains all the versions of an existing array,
-organized along a new dimension called "VersionNo."
-<br/>
-<div class="x">
-store(build(&lt;x:double&gt;[i=1:10,10,0],i), A)
-store(build(&lt;x:double&gt;[i=1:10,10,0],2*i), A)
-store(build(&lt;x:double&gt;[i=1:10,10,0],3*i), A)
-allversions(A)
-
-</div><br/>
-
-
-
-<a class="op" name="apply"></a><h2 >apply</h2>
-<i>apply(source_array,new_attribute1,function1[,new_attribute2,function2]...)</i>
-<p/>Create an array with new attributes defined by scalar functions of existing attributes and/or constants.
-<br/>
-<div class="x">
-store(build(&lt;x:double&gt;[i=1:10,10,0],i), A)
-apply(A, y, sqrt(x) + 1)
-
-# To see a list of available scalar functions, run the query:
-list('functions')
-
-</div><br/>
-
-
-<a class="op" name="ApproxDC"></a><h2 >ApproxDC</h2>
-<i>ApproxDC(array[,attribute[,dimension_1,dimension_2,...])
-</i>
-<p/>Create an array that contains an estimate the number of distinct values of an array attribute,
-optionally grouped along one or more dimensions.
-<br/>
-<div class="x">
-store(build(&lt;x:double&gt;[i=1:10,10,0],i/2), A)
-ApproxDC(A,x)
-
-</div><br/>
-
-<a class="op" name="attribute_rename"></a><h2 >attribute_rename</h2>
-<i>attribute_rename(array,old_attribute1,new_attribute1[, old_attribute2,new_attribute2,...])
-</i>
-<p/>Create a duplicate array with renamed attributes.
-<br/>
-<div class="x">
-store(build(&lt;x:double&gt;[i=1:10,10,0],i/2), A)
-attribute_rename(A,x,z)
-
-</div><br/>
-
-<a class="op" name="attributes"></a><h2 >attributes</h2>
-<i>attributes(array)</i>
-<p/>Create an array describing attributes of an existing named array.
-<br/>
-<div class="x">
-store(apply(build(&lt;x:double&gt;[i=1:10,10,0],i/2),y,5), A)
-attributes(A)
-
-</div><br/>
-
-
-<a class="op" name="avg_rank"></a><h2 >avg_rank</h2>
-<i>avg_rank(array[, attribute[, dimension1[, dimension2, ...]]])</i>
-<p/>Create an array with an attribute that ranks an existing array attribute along one or more dimensions, averaging ties. The rank attribute name is the original attribute name plus "_rank." The original array attribute is also returned in the output array.
-<br/>
-<div class="x">
-avg_rank(
-  build(&lt;x:double&gt;[i=1:4,4,0,j=1:4,4,0],10*double(random())/2147483647 + 1),
-  x, i)
-
-</div><br/>
-
-
-<a class="op" name="between"></a><h2 >between</h2>
-<i>between(array, low_coord1[, low_coord2, ...], high_coord1[, high_coord2, ...])</i>
-<p/>
-Create a new sparse array <b>of the same shape</b> as the input array with
-empty cells outside the specified rectangular coordinate range and copies of
-the input array cells elsewhere.
-Compare with the <a href="#subarray"><u>subarray</u></a> operator.
-<br/>
-<div class="x">
-store(build(&lt;x:double&gt;[i=1:10,10,0],i), A)
-between(A, 3, 7)
-
-</div><br/>
-
-
-<a class="op" name="build"></a><h2 >build</h2>
-<i>build(array | schema, expression)</i>
-<p/>Create a single-attribute array with values defined by the expression. If an array is supplied,
-it's schema will be used (that is, the first argument is either explicitly or implicitly a schema).
-The schema dimensions must have explicit bounds indicated.
-<br/>
-<div class="x">
-build(&lt;x:double&gt;[i=1:10,10,0],sqrt(i))
-
-create_array(A,&lt;x:double&gt;[i=1:10,10,0])
-build(A,sqrt(i))
-
-</div><br/>
-
-
-<a class="op" name="cancel"></a><h2 >cancel</h2>
-<i>cancel(query id)</i>
-<p/>Cancel the specified active query id.
-<br/>
-
-
-<a class="op" name="cast"></a><h2 >cast</h2>
-<i>cast(array, array | schema)</i>
-<p/>Duplicate an existing array, changing its schema. The example converts
-a string dimension to an integer dimension. Cast can also change dimension
-and attribute names.
-<br/>
-<div class="x">
-create_array(A,&lt;i:int64&gt;[x(string)=10,10,0])
-redimension_store(build(&lt;x:string&gt;[i=1:10,10,0],'x'+string(i)), A)
-cast(A,&lt;i:int64&gt;[x=0:9,10,0])
-
-</div><br/>
-
-
-
-<a class="op" name="cross_join"></a><h2 >cross_join</h2>
-<i>cross_join(array1 [as label1], array2 [as label2] [, dimension1, dimension2[, dimension3, dimension4, ...]])
-</i>
-<p/>
-Create the cross-product array of two arrays with equality predicates applied to
-pairs of dimensions. The arrays must have int64 dimension types. Use the
-'as' keyword to label arrays for reference within the query (see the example).
-<br/>
-<div class="x">
-cross_join(build(&lt;x:double&gt;[i=1:10,5,0,j=0:2,1,0],1) as A,
-           build(&lt;y:double&gt;[i=1:10,5,0],2) as B, A.i, B.i)
-
-</div><br/>
-
-
-<a class="op" name="dimensions"></a><h2 >dimensions</h2>
-<i>dimensions(array)</i>
-<p/>Create an array that describes the dimensions of the specified array.
-<br/>
-<div class="x">
-store(build(&lt;x:double&gt;[i=1:10,5,0,j=0:2,1,0],1), A)
-dimensions(A)
-</div><br/>
-
-
-<a class="op" name="filter"></a><h2 >filter</h2>
-<i>filter(array, boolean_expression)</i>
-<p/>Create an array of the same shape as the specified array that copies cells that
-meet the Boolean expression and marks cells that don't meet the condition EMPTY. The
-expression may use attributes and/or dimensions.
-<br/>
-<div class="x">
-store(build(&lt;x:double&gt;[i=1:10,5,0,j=0:2,1,0],5), A)
-filter(A, x + i < 10)
-
-</div><br/>
-
-
-<a class="op" name="input"></a><h2 >input</h2>
-<i>input(schema, input_file, instance_id, format [, max_num_errors])</i>
-<p>
-Load data from a file, creating a new array.
-The <i>schema</i> parameter defines the data schema for the input array.
-The <i>input_file</i> parameter is a file path resolvable on specified instances.
-The <i>instance_id</i> parameter controls which instance(s) load the file as follows:
-<ol>
-<li value="-2"> Load all data using the coordinator instance of the query.
-<li value="-1"> Initiate the load from all instances. That is, the load is distributed to all instances, and the data is loaded concurrently.
-<li value="0"> Load all data using the specified instance ID 0.
-<li value="5"> Load all data using the specified instance ID 5, etc. ...
-</ol>
-The <i>format</i> parameter is a character string specifying the file format--see the full documentation for examples. Set <i>format</i> to an empty character string to indicate default SciDB ASCII format.
-</p>
-The optional <i>max_num_errors</i> parameter specifies the maximum number of tolerated load errors with a default value of zero.
-
+<h2>Configuration</h2>
+Shim runs as a system service or may be invoked directly from the command line.
+See the shim manual page for command-line options (type 'man shim' from a
+terminal). Service configuration is determined by the /var/lib/shim/conf
+configuration file. The default conf file is a sample that displays the
+default configuration options, which are listed as one key=value pair
+per line. Available options include:
 <br/><br/>
-<div class="x">
-save(build(&lt;x:double&gt;[i=1:3,3,0,j=1:3,3,0],i+j),'/tmp/example.bin', 0, '(double)')
-input(&lt;v:double&gt;[m=1:3,3,0,n=1:3,3,0],'/tmp/example.bin',-2,'(double)')
+<pre>
+ports=8080,80803s
+auth=login
+scidbport=1239
+user=root
+tmp=/tmp
+</pre>
+Each option is described below.
 
-</div><br/>
-
-
-<a class="op" name="insert"></a><h2 >insert</h2>
-<i>insert(input, array)</i>
-<p/>Insert specified input values into an existing named array
-(the output is a new version number of the named array input).
-This operator has the side effect of also updating the original named array with
-the inserted values. The arrays must have identical schema.
-Insert is essentially a fast version of <tt>store(merge(X,Y),Y)</tt>.
-<br/>
-<div class="x">
-store(build_sparse(&lt;x:double&gt;[i=1:10,5,0], sqrt(i), double(i)/2 = i/2),A)
-insert(build(&lt;x:double&gt;[i=1:10,5,0],i),A)
-
-</div><br/>
-
-
-<a class="op" name="join"></a><h2 >join</h2>
-<i>join(array1, array2)</i>
-<p/>Create an array that joins attributes from non-empty cells of two arrays at matching dimension values.
-The arrays must have the same dimension starting coordinates, chunk sizes and chunk overlaps.
-<br/>
-<div class="x">
-store(build(&lt;x:double&gt;[i=1:10,5,0], sqrt(i)),A)
-join(build(&lt;y:double&gt;[i=1:50,5,0], i*i),A)
-
-</div><br/>
-
-
-<a class="op" name="list"></a><h2 >list</h2>
-<i>list(element)</i>
-<p/>Create an array that lists the requested elements in SciDB. 'element' is a string value that may be one of:
+<h3>Ports and Network Interfaces</h3>
+<p>
+Shim listens on default ports 8080 (open, not encrypted), and
+8083 (TLS encrypted) on all available network interfaces. Ports
+and listening interfaces are configured with the command line '-p'
+option or with the 'ports=' option in the /var/lib/shim/conf file when
+shim is run as a service. The ports/interface specification uses the
+following syntax:
+<pre>
+[address:]port[s][,[address:]port[s]][,...]
+</pre>
+where:
 <ul>
-<li>'arrays'
-<li>'aggregates'
-<li>'functions'
-<li>'operators'
-<li>'types'
-<li>'queries'
-<li>'instances'
-<li>'libraries'
+<li>"address:" indicates an optional I.P. address associated with
+a specific available network device, only specify this if you want to restrict
+shim to operate on a specific network device.
+<li>"port" indicates a required available port number
+<li>"s" is an optional single character s suffix indicating that TLS/SSL should be used on that port.
 </ul>
-Leaving element unspecified implies list('arrays').
-<br/>
-<div class="x">
-list('arrays')
-
-</div><br/>
-
-
-<a class="op" name="merge"></a><h2 >merge</h2>
-<i>merge(array1, array2)</i>
-<p/>Create an array that merges the contents of two arrays. The arrays must
-have the same number of attributes, attribute types, starting dimension values, chunk sizes
-and chunk overlaps. Non-empty cells from "array1" appear in the output, as do
-non-empty cells from "array2" that correspond to empty cells in "array1." Both arrays
-must have int64 dimension types.
-<br/>
-<div class="x">
-store(build_sparse(&lt;x:double&gt;[i=1:10,5,0], sqrt(i), double(i)/2 = i/2), A)
-merge(A, build(&lt;x:double&gt;[i=1:10,5,0], i))
-
-</div><br/>
-
-
-
-<a class="op" name="project"></a><h2 >project</h2>
-<i>project(array, attribute[, attribute[,...]])</i>
-<p/>Create a duplicate of the specified array restricted to
-the listed attributes.
-<br/>
-<div class="x">
-store(apply(build(&lt;val:double&gt;[i=0:10,10,0],cos(i/3)), y, sin(i/3)), A)
-project(A, y)
-
-</div><br/>
-
-
-
-<a class="op" name="rank"></a><h2 >rank</h2>
-<i>rank(array[, attribute[, dimension1[, dimension2, ...]]])</i>
-<p/>Create an array that assigns rank order to elements of specified attribute.
-The rank attribute name is the original attribute name plus "_rank." The original array attribute is also returned in the output array.
-<br/>
-<div class="x">
-rank(
-  build(<x:double>[i=1:10,10,0], random()%7/1.0),
-x) 
-
-</div><br/>
-
-
-<a class="op" name="redimension"></a><h2 >redimension</h2>
-<i>redimension(source, schema[, aggregate (source_attribute) [as result_attribute]]...)
-</i>
-<p/>
-The <i>redimension</i> operator is a non-storing version of
-<i>redimension_store</i> described next. It creates an array that omits
-attributes or dimensions, promotes attributes from "source" as dimensions, or
-demotes dimensions from the "source" array to attributes, according to the
-"schema" parameter, optionally applying aggregates as it goes.
-<br/><br/>
-The "schema" parameter may only contain int64 dimension types, unlike
-more general <i>redimension_store</i> operator described next.
-<br/><br/>
-The example switches an integer dimension in the build array into
-an integer attribute in the output array.
-<div class="x">
-redimension(build(&lt;k:int64&gt;[i=1:10,10,0],i-100),&lt;i:int64&gt;[k=-99:*,10,0])
-
-</div><br/>
-
-
-
-
-<a class="op" name="regrid"></a><h2 >regrid</h2>
-<i>regrid(array, grid_1[, grid2[, ...]], aggregate1[, aggregate2[, ...]])</i>
-<br/>
-<p>
-Create an array that partitions the cells in the input array into blocks, and
-for each block, apply an aggregate operation over the values in the block.
-Regrid may only be applied to int64 integer dimensions. That means each grid
-argument must correspond to an integer-valued (of type int64) dimension, or be
-1 (implying no aggregation over that dimension). The output array dimension
-values begin at the same starting values as the input array, counting
-sequentially up to the total number of grid divisions in each dimension.
+Here are some examples of possible port configurations:
 </p>
-<br/>
-The example produces a 5x5 array that sums values and computes the maximum value over 3x2 blocks from the input array.
-<div class="x">
-store(build(&lt;x:double&gt;[i=2:10,10,0,j=1:10,10,0],10*double(random())/2147483647 + 1),A)
-regrid(A, 3, 2, sum(x) as sum, max(x) as max)
-
-# Recover original dimension values along the regridded data:
-apply(
-  regrid(A, 3, 2, sum(x) as sum, max(x) as max),
-  i_original, 2 + (i-2)*3,
-  j_original, 1 + (j-1)*2
-)
-
-</div><br/>
-
-
-
-<a class="op" name="rename"></a><h2 >rename</h2>
-<i>rename(array, new_name)</i>
-<p/>Rename an array. The new name is specified without quoting. This
-operator returns nothing, and is only used for its side effect.
-<br/>
-<div class="x">
-store(build(&lt;x:double&gt;[i=1:10,10,0,j=1:10,10,0],i+j),A)
-rename(A, A1)
-
-</div><br/>
-
-
-<a class="op" name="repart"></a><h2 >repart</h2>
-<i>repart(array1, array2 | schema)</i>
-<p/>Duplicate the contents of array1, applying the schema
-defined in array2 or schema. The schema must match attribute
-and dimension names and types from array1, but is free to define
-chunk size, chunk overlap, and dimension upper bounds.
-The operator returns the duplicated
-array and, if an output array is specified as array2, also stores
-its output there.
-<br/>
-<div class="x">
-store(build(&lt;x:double&gt;[i=1:10,10,0,j=1:10,10,0],i+j),A)
-repart(A, &lt;x:double&gt;[i=1:10,5,1,j=1:10,2,0])
-
-</div><br/>
-
-<a class="op" name="reshape"></a><h2 >reshape</h2>
-<i>reshape(array1, array2 | schema)</i>
-<p/>Duplicate the contents of array1 into the schema defined by
-the specified output array2 or schema. The schema must match
-the attributes of the source array1, and its dimensions must
-define an array with the same number of cells as array1.
-The reshape operator does not work on arrays with nonzero
-chunk overlap.
-<br/>
-<div class="x">
-store(build(&lt;x:double&gt;[i=1:10,10,0,j=1:10,10,1],i+j),A)
-reshape(A, &lt;x:double&gt;[i=1:100,10,0])
-reshape(A, &lt;x:double&gt;[i=1:5,5,0,j=1:5,5,0,k=1:4,4,0])
-
-</div><br/>
-
-
-
-<a class="op" name="save"></a><h2 >save</h2>
-<i>save(array, path[, instance[, format]])</i>
-<p/>Save an array to the indicated path, returning the array to the caller.
-The instance indicates on which SciDB instance filesystem to save the
-file (see <tt>list('instances')</tt>&mdash; 0 means the coordinator instance).
-Format is a string that indicates the saved file format. Here are some
-possible options (see the SciDB reference guide for more):
-<br/><br/>
-<table class='tbl'>
-<tr><td>Format string</td><td>Description</td></tr>
-<tr><td>'lcsv+'</td><td>Dimension and attribute values separated by commas</td></tr>
-<tr><td>'dcsv'</td><td>Dimension values in braces separated by commans, then attribute values separated by commas</td></tr>
-<tr><td>'(type1[, type2[, ...]])'</td><td>Attribute values in binary save format (see below).</td></tr>
+<table>
+<tr><td>5555s<td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<td>Listen only on port 5555 (TLS/SSL).
+<tr><td>127.0.0.1:8080,1234s<td><td>List on port 8080 but only on the local loopback interface; listen on port 1234(TLS/SSL) on all interfaces.
 </table>
-<br/>
-<div class="x">
-store(build(&lt;x:double&gt;[i=1:3,3,0,j=1:3,3,0],i+j),A)
-save(A, '/tmp/A.csv', 0, 'lcsv+')
-save(A, '/tmp/A.bin', 0, '(double)')
+<h3>SciDB Port</h3>
+Shim runs on the same computer as a SciDB coordinator. Set the 'scidbport'
+option to select the coordinator database port to locally connect to. The
+default SciDB database port value is 1239 (see the SciDB configuration
+manual for more information).
+<h3>Authentication</h3>
+The shim API uses PAM-based authentication for most API functions over
+SSL connections. Shim may use any available PAM service (usually listed
+in /etc/pam.d), and defaults to the login service. That means client
+authentication is controlled by the usernames and passwords available
+to the computer that shim is installed on.
+<p>
+Basic digest access authentication is supported too
+(see <a href="https://en.wikipedia.org/wiki/Digest_access_authentication">https://en.wikipedia.org/wiki/Digest_access_authentication</a>).
+See below for examples.
+<h3>User</h3>
+The user that the shim service runs under. Shim can run as a non-root user, but then SSL authenticated port logins are limited to the user that shim is running under.
+<h3>Temporary I/O space and streaming</h3>
+Shim's default behavior caches the output of SciDB queries in files on the
+SciDB server; set that file directory location with the config file tmp
+option or the command-line -t argument. This temporary director is also
+used to upload data from clients over the http connection for input into SciDB.
+Select a directory that is writable by the shim user (see the user option).
+<p>
+Specify stream&gt;0 in the /execute_query service endpoint to stream SciDB results
+directly to the client using the HTTP 1.1 chunked transfer encoding mechanism.
+With this option, a named pipe is created in the temporary I/O directory
+instead of a file. See the /execute_query doc below for more information.
+This option is automatically set by the compression option below.
+<p>
+Specify compression=n, for values of n in 1,...,9 in /excute_query to stream
+gzip compressed (RFC 1952) results directly to the client using HTTP 1.1
+chunked transfer encoding.  The stream compression level is set by the
+compression query parameter in the range 1,...,9 (1 fast but poor compression
+to 9 slow but great compression). It's up to the client to decompress the data.
+Setting this option autmatically also sets the stream option to a nonzero value
+of 2 indicating gzip-compressed streaming.
 
-</div><br/>
-Examples of reading the output files produced by the example using
-GNU command-line utilities follow:
-<br/>
-<br/>
-<div class="x">
-cat /tmp/A.csv           # ASCII comma-separated value format
-od -tf8 /tmp/A.bin       # Binary output format
+<h3>TLS/SSL Certificate</h3>
+<p>
+Shim supports TLS/SSL encryption. Packaged versions of shim (RPM and deb
+packages) generate a self-signed certificate and 4096-bit RSA key when shim is
+installed. The certificate is placed in /var/lib/shim/ssl_cert.pem. If you
+would prefer to use a different certificate, replace the automatically
+generated one.
+</p>
 
+<br/>
+<h2>API Reference</h2>
+Examples use the URL http://localhost:8080 or https://localhost:8083 (TLS)
+below. Parameters are required unless marked <i>optional</i>.
+All shim API services support CORS.
+<h3>Limits</h3>
+<p>
+HTTP 1.1 clients or greater are required.
+<p>
+All HTTP query parameters are passed to the service as string values. They are
+limited to a maximum of 4096 characters unless otherwise indicated (a notable
+exception is the SciDB query string parameter, limited to 1,000,000 characers).
+</p><p>
+HTTP query string parameters that represent numbers have limits.  Unless
+otherwise indicated whole-number values (session ID, number of bytes to return,
+etc.) are interpreted by shim as signed 32-bit integers and are generally
+limited to values between zero and 2147483647.  Values outside that range will
+result in an HTTP 400 error (invalid query).
+</p>
+<h3>Response codes</h3>
+<p>
+Possible responses for each URI are listed below. HTTP status code 200 always
+indicates success; other standard HTTP status codes indicate various errors.
+Returned data may be ASCII or binary depending on the request.
+</p>
+<h3>Authentication</h3>
+<h4>Basic digest access authentication</h4>
+<p>
+Shim supports basic digest access authentication.
+(See <a href="https://en.wikipedia.org/wiki/Digest_access_authentication">https://en.wikipedia.org/wiki/Digest_access_authentication</a> and the references therein for a good description of the method.)
+Enable digest access authentication by
+creating an <tt>.htpasswd</tt> file in shim's default <tt>/var/lib/shim/wwwroot</tt> directory (the <tt>.htpasswd</tt> file must be located in shim's wwwroot directory, which can be changed with the command line switch <tt>-r</tt>. The format
+of the file must be:
+<pre>
+username1:password1
+username2:password2
+...
+</pre>
+Use plain text passwords in the file, and consider changing the permissions of
+the file to restrict access. Delete the <tt>.htpasswd</tt> file to disable
+basic digest access authentication.
+
+<h4>TLS/SSL encryption and PAM authentication</h4>
+<p>
+Shim optionally exposes both open and encrypted (SSL or TLS) services.  Access
+to most of the API over an encrypted connection requires authentication.  API
+URIs that require authentication include: /new_session /upload_file /read_lines
+/read_bytes /execute_query and /cancel.
+</p><p>
+Authentication is very simple to use:
+<ol>
+<li>
+Contact the /login service over SSL with username and password query string
+parameters. The /login service returns an authentication token if its
+successful.
+<li>
+Use all the other URI services normally, but append the auth=&lt;token&gt;
+query string parameter, replacing &lt;token&gt; with the response from the
+/login service above.
+<li>
+Log out of the system by contacting the /logout service with your
+authentication token.
+</ol>
+Shim's authentication mechanism only works over encrypted connections.
+Username and password query string parameters only appear in encrypted
+form over the network, and are never logged by the shim service log.
+</p><p>
+Here is a full example using the wget program from the command line
+talking to shim running on localhost, port 8083.
+</p>
+<pre>
+# Log in with username=scidb password=paradigm4 (assuming that such a user exists on the system that SciDB is running on):
+wget -q --no-check-certificate -O - "https://localhost:8083/login?username=scidb&password=paradigm4"
+90362228960         # (authentication token returned on success)
+
+# As a quick check, we'll try to obtain a new session without using the auth parameter (this will return an error):
+wget --no-check-certificate -O - "https://localhost:8083/new_session"
+HTTP request sent, awaiting response... 400 ERROR
+
+# Now, let's try again with auth and run a simple query and this time get a new session ID:
+wget -q --no-check-certificate -O - "https://localhost:8083/new_session?auth=90362228960"
+0    # (our session ID)
+wget -q --no-check-certificate -O - "https://localhost:8083/execute_query?id=0&query=list('functions')&save=dcsv&auth=90362228960"
+wget -q --no-check-certificate -O - "https://localhost:8083/read_lines?id=0&n=0&auth=90362228960" | head -n 10
+{No} name,profile,deterministic,library
+{0} '%','double %(double,double)',true,'scidb'
+{1} '%','int16 %(int16,int16)',true,'scidb'
+{2} '%','int32 %(int32,int32)',true,'scidb'
+{3} '%','int64 %(int64,int64)',true,'scidb'
+{4} '%','int8 %(int8,int8)',true,'scidb'
+{5} '%','uint16 %(uint16,uint16)',true,'scidb'
+{6} '%','uint32 %(uint32,uint32)',true,'scidb'
+{7} '%','uint64 %(uint64,uint64)',true,'scidb'
+{8} '%','uint8 %(uint8,uint8)',true,'scidb'
+{9} '*','double *(double,double)',true,'scidb'
+
+wget -q --no-check-certificate -O - "https://localhost:8083/release_session?id=0&auth=90362228960"
+
+# ... do some other things, always adding auth=<token> ...  When you're done, log out of the system:
+wget -q --no-check-certificate -O - "https://localhost:8083/logout?auth=90362228960"
+</pre>
+Again, simply append your authentication token to your HTTP requests to use the authenticated service.
+
+<h3>Example API Workflow</h3>
+<ol>
+<li> <b>/new_session</b>
+<li> <b>/execute_query</b>
+<li> <b>/read_lines</b> or <b>/read_bytes</b>
+<li> <b>/release_session</b>
+</ol>
+
+<h3>Example Authenticated API Workflow</h3>
+<ol>
+<li> <b>/login</b>
+<li> <b>/new_session</b>
+<li> <b>/execute_query</b>
+<li> <b>/read_lines</b> or <b>/read_bytes</b>
+<li> <b>/release_session</b>
+<li> <b>...</b>
+<li> <b>/logout</b>
+</ol>
+
+
+<br/>
+<h2>API Service URIs</h2>
+<div class="api">
+<table class="api-param-values">
+<tr>
+<td colspan="2">
+<h3>/version</h3>
+<tr><td>DESCRIPTION
+<td>Print the shim code version string
+<tr><td>METHOD<td>GET
+<tr><td>PARAMETERS
+<tr><td>RESPONSE
+<td>Success: HTTP 200 and text version string value in text/plain payload
+<br/>
+<tr><td>EXAMPLE
+<td>
+http://localhost:8080/version
+<br/><br/>
+<pre>
+HTTP/1.1 200 OK
+Content-Length: 16
+Cache-Control: no-cache
+Access-Control-Allow-Origin: *
+Content-Type: text/plain
+
+v14.3-15-gd71f
+</pre>
+<td>
+<tr>
+<td colspan="2">
+<h3>/new_session</h3>
+<tr><td>DESCRIPTION
+<td>Request a new HTTP session from the service.
+<tr><td>METHOD<td>GET
+<tr><td>PARAMETERS
+<td>
+<b>auth</b> <i>optional</i> authentication token (required for encrypted connections).
+<tr><td>RESPONSE
+<td>Success: HTTP 200 and text session ID value in text/plain payload
+<br/>
+Failure (out of resources/server unavailable): HTTP 503
+<br/>
+Invalid request (encrypted only -- this means auth is missing): HTTP 400
+<br/>
+Not authorized (encrypted only): HTTP 401
+<tr><td>EXAMPLE
+<td>
+http://localhost:8080/new_session
+<br/><br/>
+<pre>
+HTTP/1.0 200 OK
+Content-Length: 3
+Content-Type: text/plain
+
+0
+</pre>
+<td>
+
+<tr>
+<td colspan="2">
+<h3>/release_session</h3>
+
+<tr><td>DESCRIPTION
+<td>Release an HTTP session
+<tr><td>METHOD<td>GET
+<tr><td>PARAMETERS
+<td><b>id</b> (an HTTP session ID)
+<br/><b>auth</b> <i>optional</i> authentication token (required for encrypted connections).
+<tr><td>RESPONSE
+<td>Success: HTTP 200
+<br/>
+Failure (Session not found): HTTP 404
+<br/>
+Failure (invalid http query): HTTP 400
+<br/>
+Not authorized (encrypted only): HTTP 401
+<tr><td>EXAMPLE
+<td>
+http://localhost:8080/release_session?id=0
+<br/><br/>
+<pre>
+HTTP/1.0 200 OK
+Content-Length: 0
+Content-Type: text/plain
+
+
+</pre>
+<td>
+
+
+<tr>
+<td colspan="2">
+<h3>/execute_query</h3>
+
+<tr><td>DESCRIPTION
+<td>Execute a SciDB AFL query
+<tr><td>METHOD<td>GET
+<tr><td>PARAMETERS
+<td>
+<b>id</b> (an HTTP session ID)<br/>
+<b>query</b> (AFL query string, encoded for use in URL as required, limited to a maximum of 1,000,000 characters)<br/>
+<b>save</b> <i>optional</i> (format string, limited to a maximum of 4096 characters) Save the query output in the specified,
+format for subsequent download
+by read_lines or read_bytes. If the save parameter is not
+specified, don't save the query output. <br/>
+<b>release</b>  <i>optional</i> 0 or 1: if 1 then release_session as soon as query completes.  The default value is 0 if not specified (see additional notes below).<br/>
+<b>stream</b> <i>optional</i> 0, 1 or 2: if 1 then stream query result; if 2 then stream a gzip compressed (RFC 1952) query result with an unspecified (automatic) compression level; otherwise send query result through a server-side output file (the default). steam&gt;0 also sets release=1.<br/>
+<b>compression</b> <i>optional</i> 0 to 9: Sets the steaming compression level from 0 (no compression), 1 (fast/light compression) to 9 (slow/high compression). Setting this option automatically also sets the stream option to <b>stream=2</b>.<br/>
+<b>auth</b> <i>optional</i> authentication token (required for encrypted connections).
+</br>
+<tr><td>RESPONSE
+<td>
+Success: HTTP 200 text/plain (SciDB Query ID)<br/>
+Failure (SciDB not available error): HTTP 503 text/plain (ERROR TEXT)
+</br>
+Failure (SciDB query error): HTTP 500 text/plain (SCIDB ERROR TEXT)
+</br>
+Failure (out of memory error): HTTP 507 text/plain (SCIDB ERROR TEXT)
+</br>
+Failure (Invalid session): HTTP 404
+<br/>
+Failure (invalid http query): HTTP 400
+<br/>
+Not authorized (encrypted only): HTTP 401
+</br>
+<tr><td>NOTES
+<td>
+Shim only supports AFL queries. AQL support will be available by
+fall of 2014.
+<br/><br/>
+500 and 503 errors result in removal of the web session ID and related
+resources (thus, release_session does not have to be called after such an
+error).
+<br/><br/>
+This method blocks until the query completes unless stream&gt;0.
+When stream&gt;0, this method returns immediately with the query ID (before
+the query complets).
+<br/><br/>
+Do not specify the option release=1 when stream=0 and when the save option is
+also set, or output will not be available to read_bytes or read_lines. Instead,
+explicitly call release_session after reading is complete.
+
+<br/><br/>
+Setting stream &gt; 0 is an experimental feature added after version 14.7. Setting
+stream &gt; 0 sends query results through a server-side named pipe into the client
+without storing the query results on the server. This option uses the
+HTTP 1.1 chunked transfer encoding; stream termination is indicated by a
+chunk of length zero.
+<br/><br/>
+When stream&gt;0 is set then release=1 is also automatically set. That means
+that clients are free to not call /release_session after receiving their
+stream data via /read_lines or /read_bytes;however,
+calling /release_session will not cause problems and
+clients can still do it if they wish.
+<br/><br/>
+NOTE: WHEN stream&gt;0, SciDB QUERIES REMAIN ACTIVE UNTIL THE CLIENT COMPLETES
+RECIEVING THE RESULT DATA. IT'S UP TO THE CLIENT TO RECEIVE THE DATA TO
+TERMINATE THE QUERY.
+<br/><br/>
+Set stream=2 to enable gzip-compressed streaming (RFC 1952). When stream=2
+one may also set the compression level with the compression option in the
+range 0 to 9. If the compression query parameter is specified, then stream is
+automatically set to 2.
+
+
+<tr><td>EXAMPLE
+<td>
+http://localhost:8080/execute_query?id=0&amp;query=remove(x)&amp;release=1
+<br/><br/>
+<pre>
+HTTP/1.0 200 OK
+Content-Length: 13
+Content-Type: text/plain
+
+1100993821834
+</pre>
+<td>
+<tr><td>EXAMPLE (ERROR)
+<td>
+http://localhost:8080/execute_query?id=0&amp;query=remove(x)&amp;release=1
+<br/><br/>
+<pre>
+HTTP/1.0 500 ERROR
+Content-Length: 286
+Content-Type: text/plain
+
+UserQueryException in file: src/query/parser/ALTranslator.cpp function: createArrayReferenceParam line: 863
+Error id: scidb::SCIDB_SE_QPROC::SCIDB_LE_ARRAY_DOESNT_EXIST
+Error description: Query processor error. Array 'x' does not exist.
+remove(x)
+       ^
+Failed query id: 1100994052246
+</pre>
+<tr><td>EXAMPLE STREAMING DATA USING wget
+<td>
+<pre>
+# Obtain a shim session ID:
+s=`wget -O - -q http://localhost:8080/new_session`
+echo "session: $s"
+
+# Run a query, requesting compressed streaming output with high compression:
+wget -O - -q "http://localhost:8080/execute_query?id=${s}&amp;query=list('functions')&amp;save=dcsv&amp;compression=9"
+
+# Retrieve the results, placing them in a file locally:
+wget -O - -q "http://localhost:8080/read_bytes?id=${s}&amp;n=0" &gt; /tmp/z.gz
+
+# now we can gunzip this, for example: gunzip /tmp/z.gz &amp;&amp;cat /tmp/z
+</pre>
+
+<tr>
+<td>
+<h3>/cancel</h3>
+
+<tr><td>DESCRIPTION
+<td>Cancel a SciDB query associated with a session
+<tr><td>METHOD<td>GET
+<tr><td>PARAMETERS
+<td><b>id</b> (an HTTP session ID)
+<br/>
+<b>auth</b> <i>optional</i> authentication token (required for encrypted connections).
+<tr><td>RESPONSE
+<td>Success: HTTP 200
+<br/>
+Failure (session not found): HTTP 404
+<br/>
+Failure (invalid http query): HTTP 400
+<br/>
+Failure (could not connect to SciDB): HTTP 503
+<br/>
+Not authorized (encrypted only): HTTP 401
+<tr><td>EXAMPLE
+<td>
+http://localhost:8080/cancel?id=0
+<br/><br/>
+<pre>
+HTTP/1.0 200 OK
+Content-Length: 0
+Content-Type: text/plain
+
+
+</pre>
+
+<tr>
+<td>
+<h3>/read_lines</h3>
+
+<tr><td>DESCRIPTION
+<td>Read text lines from a query that saves its output
+<tr><td>METHOD<td>GET
+<tr><td>PARAMETERS
+<td>
+<b>id</b> (an HTTP session ID)<br/>
+<b>n</b> (maximum number of lines to read and return between 0 and 2147483647) <br/>
+<b>auth</b> <i>optional</i> authentication token (required for encrypted connections).
+<br/>
+<tr><td>RESPONSE
+<td>Success: HTTP 200 followed by text/plain query result (up to <b>n</b> lines)
+<br/>
+Failure (invalid HTTP query string): HTTP 400 <br/>
+Failure (session not found): HTTP 404 <br/>
+Failure (end of file): HTTP 410 <br/>
+Failure (invalid request): HTTP 414 <br/>
+Failure (SciDB server error): HTTP 500<br/>
+Failure (could not connect to SciDB server error): HTTP 503<br/>
+Failure (server out of memory): HTTP 507<br/>
+Not authorized (encrypted only): HTTP 401
+<br/>
+<tr><td>EXAMPLE
+<td>
+http://localhost:8080/new_session<br/>
+http://localhost:8080/execute_query?id=0&amp;query=list('functions')&amp;save=dcsv<br/>
+http://localhost:8080/read_lines?id=0&amp;n=20
+<br/><br/>
+<pre>
+HTTP/1.0 200 OK
+Content-Length: 903
+Content-Type: text/plain
+
+{No} name,profile,deterministic,library
+{0} "%","double %(double,double)",true,"scidb"
+{1} "%","int16 %(int16,int16)",true,"scidb"
+{2} "%","int32 %(int32,int32)",true,"scidb"
+{3} "%","int64 %(int64,int64)",true,"scidb"
+{4} "%","int8 %(int8,int8)",true,"scidb"
+{5} "%","uint16 %(uint16,uint16)",true,"scidb"
+{6} "%","uint32 %(uint32,uint32)",true,"scidb"
+{7} "%","uint64 %(uint64,uint64)",true,"scidb"
+{8} "%","uint8 %(uint8,uint8)",true,"scidb"
+{9} "*","double *(double,double)",true,"scidb"
+{10} "*","float *(float,float)",true,"scidb"
+{11} "*","int16 *(int16,int16)",true,"scidb"
+{12} "*","int32 *(int32,int32)",true,"scidb"
+{13} "*","int64 *(int64,int64)",true,"scidb"
+{14} "*","int8 *(int8,int8)",true,"scidb"
+{15} "*","uint16 *(uint16,uint16)",true,"scidb"
+{16} "*","uint32 *(uint32,uint32)",true,"scidb"
+{17} "*","uint64 *(uint64,uint64)",true,"scidb"
+{18} "*","uint8 *(uint8,uint8)",true,"scidb"
+</pre>
+<tr><td>NOTES
+<td>
+<ol>
+<li>Set n=0 to download the entire output buffer.
+<li>Be sure to properly url-encode special characters like the plus sign (+) in the request.
+<li>When n&gt;0, iterative requests to read_lines are allowed,
+and will return at most the next n lines of output.
+Use the 410 error code to detect end of file output.
+</ol>
+
+<tr>
+<td>
+<h3>/read_bytes</h3>
+
+<tr><td>DESCRIPTION
+<td>Read bytes from a query that saves its output
+<tr><td>METHOD<td>GET
+<tr><td>PARAMETERS
+<td>
+<b>id</b> (an HTTP session ID)<br/>
+<b>n</b> (maximum number of bytes to read and return between 0 and 2147483647) <br/>
+<b>auth</b> <i>optional</i> authentication token (required for encrypted connections).
+<br/>
+<tr><td>RESPONSE
+<td>Success: HTTP 200 followed by application/octet-stream binary query result (up to <b>n</b> bytes)
+<br/>
+Failure (invalid HTTP query string): HTTP 400 <br/>
+Failure (session not found): HTTP 404 <br/>
+Failure (end of file): HTTP 410 <br/>
+Failure (invalid request): HTTP 414 <br/>
+Failure (SciDB server error): HTTP 500<br/>
+Failure (could not connect to SciDB server error): HTTP 503<br/>
+Failure (server out of memory): HTTP 507<br/>
+Not authorized (encrypted only): HTTP 401
+<br/>
+<tr><td>EXAMPLE
+<td>
+http://localhost:8080/new_session<br/>
+http://localhost:8080/execute_query?id=0&amp;query=build(%3Cx:double%3E%5Bi=1:10,10,0%5D,random())&amp;save=(double)<br/>
+http://localhost:8080/read_bytes?id=0&amp;n=20
+<br/><br/>
+<pre>
+HTTP/1.0 200 OK
+Content-Length: 20
+Content-Type: application/octet-stream
+
+Š/�A�}��A�
+</pre>
+<tr><td>NOTES
+<td>
+<ol>
+<li>Set n=0 to download the entire output buffer.
+<li>Iterative requests to read_lines are allowed, and will print at most the next n bytes of output.
+Use the 410 error code to detect the end of output.
+<li>Be sure to properly url-encode special characters in the request.
+</ol>
+
+
+<tr>
+<td>
+<h3>/upload_file</h3>
+
+<tr><td>DESCRIPTION
+<td>Upload a file to the HTTP service
+<tr><td>METHOD<td>POST/GET
+<tr><td>PARAMETERS
+<td>
+<b>id</b> (an HTTP session ID)<br/>
+A valid file-upload HTTP POST message.
+<br/>
+<b>auth</b> <i>optional</i> authentication token (required for encrypted connections).
+<br/>
+<tr><td>RESPONSE
+<td>Success: HTTP 200 and the name of the file uploaded to the server in a text/plain response.
+<br/>
+Failure (invalid HTTP query string): HTTP 400 <br/>
+Failure (Session not found): HTTP 404 <br/>
+Failure (Server error): HTTP 500
+<br/>
+Not authorized (encrypted only): HTTP 401
+<br/>
+<tr><td>EXAMPLE
+<td>
+<b>Example POST to session id=0:</b>
+<br/>
+<pre>
+POST /upload_file?id=0 HTTP/1.1
+Host: localhost:8080
+Accept: */*
+Content-Length: 526
+Expect: 100-continue
+Content-Type: multipart/form-data; boundary=----------------------------d1f47951faa4
+
+------------------------------d1f47951faa4
+Content-Disposition: form-data; name="file"; filename="data.csv"
+Content-Type: application/octet-stream
+
+"","Sepal.Length","Sepal.Width","Petal.Length","Petal.Width","Species"
+"1",5.1,3.5,1.4,0.2,"setosa"
+"2",4.9,3,1.4,0.2,"setosa"
+"3",4.7,3.2,1.3,0.2,"setosa"
+"4",4.6,3.1,1.5,0.2,"setosa"
+"5",5,3.6,1.4,0.2,"setosa"
+"6",5.4,3.9,1.7,0.4,"setosa"
+"7",4.6,3.4,1.4,0.3,"setosa"
+"8",5,3.4,1.5,0.2,"setosa"
+"9",4.4,2.9,1.4,0.2,"setosa"
+
+------------------------------d1f47951faa4--
+
+</pre>
+<br/>
+<b>Example response:</b>
+<br/>
+<pre>
+HTTP/1.0 200 OK
+Content-Length: 23
+Content-Type: text/plain
+
+/tmp/shim_file_Hrloh9
+</pre>
+<tr><td>NOTES
+<td>
+The file to upload can be binary. Use the returned server-side file name in a
+subsequent SciDB load query, for example. The file does not persist after the
+HTTP session is released.
+
+
+<tr>
+<td>
+<h3>/login</h3>
+
+<tr><td>DESCRIPTION
+<td>Authenticate a user with shim
+<tr><td>METHOD<td>GET
+<tr><td>PARAMETERS
+<td><b>username</b> (the PAM username)
+<br/><b>password</b> (the user password)
+<tr><td>RESPONSE
+<td>Success: HTTP 200 and a text authentication token to use with
+the <b>auth</b> parameter in subsequent HTTP queries.
+<br/>
+Failure (invalid http query): HTTP 400
+<br/>
+Not authorized: HTTP 401
+<tr><td>EXAMPLE
+<td>
+https://localhost:8083/login?username=scidb&amp;password=paradigm4
+<br/><br/>
+<pre>
+HTTP/1.0 200 OK
+Content-Length: 11
+Content-Type: text/plain
+
+90362228960
+</pre>
+<tr><td>NOTES
+<td>
+The /login service URI requires a TLS or SSL encrypted connection. The
+password and username query parameters only appear in encrypted form
+over the network.
+
+<tr>
+<td>
+<h3>/logout</h3>
+
+<tr><td>DESCRIPTION
+<td>Retire an authentication token.
+<tr><td>METHOD<td>GET
+<tr><td>PARAMETERS
+<td><b>auth</b> (authentication token from /login)
+<tr><td>RESPONSE
+<td>Success: HTTP 200 (empty response)
+<br/>
+Failure (invalid http query): HTTP 400
+<br/>
+<tr><td>EXAMPLE
+<td>
+https://localhost:8083/logout?auth=90362228960
+<br/><br/>
+<pre>
+HTTP/1.0 200 OK
+Content-Length: 0
+Content-Type: text/plain
+
+</pre>
+
+
+</table>
 </div>
 
-
-<a class="op" name="scan"></a><h2 >scan</h2>
-<i>scan(array)</i>
-<p/>Identity function&mdash;return the array.
 <br/>
-<div class="x">
-store(build(&lt;x:double&gt;[i=1:3,3,0,j=1:3,3,0],i+j),A)
-scan(A)
-
-</div><br/>
-
-
-<a class="op" name="show"></a><h2 >show</h2>
-<i>show(array | schema | SciDB query expression[, 'afl'])</i>
-<p/>
-Create an array containing the schema of the specified stored
-array, schema or SciDB query expression. When a SciDB query is
-specified, use the optional 'afl' argument if the query is in
-AFL format. The default assumes queries are in AQL format.
-<br/>
-<div class="x">
-show('sort(build(&lt;x:double&gt;[i=1:3,3,0],random()))', 'afl')
-
-</div><br/>
-
-
-<a class="op" name="slice"></a><h2 >slice</h2>
-<i>slice(array, dimension1, value1[, dimension2, value2[, ...]])</i>
-<p/>
-<br/>Create a new array that subsets the input array
-along specified dimension values. The output array has lower
-dimension than the input array.
-<div class="x">
-store(build(&lt;x:double&gt;[i=1:3,3,0,j=1:3,3,0],i+j),A)
-slice(A, i, 2)
-
-</div><br/>
-
-
-<a class="op" name="sort"></a><h2 >sort</h2>
-<i>sort(array, attribute [asc | desc][, attribute [asc | desc][, ...]][, chunk_size])</i>
-<p/>
+<h2>Orphaned Sessions</h2>
 <p>
-Create an array containing a sorted representation of the input array by
-attribute values, optionally specifying ascending or descending order and
-output chunk size. The output array is one-dimensional with a single signed
-int64 dimension "n" (don't use sort on an input array attribute named "n"
-or you will get a name collision!).
-<p>
-If you don't specify an output array chunk size, then the output will have
-a chunk size equal to the extent of the data or one million, whichever is
-smaller.
-</p><p>
-The sorted output array will have zero chunk overlap.
+Shim limits the number of simultaneous open sessions. Absent-minded or
+malicious clients are prevented from opening too many new sessions repeatedly
+without closing them (which could eventually result in denial of service).
+Shim uses a lazy timeout mechanism to detect unused sessions and reclaim them.
+It works like this:
 </p>
-<div class="x">
-store(build(&lt;x:double&gt;[i=1:10,10,0],10*double(random())/2147483647 + 1),A)
-store(apply(A, s, 'x' + string(x)), B)
-sort(B, x, s)
-
-</div><br/>
-
-
-<a class="op" name="store"></a><h2 >store</h2>
-<i>store(result, array)</i>
-<p/>Store the output result of a SciDB operator to the array name
-specified, returning the output array for use by the caller.
-<br/>
-<div class="x">
-sum(store(build(&lt;x:double&gt;[i=1:10,10,0],i), A))
-
-store(build(&lt;x:double&gt;[i=1:10,10,0],i), A)
-sum(A)
-
-</div><br/>
-
-
-<a class="op" name="subarray"></a><h2 >subarray</h2>
-<i>subarray(array, low_coord1[, low_coord2[, ...]], high_coord1[, high_coord2[, ...]])</i>
-<p/>
+<ol>
+<li>The session time value is set to the current time when an API event
+finishes.
+<li>If a new_session request fails to find any available session slots,
+it inspects the existing session time values for all the sessions,
+computing the difference between current time and the time value.
+If a session time difference exceeds a timeout value, then that session is
+harvested and returned as a new session.
+<li>Operations that may take an indeterminate amount of time like
+file uploads or execution of SciDB queries are protected from harvesting
+until the associated operation completes.
+</ol>
 <p>
-Create an array containing a clipped, rectilinear subset of the
-input array. The coordinates specified must, in order, indicate the
-low boundaries in each array dimension, followed by the high boundaries
-in each array dimension. Use the value <i>null</i> for a low or high coordinate
-to use the minimum and maximum coordinate values of the array.
-</p><p>
-Integer dimensions coordinates in the output array are changed to start
-at zero. (Mapped non-integer coordinates are not changed.) Upper dimension
-bounds are adjusted to contain the extent of the data. This means that
-each output coordinate axis of subarray are limited to a 62-bit unsigned
-integer range.
+The above scheme is called lazy as sessions are only harvested when a
+new session request is unable to be satisfied. Until that event occurs,
+sessions are free to last indefinitely.
 </p>
-<br/>
-<div class="x">
-store(build(&lt;x:double&gt;[i=1:10,10,0,j=1:10,10,0],10*double(random())/2147483647 + 1),A)
-subarray(A, 2, 2, 5, 5)
-
-</div><br/>
-
-<a class="op" name="substitute"></a><h2 >substitute</h2>
-<i>substitute(array1, array2[, attribute1[, attribute2[, ...]]])</i>
-<p/>Create an array that substitutes null values in the indicated attributes in array1 with non-null values from the single-attribute array2.
-If no attributes are specified, null values in all attributes will be
-substituted.
-The single substitute value will be taken from the attribute value of array2 at dimension coordinate zero.
-Both array dimension start indices must be zero.
-The indicated output array attributes will be set to non-nullable.
-<br/><br/>
-The example creates an array with two attributes x and y with identical values
-that are null below coordinate i=5, then substitutes 0 for the null values in
-the y attribute.
-<br/>
-<div class="x">
-store
-(
-  apply
-  (
-    build(&lt;x:double null&gt;[i=0:9,10,0],iif(i&lt;5,null,i)),
-    y, x
-  ),
-  A
-)
-substitute(A, build(&lt;u:double&gt;[j=0:0,1,0],0), y)
-
-</div><br/>
-
-
-
-<a class="op" name="unpack"></a><h2 >unpack</h2>
-<i>unpack(array, dimension_name[, chunk_size])</i>
-<p/>Create a 1-D array version of any array, converting input array dimension values to attributes in the output array. The output array has a single int64 dimension, named according to the dimension_name argument. (The output array resembles
-the SciDB "lcsv+" formatted output.)
-<br/>
-<div class="x">
-store(build(&lt;x:double&gt;[i=1:10,10,0,j=1:10,10,0], i+j),A)
-unpack(A, k)
-
-</div><br/>
-
-<a class="op" name="versions"></a><h2 >versions</h2>
-<i>versions(array)</i>
-<p/>
-Create an array that contains version information for the specified array,
-which must be stored in SciDB. The version information includes a sequential
-ID and date/time of update.
-<br/>
-<div class="x">
-store(build_sparse(&lt;x:double&gt;[i=1:10,5,0], sqrt(i), double(i)/2 = i/2),A)
-versions(A)
-
-insert(build(&lt;x:double&gt;[i=1:10,5,0],i),A)
-versions(A)
-
-</div><br/>
-
-<a class="op" name="xgrid"></a><h2 >xgrid</h2>
-<i>xgrid(array, scale1[, scale2[, ...]])</i>
-<p/>
-Create an array that prolongs each dimension of the specified input array
-by a scale factor. Input array cells are replicated to fill the new
-array. The number of supplied scale arguments must match the number of
-dimensions of the array. Each scale argument must be integer-valued 
-(type int32).
-<br/>
-<div class="x">
-store(build_sparse(&lt;x:double&gt;[i=1:4,5,0], i, double(i)/2 = i/2),A)
-xgrid(A, 2)
-
-</div><br/>
-The xgrid operator in some cases can be the inverse of the regrid operator:
-<br/><br/>
-<div class="x">
-store(build_sparse(&lt;x:double&gt;[i=1:4,4,0,j=1:4,4,0], i + j, double(j)/2 = j/2 or double(i)/2 = i/2),A)
-xgrid(A, 2, 2)
-regrid(xgrid(A,2,2), 2, 2, max(x) as x)
-
-</div>
-<br/>
-
-
-
-
-
-
-<!-- AGGREGATES -->
-<br/> <br/> <br/> <br/>
-<h1>SciDB Aggregation functions</h1>
 <p>
-SciDB <i>aggregates</i> are functions of several values that produce a
-scalar value. They are used together with the <i>aggregate</i>,
-<i>redimension_store</i>, and
-<i>redimension</i> operators to compute data aggregations, optionally
-grouped along specified dimensions.
+Shim does not protect against uploading gigantic files nor from
+running many long-running SciDB queries. The service may become unavailable if
+too many query and/or upload operations are in flight; an HTTP 503 (Service
+Unavailable) error code is returned in that case.
 </p>
-<hr/>
-
-<a class="ag" name="approxdc"></a><h2>approxdc</h2>
-<i>approxdc(attribute values)</i>
-<p/>
-Approximate distinct count aggregate. The output type will be
-unsigned int64, and will be set nullable with a default value of null.
-<br/>
-<div class="x">
-store(build_sparse(&lt;x:double&gt;[i=1:10,5,0], sqrt(i), double(i)/2 = i/2),A)
-aggregate(A,approxdc(x) as distinct)
-
-</div><br/>
-
-<a class="ag" name="avg"></a><h2>avg</h2>
-<i>avg(attribute values)</i>
-<p/>
-Average values of aggregated attribute. The input types must
-be integer, float or real. The output type will be double
-and will be set nullable with a default value of null.
-<br/>
-<div class="x">
-store(build(&lt;x:double&gt;[i=1:10,10,0,j=1:5,5,0],i*j), A)
-aggregate(A, avg(x) as mean, j)
-
-</div><br/>
-
-<a class="ag" name="count"></a><h2>count</h2>
-<i>count(attribute values)</i>
-<p/>
-Aggregated non-empty count of cells. The output type
-will be unsigned int64 and set nullable with a default value of null.
-<br/>
-<div class="x">
-store(build(&lt;x:double&gt;[i=1:10,10,0,j=1:5,5,0],i*j), A)
-aggregate(A, count(x) as count, j)
-
-</div><br/>
-
-<a class="ag" name="max"></a><h2>max</h2>
-<i>max(attribute values)</i>
-<p/>
-Maximum of aggregated attribute values. The attribute type must
-be able to be ordered. The output type is the same as the input
-type, but will be nullable with a default value of null.
-<br/>
-<div class="x">
-store(build(&lt;x:double&gt;[i=1:10,10,0,j=1:5,5,0],i*j), A)
-aggregate(A, max(x) as max, j)
-
-</div><br/>
-
-<a class="ag" name="min"></a><h2>min</h2>
-<i>min(attribute values)</i>
-<p/>
-Minium of aggregated attribute values. The attribute type must
-be able to be ordered. The output type is the same as the input
-type, but will be nullable with a default value of null.
-<br/>
-<div class="x">
-store(build(&lt;x:double&gt;[i=1:10,10,0,j=1:5,5,0],i*j), A)
-aggregate(A, min(x) as min, j)
-
-</div><br/>
-
-<a class="ag" name="stdev"></a><h2>stdev</h2>
-<i>stdev(attribute values)</i>
-<p/>
-Standard deviation of the aggregated attribute values. The attribute
-type must be integer, float or double. The output type will be double
-and will be set nullable with a default value of null.
-<br/>
-<div class="x">
-store(build(&lt;x:double&gt;[i=1:10,10,0,j=1:5,5,0],i*j), A)
-aggregate(A, stdev(x) as stdev, j)
-
-</div><br/>
-
-<a class="ag" name="sum"></a><h2>sum</h2>
-<i>sum(attribute values)</i>
-<p/>
-Sum the aggregated attribute values. The input attribute
-type must be integer, float or double. The output type will be double
-for double-valued inputs, float for float-valued inputs, and
-int64 for integer inputs, 
-and will be set nullable with a default value of null.
-<br/>
-<div class="x">
-store(build(&lt;x:double&gt;[i=1:10,10,0,j=1:5,5,0],i*j), A)
-aggregate(A, sum(x) as sum, j)
-
-</div><br/>
-
-<a class="ag" name="var"></a><h2>var</h2>
-<i>var(attribute values)</i>
-<p/>
-Variance of the aggregated attribute values. The attribute
-type must be integer, float or double. The output type will be double
-and will be set nullable with a default value of null.
-<br/>
-<div class="x">
-store(build(&lt;x:double&gt;[i=1:10,10,0,j=1:5,5,0],i*j), A)
-aggregate(A, var(x) as var, j)
-
-</div><br/>
-
-<br/> <br/> <br/> <br/>
-<!-- OTHER -->
-<h1>Other SciDB AFL commands</h1>
-<hr/>
-<a class="other" name="cancel"></a><h2 >cancel</h2>
-<i>cancel(query_id)</i>
-<p/>Cancel a query. Nothing is returned.
-<br/>
-
-<a class="op" name="load_library"></a><h2 >load_library</h2>
-<i>load_library('plugin_name')</i>
-<p/>Load a SciDB plugin.
-<br/>
-<div class="x">
-load_library('dense_linear_algebra')
-
-</div><br/>
-
-<a class="other" name="remove"></a><h2 >remove</h2>
-<i>remove(array)</i>
-<p/>Remove an array.
-<br/>
-<div class="x">
-store(build(&lt;x:double&gt;[i=1:10,10,0,j=1:10,10,0],i+j),A)
-remove(A)
-
-</div><br/>
 
 
-
-
-
-        </div><!--/span-->
-    </div><!--/row-fluid-->
 
     <footer>
-      <p>&copy; Paradigm4 2013</p>
+      <br/><br/><p>&copy; Paradigm4 2013</p>
     </footer>
 
   </div> <!-- /container -->
 
   <script src="js/jquery.min.js"></script>
   <script src="js/bootstrap.js"></script>
-<script>
-window.onload = function()
-{
-  var a = $(".op");
-  var s = "<a href='http://paradigm4.com/documentation/'>This is just a sample of available operators. Full online documentation available from <u>Paradigm4</u></a>";
-  s = s + "<br/><br/><ul id='operators' class='nav nav-list'>";
-  s = s + "<li class='nav-header'>Operators</li>";
-  for(var j=0;j<a.length;j++)
-  {
-    if(a[j].name.length>0)
-      s = s + "<li><a href='#"+a[j].name+"'>"+ a[j].name + "</a></li>";
-  }
-  a = $(".ag");
-  s = s + "<li class='nav-header'>Aggregates</li>";
-  for(var j=0;j<a.length;j++)
-  {
-    if(a[j].name.length>0)
-      s = s + "<li><a href='#"+a[j].name+"'>"+ a[j].name + "</a></li>";
-  }
-  $("#sbar")[0].innerHTML = s;
-  a = $(".other");
-  s = s + "<li class='nav-header'>Other AFL commands</li>";
-  for(var j=0;j<a.length;j++)
-  {
-    if(a[j].name.length>0)
-      s = s + "<li><a href='#"+a[j].name+"'>"+ a[j].name + "</a></li>";
-  }
-  $("#sbar")[0].innerHTML = s;
-}
-</script>
 
 </body>
 </html>
