@@ -6,7 +6,7 @@ Shim supports TLS/SSL encryption and implements PAM
 password authentication. The encrypted, authenticated API adds one
 new argument to the unencrypted, non-authentication API, but is otherwise
 identical. See
-[Paradigm4/shim/master/wwwroot/api.html](http://htmlpreview.github.com/?https://raw.github.com/Paradigm4/shim/master/wwwroot/api.html)
+[Paradigm4/shim/master/wwwroot/help.html](http://htmlpreview.github.com/?https://raw.github.com/Paradigm4/shim/master/wwwroot/help.html)
 for complete details.
 
 The `shim` program must run on the system that a SciDB coordinator runs on.
@@ -21,11 +21,11 @@ as a service.
 Note: Shim queries are limited to at most 1,000,000 characters.
 
 ## HTTP API documentation
-See the wwwroot/api.html document for the API documentation, or compile and
-start shim running and point a browser to http://localhost:8080/api.html.
-You can also preview the api.html page directly from github at:
+See the wwwroot/help.html document for the API documentation, or compile and
+start shim running and point a browser to http://localhost:8080/help.html.
+You can also preview the help.html page directly from github at:
 
-[Paradigm4/shim/master/wwwroot/api.html](http://htmlpreview.github.com/?https://raw.github.com/Paradigm4/shim/master/wwwroot/api.html)
+[Paradigm4/shim/master/wwwroot/help.html](http://htmlpreview.github.com/?https://raw.github.com/Paradigm4/shim/master/wwwroot/help.html)
 
 
 The wwwroot directory also includes an example simple javascript client.
