@@ -45,7 +45,7 @@ service.
 This is the fastest/easiest way to install shim as a system service.
 The author provides a few pre-built binary packages for SciDB on Ubuntu 12.04 here:
 
-* [http://paradigm4.github.io/shim/shim_14.12_amd64.deb](http://paradigm4.github.io/shim/shim_14.12_amd64.deb)
+* [http://paradigm4.github.io/shim/ubuntu_12.04_shim_14.12_amd64.deb](http://paradigm4.github.io/shim/ubuntu_12.04_shim_14.12_amd64.deb)
 * [http://paradigm4.github.io/shim/shim_14.8_amd64-experimental.deb](http://paradigm4.github.io/shim/shim_14.8_amd64-experimental.deb)
 * [http://paradigm4.github.io/shim/shim_14.8_amd64.deb](http://paradigm4.github.io/shim/shim_14.8_amd64.deb)
 * [http://paradigm4.github.io/shim/shim_14.3-2_amd64.deb](http://paradigm4.github.io/shim/shim_14.3-2_amd64.deb) (Includes requested .htpasswd auth option)
@@ -55,6 +55,11 @@ The author provides a few pre-built binary packages for SciDB on Ubuntu 12.04 he
 * [http://paradigm4.github.io/shim/shim_13.9_amd64.deb](http://paradigm4.github.io/shim/shim_13.9_amd64.deb)
 * [http://paradigm4.github.io/shim/shim_13.6_amd64.deb](http://paradigm4.github.io/shim/shim_13.6_amd64.deb)
 * [http://paradigm4.github.io/shim/shim_13.3_amd64.deb](http://paradigm4.github.io/shim/shim_13.3_amd64.deb)
+
+SciDB now supports Ubuntu 14.04, and here is a corresponding shim binary package for that:
+
+* [http://paradigm4.github.io/shim/ubuntu_14.04_shim_14.12_amd64.deb](http://paradigm4.github.io/shim/ubuntu_14.04_shim_14.12_amd64.deb)
+
 
 ```
 # Install with:
