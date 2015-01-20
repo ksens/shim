@@ -138,7 +138,7 @@ PAM authentication, you'll now need the PAM development libraries for your
 system installed too. We illustrate installation of Ubuntu build dependencies
 below:
 ```
-sudo apt-get install liblog4cpp5-dev liblog4cxx10-dev libboost-dev libboost-system-dev rubygems libpam0g-dev zlib1g-dev lib64z1-dev
+sudo apt-get install liblog4cpp5-dev liblog4cxx10-dev libboost-dev libboost-system-dev libpam0g-dev zlib1g-dev lib64z1-dev ruby-dev build-essential
 sudo apt-get install scidb-14.12-dev scidb-14.12-libboost1.54-all-dev
 gem install fpm
 ```
