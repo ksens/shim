@@ -36,6 +36,8 @@ help:
 	@echo "make unservice (terminate and remove installed service)"
 	@echo "make deb-pkg   (create a binary Ubuntu/Debian package, requires fpm)"
 	@echo "make rpm-pkg   (create a binary RHEL package, requires fpm)"
+	@echo "make test<n>   (build and run test number n)"
+	@echo "make alltests  (build and run all but multiuser tests)"
 
 install: shim
 	@if test ! -d "$(SCIDB)"; then echo  "Can't find scidb. Maybe try explicitly setting SCIDB variable, for example::\n\nmake SCIDB=/opt/scidb/13.3 install"; exit 1; fi 
