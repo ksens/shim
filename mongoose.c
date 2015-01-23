@@ -2932,6 +2932,7 @@ static void send_pipe_data(struct mg_connection *conn, int pipefd)
 {
   char buf[MG_BUF_LEN];
   int to_read, num_read, num_written;
+
   while (1)
   {
     // Calculate how much to read from the file in the buffer
@@ -2989,7 +2990,6 @@ static void send_pipe_data_gz(struct mg_connection *conn, int pipefd, int opt)
   ret = deflateInit2(&strm, level, Z_DEFLATED, windowBits | GZIP_ENCODING, 8, Z_DEFAULT_STRATEGY);
   if (ret != Z_OK) goto bail;
 
-  syslog(LOG_INFO, "send_pipe_data_gz HELLO");
   /* compress until end of file */
   do
   {
@@ -3194,7 +3194,8 @@ static void handle_pipe_request(struct mg_connection *conn,
 
   conn->status_code = 200;
 
-  if ((pipefd = open(path, O_RDONLY)) < 0) {
+  if ((pipefd = open(path, O_RDONLY | O_NONBLOCK)) < 0) {
+    syslog(LOG_ERR, "error opening %s", path);
     send_http_error(conn, 500, http_500_error,
                     "open(%s): %s", path, strerror(ERRNO));
     return;

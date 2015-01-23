@@ -19,7 +19,7 @@
 #include "pam.h"
 #include <pwd.h>
 
-#define MAX_SESSIONS 25       // Maximum number of simultaneous http sessions
+#define MAX_SESSIONS 25       // Maximum number of concurrent http sessions
 #define MAX_VARLEN 4096       // Static buffer length to hold http query params
 #define LCSV_MAX 16384
 #ifndef PATH_MAX
@@ -943,7 +943,7 @@ readlines (struct mg_connection *conn, const struct mg_request_info *ri)
   n = atoi (var);
 // Check to see if client wants the whole file at once, if so return it.
   omp_set_lock (&s->lock);
-  if (n < 1)
+  if (n < 1 || s->stream)
     {
       syslog (LOG_INFO, "readlines returning entire buffer");
       if (s->stream)
@@ -1053,7 +1053,10 @@ readlines (struct mg_connection *conn, const struct mg_request_info *ri)
   omp_unset_lock (&s->lock);
 }
 
-/* execute_query blocks until the query is complete.
+/* execute_query blocks until the query is complete. However, if stream is
+ * specified, execute_query releases the lock and immediately replies to the
+ * client with a query ID so that the client can wait for data, then
+ * execute_query * proceeds normally until the query ends.
  * This function always disconnects from SciDB after completeQuery finishes.
  * query string variables:
  * id=<session id> (required)
@@ -1076,7 +1079,7 @@ readlines (struct mg_connection *conn, const struct mg_request_info *ri)
 void
 execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
 {
-  int id, k, rel = 0, stream = 0, compression = -1;
+  int id, k, rel = 0, stream = 0, compression = -1, pipefd;
   unsigned long long l;
   session *s;
   char var[MAX_VARLEN];
@@ -1215,12 +1218,23 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
         omp_unset_lock (&s->lock);
         snprintf (buf, MAX_VARLEN, "%llu", l);        // Return the query ID
         respond (conn, plain, 200, strlen (buf), buf);
+// DEBUG sleep(3);
       }
       l = execute_prepared_query (s->con, qry, &pq, 1, SERR);
-/* execute_prepared_query blocks until the query completes. That means
- * that, by the time we get here the client read_bytes is done and we
- * can safely re-acquire the lock without risking deadlock.
+/* execute_prepared_query blocks until the query completes or an error
+ * occurs. That means that if l > 0, then by the time we get here the
+ * client read_bytes is done and we can safely re-acquire the lock
+ * without risking deadlock. If l < 1, then an error occurred and we
+ * need to clean up.
  */
+/* Force the client thread to terminate because of error */
+      if(stream && l < 1)
+      {
+        syslog(LOG_ERR, "streaming error %llu, shutting down pipe",l);
+        pipefd = open(s->opipe, O_WRONLY);
+        close(pipefd);
+        unlink (s->opipe);
+      }
       if (stream)
         omp_set_lock (&s->lock);
     }
