@@ -3194,7 +3194,7 @@ static void handle_pipe_request(struct mg_connection *conn,
 
   conn->status_code = 200;
 
-  if ((pipefd = open(path, O_RDONLY | O_NONBLOCK)) < 0) {
+  if ((pipefd = open(path, O_RDONLY)) < 0) {
     syslog(LOG_ERR, "error opening %s", path);
     send_http_error(conn, 500, http_500_error,
                     "open(%s): %s", path, strerror(ERRNO));

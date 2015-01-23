@@ -136,7 +136,7 @@ prepare_query(void *result, void *con, char *query, int afl, char *err)
 }
 
 /* Execute a prepared requery stored in the prep structure pq on the scidb
- * connection context con. Set AFL to 0 for AQL query, to 1 for AFL query. The
+ * connection context con. Set afl to 0 for AQL query, to 1 for AFL query. The
  * char buffer err is a buffer of length MAX_VARLEN on input that will hold an
  * error string on output, should one occur. The queryresult object pointed to
  * from within pq is de-allocated by this function.  Successful exit returns

@@ -943,7 +943,7 @@ readlines (struct mg_connection *conn, const struct mg_request_info *ri)
   n = atoi (var);
 // Check to see if client wants the whole file at once, if so return it.
   omp_set_lock (&s->lock);
-  if (n < 1 || s->stream)
+  if ((n < 1) || s->stream)
     {
       syslog (LOG_INFO, "readlines returning entire buffer");
       if (s->stream)
@@ -1228,7 +1228,7 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
  * need to clean up.
  */
 /* Force the client thread to terminate because of error */
-      if(stream && l < 1)
+      if(stream && (l < 1))
       {
         syslog(LOG_ERR, "streaming error %llu, shutting down pipe",l);
         pipefd = open(s->opipe, O_WRONLY);
