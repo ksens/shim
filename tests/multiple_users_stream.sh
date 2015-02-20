@@ -19,7 +19,7 @@ N=20
 # download 1000000
 
 download(){
-  s=`curl -s -k http://${host}:${port}/new_session`
+  s=`curl -s -k http://${host}:${port}/new_session | tr -d '[\r\n]'`
   echo "session: $s"
   if test "${s}" != ""; then
     # The ugly url-encoded query string below is:
