@@ -3201,7 +3201,7 @@ static void handle_pipe_request(struct mg_connection *conn,
     return;
   }
 
-  set_close_on_exec(pipefd);
+//  set_close_on_exec(pipefd);
   gmt_time_string(date, sizeof(date), &curtime);
 
   (void) mg_printf(conn,

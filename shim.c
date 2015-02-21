@@ -68,6 +68,7 @@ typedef struct
   int pd;                       // output buffer file descrptor
   FILE *pf;                     //   and FILE pointer
   int stream;                   // non-zero if output streaming enabled
+  int save;                     // non-zero if output is to be saved/streamed
   int compression;              // gzip compression level for stream
   char *ibuf;                   // input buffer name
   char *obuf;                   // output (file) buffer name
@@ -362,6 +363,7 @@ init_session (session * s)
   s->pd = 0;
 // Set default behavior to not stream
   s->stream = 0;
+  s->save = 0;
   s->compression = -1;
   fd = mkstemp (s->obuf);
   chmod (s->obuf, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
@@ -832,6 +834,12 @@ readbytes (struct mg_connection *conn, const struct mg_request_info *ri)
       respond (conn, plain, 404, 0, NULL);
       return;
     }
+  if (!s->save)
+    {
+      respond (conn, plain, 404, 0, NULL);
+      syslog (LOG_ERR, "readlines query output not saved");
+      return;
+    }
   omp_set_lock (&s->lock);
 // Check to see if the output buffer is open for reading, if not do so.
   if (s->pd < 1)
@@ -855,12 +863,13 @@ readbytes (struct mg_connection *conn, const struct mg_request_info *ri)
   n = atoi (var);
   if (n < 1)
     {
-      syslog (LOG_INFO, "readbytes returning entire buffer");
+      syslog (LOG_INFO, "readbytes id=%d returning entire buffer",id);
       if (s->stream)
         mg_send_pipe (conn, s->opipe, s->stream, s->compression);
       else
         mg_send_file (conn, s->obuf);
       omp_unset_lock (&s->lock);
+      syslog (LOG_INFO, "readbytes id=%d done",id);
       return;
     }
   if (n > MAX_RETURN_BYTES)
@@ -936,6 +945,12 @@ readlines (struct mg_connection *conn, const struct mg_request_info *ri)
     {
       respond (conn, plain, 404, 0, NULL);
       syslog (LOG_ERR, "readlines error invalid session");
+      return;
+    }
+  if (!s->save)
+    {
+      respond (conn, plain, 404, 0, NULL);
+      syslog (LOG_ERR, "readlines query output not saved");
       return;
     }
 // Retrieve max number of lines to read
@@ -1158,14 +1173,20 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
   mg_get_var (ri->query_string, k, "query", qrybuf, k);
 // If save is indicated, modify query
   if (strlen (save) > 0)
+  {
+    s->save = 1;
     snprintf (qry, k + MAX_VARLEN, "save(%s,'%s',0,'%s')", qrybuf, 
               stream ? s->opipe : s->obuf, save);
+  }
   else
+  {
+    s->save = 0;
     snprintf (qry, k + MAX_VARLEN, "%s", qrybuf);
+  }
 
   if (!s->con)
     s->con = scidbconnect (SCIDB_HOST, SCIDB_PORT);
-  syslog (LOG_INFO, "execute_query s->con = %p %s", s->con, qry);
+  syslog (LOG_INFO, "execute_query %d s->con = %p %s", id, s->con, qry);
   if (!s->con)
     {
       free (qry);
@@ -1178,10 +1199,10 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
       return;
     }
 
-  syslog (LOG_INFO, "execute_query connected");
+  syslog (LOG_INFO, "execute_query %d connected", id);
   prepare_query (&pq, s->con, qry, 1, SERR);
   l = pq.queryid;
-  syslog (LOG_INFO, "execute_query scidb queryid = %llu", l);
+  syslog (LOG_INFO, "execute_query id=%d scidb queryid = %llu", id, l);
   if (l < 1 || !pq.queryresult)
     {
       free (qry);
@@ -1236,7 +1257,9 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
         unlink (s->opipe);
       }
       if (stream)
+      {
         omp_set_lock (&s->lock);
+      }
     }
   if (l < 1) // something went wrong
     {
