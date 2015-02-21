@@ -49,6 +49,6 @@ done
 
 wait
 
-
+sleep 1
 rm -rf $td
 killall -9 shim
