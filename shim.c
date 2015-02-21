@@ -260,6 +260,12 @@ release_session (struct mg_connection *conn, const struct mg_request_info *ri,
   session *s = find_session (id);
   if (s)
     {
+      if(s->stream > 0) // Not allowed!
+      {
+        respond (conn, plain, 400, 0, NULL);
+        syslog (LOG_ERR, "release_session not allowed error");
+        return;
+      }
       omp_set_lock (&s->lock);
       cleanup_session (s);
       omp_unset_lock (&s->lock);
