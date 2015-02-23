@@ -673,141 +673,6 @@ debug (struct mg_connection *conn)
 #endif
 
 
-/* Experimental: Load an uploaded CSV file with loadcsv
- * NOTE! This is an experimental function and presently limited to
- * secure connections. And the user must have write privilege to
- * the SciDB data directories (the usual loadcsv.py limitation).
- * /loadcsv
- * --Parameters--
- * id:      <session id>
- * auth:   <optional auth token>
- * schema: array schema
- * name:   array name
- * delim:  optional single-character delimiter (default ,)
- * head:   header lines (integer >= 0)
- * nerr:   number of tolerable errors (integer >= 0)
- *
- * And the function must be called with a valid user id for seteuid.
- */
-void
-loadcsv (struct mg_connection *conn, const struct mg_request_info *ri,
-         uid_t uid)
-{
-  int id, k, n, j;
-  session *s;
-  char *LD;
-  char var[MAX_VARLEN];
-  char schema[MAX_VARLEN];
-  char buf[MAX_VARLEN];
-  char arrayname[MAX_VARLEN];
-  char cmd[LCSV_MAX];
-
-  struct passwd pwd;
-  struct passwd *result;
-  char *pbuf;
-  size_t bufsize;
-
-  if (!ri->query_string)
-    {
-      respond (conn, plain, 400, 0, NULL);
-      syslog (LOG_ERR, "loadcsv error invalid http query");
-      return;
-    }
-  syslog (LOG_INFO, "loadcsv querystring %s", ri->query_string);
-  k = strlen (ri->query_string);
-  mg_get_var (ri->query_string, k, "id", var, MAX_VARLEN);
-  id = atoi (var);
-  s = find_session (id);
-  if (!s)
-    {
-      syslog (LOG_INFO, "loadcsv session error");
-      respond (conn, plain, 404, 0, NULL);
-      return;
-    }
-  omp_set_lock (&s->lock);
-// Check to see if the upload buffer is open for reading, if not do so.
-  if (s->pd < 1)
-    {
-      s->pd = open (s->ibuf, O_RDONLY | O_NONBLOCK);
-      if (s->pd < 1)
-        {
-          syslog (LOG_ERR, "loadcsv error opening upload buffer");
-          respond (conn, plain, 500, 0, NULL);
-          omp_unset_lock (&s->lock);
-          return;
-        }
-    }
-// Retrieve the schema
-  memset (schema, 0, MAX_VARLEN);
-  mg_get_var (ri->query_string, k, "schema", schema, MAX_VARLEN);
-// Retrieve the new array name
-  memset (arrayname, 0, MAX_VARLEN);
-  mg_get_var (ri->query_string, k, "name", arrayname, MAX_VARLEN);
-// Retrieve the number of header lines
-  memset (var, 0, MAX_VARLEN);
-  mg_get_var (ri->query_string, k, "head", var, MAX_VARLEN);
-  n = atoi (var);
-// Retrieve the number of errors allowed
-  memset (var, 0, MAX_VARLEN);
-  mg_get_var (ri->query_string, k, "nerr", var, MAX_VARLEN);
-
-  bufsize = sysconf (_SC_GETPW_R_SIZE_MAX);
-  if (bufsize == -1)            /* Value was indeterminate */
-    bufsize = 16384;            /* Should be enough */
-  pbuf = malloc (bufsize);
-  if (pbuf == NULL)
-    {
-      goto bail;
-    }
-  getpwuid_r (uid, &pwd, pbuf, bufsize, &result);
-  if (result == NULL)
-    {
-      free (pbuf);
-      goto bail;
-    }
-  LD = getenv ("LD_LIBRARY_PATH");
-// Check to make sure that we can use su...
-  if(getuid()!=0) goto bail;
-// User access is restricted by seteuid and then su.
-  snprintf (cmd, LCSV_MAX,
-            "su %s -c \"/bin/bash -c \\\"umask 022; export LD_LIBRARY_PATH=%s ; %s/csv2scidb  -s %d < %s > %s.scidb ; %s/iquery -naq 'remove(%s)' ; %s/iquery -naq 'create_array(%s,%s)' ; %s/iquery -naq \\\\\\\"store(input(%s,'%s.scidb',0),%s)\\\\\\\" ;rm -f %s.scidb\\\" \" ",
-            pwd.pw_name, LD, BASEPATH, n, s->ibuf, s->ibuf, BASEPATH,
-            arrayname, BASEPATH, arrayname, schema, BASEPATH, schema, s->ibuf,
-            arrayname, s->ibuf);
-
-//  snprintf (cmd, LCSV_MAX,
-//            "/bin/bash -l -c \"umask 022; export LD_LIBRARY_PATH=%s ; %s/csv2scidb  -s %d < %s > %s.scidb ; %s/iquery -naq 'remove(%s)' 2>>/tmp/log; %s/iquery -naq 'create_array(%s,%s)' 2>>/tmp/log; %s/iquery -naq \\\"store(input(%s,'%s.scidb',0),%s)\\\" 2>>/tmp/log;touch %s.scidb\"",
-//            LD, BASEPATH, n, s->ibuf, s->ibuf, BASEPATH, arrayname,  BASEPATH,
-//            arrayname, schema, BASEPATH, schema, s->ibuf, arrayname, s->ibuf);
-//  snprintf(cmd,LCSV_MAX, "export LD_LIBRARY_PATH=%s && python %s/loadcsv.py -v -m -l -M -L -x -i %s -n %d -e %d -a %s -s \"%s\" >/tmp/log 2>&1",  getenv("LD_LIBRARY_PATH"), BASEPATH, s->ibuf, n, e, arrayname, schema);
-
-  syslog (LOG_INFO, "loadcsv euid: %ld user name %s; cmd: %s", (long) uid,
-          pwd.pw_name, cmd);
-  free (pbuf);
-  j = seteuid (uid);
-  if (j < 0)
-    {
-      goto bail;
-    }
-  n = system (cmd);
-  seteuid (real_uid);
-  syslog (LOG_INFO, "loadcsv result: %d", n);
-  syslog (LOG_INFO, "loadcsv releasing HTTP session %d", s->sessionid);
-  cleanup_session (s);
-  omp_unset_lock (&s->lock);
-// Respond to the client
-  snprintf (buf, MAX_VARLEN, "%d", n);
-  respond (conn, plain, 200, strlen (buf), buf);
-  return;
-
-bail:
-  syslog (LOG_ERR, "Setuid error");
-  cleanup_session (s);
-  omp_unset_lock (&s->lock);
-  respond (conn, plain, 401, strlen ("Not authorized"), "Not authorized");
-}
-
-
 /* Read bytes from a query result output buffer.
  * The mg_request_info must contain the keys:
  * n=<max number of bytes to read -- signed int32>
@@ -1416,7 +1281,6 @@ begin_request_handler (struct mg_connection *conn)
        !strcmp (ri->uri, "/read_lines") ||
        !strcmp (ri->uri, "/read_bytes") ||
        !strcmp (ri->uri, "/execute_query") ||
-       !strcmp (ri->uri, "/loadcsv") ||
        !strcmp (ri->uri, "/cancel")) &&
       !(tok = check_auth (tokens, conn, ri)))
     goto end;
@@ -1444,17 +1308,6 @@ begin_request_handler (struct mg_connection *conn)
     readbytes (conn, ri);
   else if (!strcmp (ri->uri, "/execute_query"))
     execute_query (conn, ri);
-  else if (!strcmp (ri->uri, "/loadcsv"))
-    {
-      if (!tok)
-        {
-          syslog (LOG_ERR, "loadcsv not authorized");
-          respond (conn, plain, 401, strlen ("Not authorized"),
-                   "Not authorized");
-          goto end;
-        }
-      loadcsv (conn, ri, tok->uid);
-    }
   else if (!strcmp (ri->uri, "/cancel"))
     cancel_query (conn, ri);
 // CONTROL API
@@ -1578,9 +1431,7 @@ main (int argc, char **argv)
   TMPDIR = DEFAULT_TMPDIR;
   counter = 19;
 
-/* Set up a default token for digest authentication. This
- * is only really needed for the experimental loadcsv interface.
- */
+/* Set up a default token for digest authentication.  */
   default_token.val = 1;
   default_token.time = 0;
   default_token.uid = getuid();
