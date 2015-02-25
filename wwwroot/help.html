@@ -480,7 +480,7 @@ error).
 <br/><br/>
 This method blocks until the query completes unless stream&gt;0.
 When stream&gt;0, this method returns immediately with the query ID (before
-the query complets).
+the query completes).
 <br/><br/>
 Do not specify the option release=1 when stream=0 and when the save option is
 also set, or output will not be available to read_bytes or read_lines. Instead,
@@ -499,8 +499,8 @@ stream data via /read_lines or /read_bytes;however,
 calling /release_session will not cause problems and
 clients can still do it if they wish.
 <br/><br/>
-NOTE: WHEN stream&gt;0, SciDB QUERIES REMAIN ACTIVE UNTIL THE CLIENT COMPLETES
-RECIEVING THE RESULT DATA. IT'S UP TO THE CLIENT TO RECEIVE THE DATA TO
+NOTE: WHEN stream&gt;0, SciDB QUERIES REMAIN ACTIVE UNTIL THE CLIENT
+RECEIVES THE RESULT DATA. IT'S UP TO THE CLIENT TO RECEIVE THE DATA TO
 TERMINATE THE QUERY.
 <br/><br/>
 Set stream=2 to enable gzip-compressed streaming (RFC 1952). When stream=2
@@ -611,13 +611,48 @@ Failure (could not connect to SciDB server error): HTTP 503<br/>
 Failure (server out of memory): HTTP 507<br/>
 Not authorized (encrypted only): HTTP 401
 <br/>
-<tr><td>EXAMPLE
+<tr><td>Basic example
 <td>
-http://localhost:8080/new_session<br/>
-http://localhost:8080/execute_query?id=0&amp;query=list('functions')&amp;save=dcsv<br/>
-http://localhost:8080/read_lines?id=0&amp;n=20
-<br/><br/>
 <pre>
+s=`wget -O - -q "http://localhost:8080/new_session"`
+wget -O - -q "http://localhost:8080/execute_query?id=${s}&amp;query=list('functions')&amp;save=dcsv"
+wget -O - "http://localhost:8080/read_lines?id=${s}&amp;n=20"
+wget -O - "http://localhost:8080/release_query?id=${s}"
+
+
+HTTP/1.0 200 OK
+Content-Length: 903
+Content-Type: application/octet-stream
+
+{No} name,profile,deterministic,library
+{0} "%","double %(double,double)",true,"scidb"
+{1} "%","int16 %(int16,int16)",true,"scidb"
+{2} "%","int32 %(int32,int32)",true,"scidb"
+{3} "%","int64 %(int64,int64)",true,"scidb"
+{4} "%","int8 %(int8,int8)",true,"scidb"
+{5} "%","uint16 %(uint16,uint16)",true,"scidb"
+{6} "%","uint32 %(uint32,uint32)",true,"scidb"
+{7} "%","uint64 %(uint64,uint64)",true,"scidb"
+{8} "%","uint8 %(uint8,uint8)",true,"scidb"
+{9} "*","double *(double,double)",true,"scidb"
+{10} "*","float *(float,float)",true,"scidb"
+{11} "*","int16 *(int16,int16)",true,"scidb"
+{12} "*","int32 *(int32,int32)",true,"scidb"
+{13} "*","int64 *(int64,int64)",true,"scidb"
+{14} "*","int8 *(int8,int8)",true,"scidb"
+{15} "*","uint16 *(uint16,uint16)",true,"scidb"
+{16} "*","uint32 *(uint32,uint32)",true,"scidb"
+{17} "*","uint64 *(uint64,uint64)",true,"scidb"
+{18} "*","uint8 *(uint8,uint8)",true,"scidb"
+</pre>
+<tr><td>Streaming example
+<td>
+<pre>
+s=`wget -O - -q "http://localhost:8080/new_session"`
+wget -O - -q "http://localhost:8080/execute_query?id=${s}&amp;query=list('functions')&amp;save=dcsv&amp;stream=1"
+wget -O - "http://localhost:8080/read_lines?id=${s}" | head -n 20
+
+
 HTTP/1.0 200 OK
 Content-Length: 903
 Content-Type: application/octet-stream
@@ -646,7 +681,31 @@ Content-Type: application/octet-stream
 <tr><td>NOTES
 <td>
 <ol>
-<li><b>Set n=0 to download the entire output buffer.</b>
+<li><b>Set n=0 to download the entire output buffer. The parameter n is automatically
+set to zero when streaming is indicated. Simply terminate the read early to in 
+those cases (see example above).</b>
+<li>Be sure to properly url-encode special characters like the plus sign (+) in the request.
+<li>When n&gt;0, iterative requests to read_lines are allowed,
+and will return at most the next n lines of output.
+Use the 410 error code to detect end of file output.
+<li>Note that query results are always returned as application/octet-stream.
+</ol>
+
+<tr>
+<td>
+<h3>/read_bytes</h3>
+
+<tr><td>DESCRIPTION
+<td>Read bytes from a query that saves its output
+<tr><td>METHOD<td>GET
+<tr><td>PARAMETERS
+<td>
+<tr><td>NOTES
+<td>
+<ol>
+<li><b>Set n=0 to download the entire output buffer. The parameter n is automatically
+set to zero when streaming is indicated. Simply terminate the read early to in 
+those cases (see example).</b>
 <li>Be sure to properly url-encode special characters like the plus sign (+) in the request.
 <li>When n&gt;0, iterative requests to read_lines are allowed,
 and will return at most the next n lines of output.
