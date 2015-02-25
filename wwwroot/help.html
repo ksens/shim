@@ -682,7 +682,7 @@ Content-Type: application/octet-stream
 <td>
 <ol>
 <li><b>Set n=0 to download the entire output buffer. The parameter n is automatically
-set to zero when streaming is indicated. Simply terminate the read early to in 
+set to zero when streaming is indicated. Simply terminate the read early if desired in
 those cases (see example above).</b>
 <li>Be sure to properly url-encode special characters like the plus sign (+) in the request.
 <li>When n&gt;0, iterative requests to read_lines are allowed,
