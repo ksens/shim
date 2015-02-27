@@ -69,7 +69,7 @@ SciDB now supports Ubuntu 14.04, and here is a corresponding shim binary package
 
 ```
 # Install with:
-sudo gdebi shim_14.12_amd64.deb
+sudo gdebi <ubuntu OS version>shim_14.12_amd64.deb
 
 # Uninstall with (be sure to uninstall any existing copy before re-installing shim):
 apt-get remove shim
