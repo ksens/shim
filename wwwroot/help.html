@@ -691,27 +691,6 @@ Use the 410 error code to detect end of file output.
 <li>Note that query results are always returned as application/octet-stream.
 </ol>
 
-<tr>
-<td>
-<h3>/read_bytes</h3>
-
-<tr><td>DESCRIPTION
-<td>Read bytes from a query that saves its output
-<tr><td>METHOD<td>GET
-<tr><td>PARAMETERS
-<td>
-<tr><td>NOTES
-<td>
-<ol>
-<li><b>Set n=0 to download the entire output buffer. The parameter n is automatically
-set to zero when streaming is indicated. Simply terminate the read early to in 
-those cases (see example).</b>
-<li>Be sure to properly url-encode special characters like the plus sign (+) in the request.
-<li>When n&gt;0, iterative requests to read_lines are allowed,
-and will return at most the next n lines of output.
-Use the 410 error code to detect end of file output.
-<li>Note that query results are always returned as application/octet-stream.
-</ol>
 
 <tr>
 <td>
@@ -729,9 +708,9 @@ Use the 410 error code to detect end of file output.
 <tr><td>RESPONSE
 <td>Success: HTTP 200 followed by application/octet-stream binary query result (up to <b>n</b> bytes)
 <br/>
+Failure (end of file): HTTP 416 <br/>
 Failure (invalid HTTP query string): HTTP 400 <br/>
 Failure (session not found): HTTP 404 <br/>
-Failure (end of file): HTTP 410 <br/>
 Failure (invalid request): HTTP 414 <br/>
 Failure (SciDB server error): HTTP 500<br/>
 Failure (could not connect to SciDB server error): HTTP 503<br/>

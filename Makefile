@@ -133,6 +133,10 @@ test8: shim
 	@echo "repeated multiuser streaming test"
 	@LD_LIBRARY_PATH="$(SCIDB)/lib:$(SCIDB)/3rdparty/boost/lib" ./tests/more_multiple_users_stream.sh
 
+test9: shim
+	@echo "readbytes test"
+	@LD_LIBRARY_PATH="$(SCIDB)/lib:$(SCIDB)/3rdparty/boost/lib" ./tests/readbytes.sh
+
 alltests: test1 test2 test3 test4 test5 test6
 
 poo: shim

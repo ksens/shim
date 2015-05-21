@@ -677,7 +677,7 @@ debug (struct mg_connection *conn)
  * The mg_request_info must contain the keys:
  * n=<max number of bytes to read -- signed int32>
  * id=<session id>
- * Writes at most n bytes back to the client or a 410 error if something
+ * Writes at most n bytes back to the client or a 416 error if something
  * went wrong.
  */
 void
@@ -777,17 +777,17 @@ readbytes (struct mg_connection *conn, const struct mg_request_info *ri)
 
   l = (int) read (s->pd, buf, n);
   syslog (LOG_INFO, "readbytes  read %d n=%d", l, n);
-  if (l < 0)                    // This is just EOF
+  if (l < 1)   // EOF or error
     {
       free (buf);
-      respond (conn, plain, 410, 0, NULL);
+      respond (conn, plain, 416, 0, NULL);
       omp_unset_lock (&s->lock);
       return;
     }
   respond (conn, binary, 200, l, buf);
+  free (buf);
   time (&s->time);
   omp_unset_lock (&s->lock);
-  free (buf);
 }
 
 
