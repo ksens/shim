@@ -17,15 +17,14 @@
  * BIT 18 (1978).  and public domain example by oz@nexus.yorku.ca.
  */
 
+#include <sys/types.h>
+#include <string.h>
+#include <pwd.h>
 #include <security/pam_appl.h>
 #include <stdlib.h>
-#include <string.h>
 #include <stdio.h>
 #include <time.h>
 #include "pam.h"
-#include <sys/types.h>
-#include <pwd.h>
-#include <unistd.h>
 
 /* A conversation function for PAM to non-interactively supply username
  * and password.

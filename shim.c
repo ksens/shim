@@ -25,7 +25,7 @@
 #ifndef PATH_MAX
 #define PATH_MAX 4096
 #endif
-#define MAX_RETURN_BYTES 10000000
+#define MAX_RETURN_BYTES INT_MAX
 
 #ifndef DEFAULT_HTTP_PORT
 #define DEFAULT_HTTP_PORT "8080,8083s"
@@ -36,7 +36,7 @@
 
 #define WEEK 604800             // One week in seconds
 #define TIMEOUT 60              // Timeout before a session is declared
-                                // orphaned and reaped
+                                // orphaned and available to reap (seconds)
 
 // Minimalist SciDB client API from client.cpp -------------------------------
 void *scidbconnect (const char *host, int port);
@@ -688,6 +688,7 @@ readbytes (struct mg_connection *conn, const struct mg_request_info *ri)
   struct pollfd pfd;
   char *buf;
   char var[MAX_VARLEN];
+  struct stat st;
   if (!ri->query_string)
     {
       respond (conn, plain, 400, 0, NULL);
@@ -745,6 +746,15 @@ readbytes (struct mg_connection *conn, const struct mg_request_info *ri)
     }
   if (n > MAX_RETURN_BYTES)
     n = MAX_RETURN_BYTES;
+  if(fstat(s->pd, &st) < 0)
+    {
+      syslog (LOG_ERR, "fstat error");
+      respond (conn, plain, 507, 0, NULL);
+      omp_unset_lock (&s->lock);
+      return;
+    }
+  if((off_t)n > st.st_size)
+    n = (int) st.st_size;
 
   buf = (char *) malloc (n);
   if (!buf)
@@ -1046,7 +1056,7 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
   if (strlen (save) > 0)
   {
     s->save = 1;
-    snprintf (qry, k + MAX_VARLEN, "save(%s,'%s',0,'%s')", qrybuf, 
+    snprintf (qry, k + MAX_VARLEN, "save(%s,'%s',0,'%s')", qrybuf,      // XXX XXX CHANGE INSTANCE ID FOR MULTI-HOST SUPPORT
               stream ? s->opipe : s->obuf, save);
   }
   else
