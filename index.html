@@ -16,9 +16,20 @@
 </ul>
 
 <h2>Updated 14.12 packages fixing issues 28 and 29</h2>
+Update instructions
+<pre>
+sudo /etc/init.d/shimsvc stop
+
+sudo yum remove shim # (RHEL)
+sudo yum install shim-v14.12.1-8-gb2bd.x86_64.rpm # (RHEL)
+
+sudp apt-get remove shim # (Ubuntu)
+sudo gdebi shim_v14.12.1-8-gb2bd.deb   # (Ubuntu 12.04)
+
+</pre>
 <ul>
 <li> Ubuntu 12.04
 <a href="http://paradigm4.github.io/shim/shim_v14.12.1-10-g67ba_amd64.deb">shim_v14.12.1-10-g67ba_amd64.deb</a>
 <li> RHEL 6/CentOS 6
-<a href="http://paradigm4.github.io/shim/"></a>
+<a href="http://paradigm4.github.io/shim/shim-v14.12.1-10-g67ba.x86_64.rpm">shim-v14.12.1-10-g67ba.x86_64.rpm</a>
 </ul>
