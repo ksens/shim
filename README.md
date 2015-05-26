@@ -99,15 +99,22 @@ yum remove shim
 ```
 I will continue to make binary packages available when new versions of SciDB are released.
 
-## Configuring  shim
+# Configuring  shim
 The `shim` service script consults the `/var/lib/shim/conf` file for
-configuration options. The default configuration options are shown below:
+configuration options. The default configuration options are shown below,
+and optional aut-configured values are indicated. Those values are set if
+you install `shim` from a binary rpm or deb package.
 ```
 auth=login
 ports=8080,8083s
-scidbport=1239
+scidbport=1239 (or auto-configured by apt/yum to a local SciDB port)
 user=root
-tmp=/tmp
+tmp=/tmp  (or auto-configured by apt/yum to local SciDB storage directory)
+auth=login
+max_sessions=50
+timeout=60
+instance=0  (or auto-configured by apt/yum to a local SciDB instance ID)
+
 ```
 If an option is missing from the config file, the default value will be used.
 The options are:
@@ -120,10 +127,13 @@ letter 's' to indicate SSL encryption.
 user, but then SSL authenticated port logins are limited to the user that shim
 is running under.
 * `tmp` Temporary I/O directory used on the server.
+* `max_sessions` Maximum number of concurrent HTTP sessions.
+* `timeout` Timeout after which an inactive HTTP session may be declared dead and reclaimed for use elsewhere.
+* `instance` Which SciDB instance should save data to files or pipes? This instance must have write permission to the `tmp` directory.
 
 Restart shim to effect option changes with `/etc/init.d/shimsvc restart`.
 
-### Note on the SSL Key Certificate Configuration
+## Note on the SSL Key Certificate Configuration
 
 Shim uses a cryptographic key certificate for SSL encrypted web connections.
 When you instal shim from a binary package, a new certificate key is
@@ -146,7 +156,8 @@ directory.
 Note that because shim is a SciDB client it needs the boost, zlib, log4cpp and
 log4cxx development libraries installed to compile. And because shim now uses
 PAM authentication, you'll now need the PAM development libraries for your
-system installed too. We illustrate installation of Ubuntu build dependencies
+system installed too. You also optionally need an SSL development library if
+you want to support TLS. We illustrate installation of Ubuntu build dependencies
 below:
 ```
 sudo apt-get install liblog4cpp5-dev liblog4cxx10-dev libboost-dev libboost-system-dev libpam0g-dev zlib1g-dev lib64z1-dev ruby-dev build-essential
