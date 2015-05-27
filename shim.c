@@ -1360,7 +1360,7 @@ void
 parse_args (char **options, int argc, char **argv, int *daemonize)
 {
   int c;
-  while ((c = getopt (argc, argv, "hvfn:p:r:s:t:")) != -1)
+  while ((c = getopt (argc, argv, "hvfn:p:r:s:t:m:o:i:")) != -1)
     {
       switch (c)
         {
@@ -1388,7 +1388,7 @@ parse_args (char **options, int argc, char **argv, int *daemonize)
           break;
         case 'r':
           options[3] = optarg;
-          options[5] = (char *) malloc (PATH_MAX);
+          options[5] = (char *) calloc (PATH_MAX,1);
           strncat (options[5], optarg, PATH_MAX);
           strncat (options[5], "/../ssl_cert.pem", PATH_MAX - 17);
           break;
@@ -1473,6 +1473,7 @@ main (int argc, char **argv)
 /* Disable SSL  by removing any 's' port options and getting rid of the ssl
  * options.
  */
+      syslog (LOG_ERR, "Disabling SSL, error reading %s", options[5]);
       ports = cp = strdup (options[1]);
       while ((cp = strchr (cp, 's')) != NULL)
         *cp++ = ',';

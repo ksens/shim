@@ -14,8 +14,10 @@ mkdir -p $td/wwwroot
 openssl req -new -newkey rsa:4096 -days 3650 -nodes -x509 -subj "/C=US/ST=MA/L=Waltham/O=Paradigm4/CN=$(hostname)" -keyout $td/ssl_cert.pem 2>/dev/null >> $td/ssl_cert.pem
 ./shim -p ${port}s -r $td/wwwroot  -f &
 sleep 1
+ls -l /$td
 
-curl -f -s -k "https://${host}:${port}/version" >/dev/null || fail
+#curl -f -s -k "https://${host}:${port}/version" >/dev/null || fail
+curl  -k "https://${host}:${port}/version"  || fail
 echo "OK"
 
 rm -rf $td
