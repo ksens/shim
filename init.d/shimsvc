@@ -53,9 +53,13 @@ if test -f "/var/lib/shim/conf"; then
 fi
 
 case $1 in
+        test)
+            echo "Command line"
+            echo "su $USER -c \"'${SHIM}' $PORTS $AUTH $SCIDBPORT $TMPD $MAX_SESSIONS $TIMEOUT $SAVE_INSTANCE_ID\""
+            ;;
         start)
             echo "Starting shim"
-            su $USER -c "'${SHIM}' $PORTS $AUTH $SCIDBPORT $TMPD $SCIDBPORT $MAX_SESSIONS $TIMEOUT $SAVE_INSTANCE_ID"
+            su $USER -c "'${SHIM}' $PORTS $AUTH $SCIDBPORT $TMPD $MAX_SESSIONS $TIMEOUT $SAVE_INSTANCE_ID"
             ;;
         restart)
             $0 stop

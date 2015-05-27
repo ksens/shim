@@ -27,12 +27,12 @@ cat >/var/lib/shim/conf << EOF
 
 #auth=login
 #ports=8080,8083s
-#scidbport=$PORT
-#tmp=$TMP
+scidbport=$PORT
+tmp=$TMP
 #user=root
 #max_sessions=50
 #timeout=60
-#instance=$INS
+instance=$INS
 EOF
 # Generate a certificate
 openssl req -new -newkey rsa:4096 -days 3650 -nodes -x509 -subj "/C=US/ST=MA/L=Waltham/O=Paradigm4/CN=$(hostname)" -keyout /var/lib/shim/ssl_cert.pem 2>/dev/null >> /var/lib/shim/ssl_cert.pem
