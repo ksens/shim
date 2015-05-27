@@ -99,7 +99,7 @@ yum remove shim
 ```
 I will continue to make binary packages available when new versions of SciDB are released.
 
-##Configuring  shim
+## Configuring  shim
 The `shim` service script consults the `/var/lib/shim/conf` file for
 configuration options. The default configuration options are shown below:
 ```

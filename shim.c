@@ -19,8 +19,8 @@
 #include "pam.h"
 #include <pwd.h>
 
-#define MAX_SESSIONS 25       // Maximum number of concurrent http sessions
-#define MAX_VARLEN 4096       // Static buffer length to hold http query params
+#define DEFAULT_MAX_SESSIONS 50  // Maximum number of concurrent http sessions
+#define MAX_VARLEN 4096          // Static buffer length for http query params
 #define LCSV_MAX 16384
 #ifndef PATH_MAX
 #define PATH_MAX 4096
@@ -31,11 +31,12 @@
 #define DEFAULT_HTTP_PORT "8080,8083s"
 #endif
 
+#define DEFAULT_SAVE_INSTANCE_ID 0 // default instance that does the saving
 #define DEFAULT_TMPDIR "/tmp/"  // Temporary location for I/O buffers
 #define PIDFILE "/var/run/shim.pid"
 
 #define WEEK 604800             // One week in seconds
-#define TIMEOUT 60              // Timeout before a session is declared
+#define DEFAULT_TIMEOUT 60      // Timeout before a session is declared
                                 // orphaned and available to reap (seconds)
 
 // Minimalist SciDB client API from client.cpp -------------------------------
@@ -118,8 +119,12 @@ char *BASEPATH;
 char *TMPDIR;                   // temporary files go here
 token_list *tokens = NULL;      // the head of the list
 token_list default_token;       // used by digest authentication
+int MAX_SESSIONS;               // configurable maximum number of concurrent sessions
+int SAVE_INSTANCE_ID;           // which instance ID should run save commands?
+time_t TIMEOUT;                    // session timeout
 
 int counter;                    // Used to label sessionid
+
 
 
 /*
@@ -1361,9 +1366,9 @@ parse_args (char **options, int argc, char **argv, int *daemonize)
         {
         case 'h':
           printf
-            ("Usage:\nshim [-h] [-v] [-f] [-n <PAM service name>] [-p <http port>] [-r <document root>] [-s <scidb port>] [-t <tmp I/O DIR>]\n");
+            ("Usage:\nshim [-h] [-v] [-f] [-n <PAM service name>] [-p <http port>] [-r <document root>] [-s <scidb port>] [-t <tmp I/O DIR>] [-m <max concurrent sessions] [-o http session timeout] [-i instance id for save]\n");
           printf
-            ("The -v option prints the version build ID and exits.\nSpecify -f to run in the foreground.\nDefault http ports are 8080 and 8083(SSL).\nDefault SciDB port is 1239.\nDefault document root is /var/lib/shim/wwwroot.\nDefault PAM service name is 'login'.\nDefault temporary I/O directory is /tmp.\n");
+            ("The -v option prints the version build ID and exits.\nSpecify -f to run in the foreground.\nDefault http ports are 8080 and 8083(SSL).\nDefault SciDB port is 1239.\nDefault document root is /var/lib/shim/wwwroot.\nDefault PAM service name is 'login'.\nDefault temporary I/O directory is /tmp.\nDefault max concurrent sessions is 50 (max 100).\nDefault http session timeout is 60s and min is 60 (see API doc).\nDefault instance id for save to file is 0.\n");
           printf
             ("Start up shim and view http://localhost:8080/api.html from a browser for help with the API.\n\n");
           exit (0);
@@ -1392,6 +1397,18 @@ parse_args (char **options, int argc, char **argv, int *daemonize)
           break;
         case 't':
           TMPDIR = optarg;
+          break;
+        case 'i':
+          SAVE_INSTANCE_ID = atoi(optarg);
+          SAVE_INSTANCE_ID = (SAVE_INSTANCE_ID < 0 ? 0 : SAVE_INSTANCE_ID);
+          break;
+        case 'm':
+          MAX_SESSIONS = atoi(optarg);
+          MAX_SESSIONS = (MAX_SESSIONS > 100 ? 100 : MAX_SESSIONS);
+          break;
+        case 'o':
+          TIMEOUT = atoi(optarg);
+          TIMEOUT = (TIMEOUT < 60 ? 60 : TIMEOUT);
           break;
         default:
           break;
@@ -1439,6 +1456,9 @@ main (int argc, char **argv)
   options[7] = "";
   options[8] = NULL;
   TMPDIR = DEFAULT_TMPDIR;
+  TIMEOUT = DEFAULT_TIMEOUT;
+  MAX_SESSIONS = DEFAULT_MAX_SESSIONS;
+  SAVE_INSTANCE_ID = DEFAULT_SAVE_INSTANCE_ID;
   counter = 19;
 
 /* Set up a default token for digest authentication.  */

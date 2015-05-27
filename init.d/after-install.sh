@@ -6,17 +6,33 @@
 
 chmod 0755 /etc/init.d/shimsvc
 mkdir -p /var/lib/shim
+# Set up config file defaults
+PORT=1239
+INS=0
+TMP=/tmp
+s=`ps aux | grep scidb  | grep "dbname" | head -n 1`
+if test -n "$s"; then
+  PORT=`echo "$s" | sed -e "s/.*-p //;s/ .*//"`
+  TMP=`echo "$s" | sed -e "s/.*-s //;s/ .*//" | sed -e "s@\(/[0-9]*/\)[0-9]*/.*@\1@"`
+  INS=`echo "$s" | sed -e "s/.*-s //;s/ .*//" | sed -e "s@.*/[0-9]*/\([0-9]*\)/.*@\1@"`
+  INS=`$(( $INS ))`
+fi
 # Write out an example config file to /var/lib/shim/conf
 cat >/var/lib/shim/conf << EOF
 # Shim configuration file
 # Uncomment and change any of the following values. Restart shim for
-# your changes to take effect (default values are shown).
+# your changes to take effect (default values are shown). See
+# man shim
+# for more information on the options.
 
 #auth=login
 #ports=8080,8083s
-#scidbport=1239
-#tmp=/tmp/
+#scidbport=$PORT
+#tmp=$TMP
 #user=root
+#max_sessions=50
+#timeout=60
+#instance=$INS
 EOF
 # Generate a certificate
 openssl req -new -newkey rsa:4096 -days 3650 -nodes -x509 -subj "/C=US/ST=MA/L=Waltham/O=Paradigm4/CN=$(hostname)" -keyout /var/lib/shim/ssl_cert.pem 2>/dev/null >> /var/lib/shim/ssl_cert.pem

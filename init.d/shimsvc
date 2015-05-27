@@ -32,23 +32,30 @@ AUTH=
 SCIDBPORT=
 TMPD=
 USER=root
+# This parsing is pretty lame
 if test -f "/var/lib/shim/conf"; then
   AUTH="$(cat /var/lib/shim/conf | sed -n /^auth/p | cut -d '=' -f 2)"
   PORTS="$(cat /var/lib/shim/conf | sed -n /^ports/p | cut -d '=' -f 2)"
   SCIDBPORT="$(cat /var/lib/shim/conf | sed -n /^scidbport/p | cut -d '=' -f 2)"
   USER="$(cat /var/lib/shim/conf | sed -n /^user/p | cut -d '=' -f 2)"
   TMPD="$(cat /var/lib/shim/conf | sed -n /^tmp/p | cut -d '=' -f 2)"
+  MAX_SESSIONS="$(cat /var/lib/shim/conf | sed -n /^max/p | cut -d '=' -f 2)"
+  TIMEOUT="$(cat /var/lib/shim/conf | sed -n /^time/p | cut -d '=' -f 2)"
+  SAVE_INSTANCE_ID="$(cat /var/lib/shim/conf | sed -n /^instance/p | cut -d '=' -f 2)"
 # Build up shim command line options
   test -n "${AUTH}" && AUTH="-n ${AUTH}"
   test -n "${PORTS}" && PORTS="-p ${PORTS}"
   test -n "${TMPD}" && TMPD="-t ${TMPD}"
   test -n "${SCIDBPORT}" && SCIDBPORT="-s ${SCIDBPORT}"
+  test -n "${MAX_SESSIONS}" && MAX_SESSIONS="-m ${MAX_SESSIONS}"
+  test -n "${TIMEOUT}" && TIMEOUT="-o ${TIMEOUT}"
+  test -n "${SAVE_INSTANCE_ID}" && SAVE_INSTANCE_ID="-i ${SAVE_INSTANCE_ID}"
 fi
 
 case $1 in
         start)
             echo "Starting shim"
-            su $USER -c "'${SHIM}' $PORTS $AUTH $SCIDBPORT $TMPD"
+            su $USER -c "'${SHIM}' $PORTS $AUTH $SCIDBPORT $TMPD $SCIDBPORT $MAX_SESSIONS $TIMEOUT $SAVE_INSTANCE_ID"
             ;;
         restart)
             $0 stop
