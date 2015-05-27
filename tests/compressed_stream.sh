@@ -18,7 +18,7 @@ sleep 1
 # Basic compressed stream example using default compression
 s=`curl -s -k http://${host}:${port}/new_session | tr -d '[\r\n]'`
 curl -f -s -k "http://${host}:${port}/execute_query?id=${s}&query=list('functions')&save=dcsv&compression=9" >/dev/null || fail
-curl -f -s -k "http://${host}:${port}/read_bytes?id=${s}&n=0" >/tmp/___z.gz || fail
+curl -f -s -k "http://${host}:${port}/read_bytes?id=${s}&n=0" >/tmp/___z.gz 2>/dev/null || fail
 # Decompress
 gunzip -c /tmp/___z.gz >/dev/null || fail
 rm -f /tmp/___z.gz
