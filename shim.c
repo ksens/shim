@@ -267,7 +267,7 @@ release_session (struct mg_connection *conn, const struct mg_request_info *ri,
     {
       if(s->stream > 0) // Not allowed!
       {
-        respond (conn, plain, 400, 0, NULL);
+        respond (conn, plain, 405, 0, NULL);
         syslog (LOG_ERR, "release_session not allowed error");
         return;
       }
