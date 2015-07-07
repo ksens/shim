@@ -1,11 +1,13 @@
 Shim is a super-basic SciDB client that exposes limited SciDB functionality
 through a simple HTTP API. It's based on the mongoose web server.
+It's a shim between the low-level SciDB C API and a higher-level and lightweight web service API.
 
 The shim program tracks SciDB releases because it uses the SciDB client API. You need to use a version of shim that matches your SciDB release. You can check your shim version from a web browser with:
 ```
 http://localhost:8080/version
 ```
 The current release version should return the tag v14.12.1  (note the extra .1 at the end was just due to a tagging mistake on my part, not a mystery SciDB release).
+
 
 ## Notes
 Shim supports TLS/SSL encryption and implements PAM
