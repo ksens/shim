@@ -7,12 +7,13 @@ mkdir -p $td/wwwroot
 valgrind --log-file=/tmp/grinder.out --leak-check=yes ./shim -p "${port}" -r $td/wwwroot  -f  &
 disown
 sleep 5
+exit 1
 
 
 # Test multiple users streaming their results, repeating over and over
 
 # SET REP TO BE THE NUMBER OF LOOP REPETITIONS
-REP=500
+REP=2
 # SET THIS TO BE THE NUMBER OF CONCURRENT REQUESTS TO ISSUE
 N=20
 
@@ -60,7 +61,6 @@ done
 wait
 
 sleep 1
-kill -15 %1
+killall -15 $(ps -A | grep memcheck | sed -e "s/.*memcheck/memcheck/")
 sleep 5
-kill -9 %1 2>/dev/null
 rm -rf $td
