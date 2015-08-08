@@ -143,5 +143,6 @@ test9: shim
 test10: shim
 	@echo "valgrind test"
 	@LD_LIBRARY_PATH="$(SCIDB)/lib:$(SCIDB)/3rdparty/boost/lib" ./tests/valgrind.sh
+	@echo "Now carefully inspect the report in /tmp/valgrind.out"
 
 alltests: test1 test2 test3 test4 test5 test6 test9

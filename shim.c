@@ -1388,7 +1388,7 @@ parse_args (char **options, int argc, char **argv, int *daemonize)
           break;
         case 'r':
           options[3] = optarg;
-          options[5] = (char *) calloc (PATH_MAX,1);
+          memset(options[5],0,PATH_MAX);
           strncat (options[5], optarg, PATH_MAX);
           strncat (options[5], "/../ssl_cert.pem", PATH_MAX - 17);
           break;
@@ -1451,7 +1451,8 @@ main (int argc, char **argv)
   options[2] = "document_root";
   options[3] = "/var/lib/shim/wwwroot";
   options[4] = "ssl_certificate";
-  options[5] = "/var/lib/shim/ssl_cert.pem";
+  options[5] = (char *) calloc (PATH_MAX,1);
+  snprintf(options[5],PATH_MAX,"/var/lib/shim/ssl_cert.pem");
   options[6] = "authentication_domain";
   options[7] = "";
   options[8] = NULL;
@@ -1479,6 +1480,7 @@ main (int argc, char **argv)
         *cp++ = ',';
       options[1] = ports;
       options[4] = NULL;
+      free(options[5]);
       options[5] = NULL;
     }
   docroot = options[3];
@@ -1550,6 +1552,7 @@ main (int argc, char **argv)
   omp_destroy_lock (&biglock);
   mg_stop (ctx);
   closelog ();
+  free(options[5]);
 
   return 0;
 }
