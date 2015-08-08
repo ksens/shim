@@ -1062,7 +1062,7 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
   {
     s->save = 1;
     snprintf (qry, k + MAX_VARLEN, "save(%s,'%s',%d,'%s')", qrybuf,
-              stream ? s->opipe : s->obuf, SAVE_INSTACE_ID, save);
+              stream ? s->opipe : s->obuf, SAVE_INSTANCE_ID, save);
   }
   else
   {

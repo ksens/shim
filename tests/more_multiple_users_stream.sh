@@ -42,7 +42,7 @@ while test $l -lt $REP; do
 
 echo Round 1
 while test $j -lt $N;do
-  download 10000000 &
+  download 100 &
   j=$(($j + 1))
 done
 sleep 5
