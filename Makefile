@@ -17,6 +17,9 @@ DESTDIR=
 shim: pam client
 	$(CC) -Wall $(CFLAGS) -DUSE_WEBSOCKET $(INC) $(LDFLAGS) -fpic -g -o shim shim.c mongoose.c client.o pam.o $(LIBS)
 
+shim0: pam client
+	$(CC) -Wall $(CFLAGS) -O0 -DUSE_WEBSOCKET $(INC) $(LDFLAGS) -fpic -g -o shim shim.c mongoose.c client.o pam.o $(LIBS)
+
 client:
 	$(CXX) $(CXXFLAGS) $(INC) -fpic -g -c client.cpp -o client.o
 
@@ -137,7 +140,8 @@ test9: shim
 	@echo "readbytes test"
 	@LD_LIBRARY_PATH="$(SCIDB)/lib:$(SCIDB)/3rdparty/boost/lib" ./tests/readbytes.sh
 
-alltests: test1 test2 test3 test4 test5 test6 test9
+test10: shim
+	@echo "valgrind test"
+	@LD_LIBRARY_PATH="$(SCIDB)/lib:$(SCIDB)/3rdparty/boost/lib" ./tests/valgrind.sh
 
-poo: shim
-	$(CC) -std=c99 -Wall $(CFLAGS) -DUSE_WEBSOCKET $(INC) $(LDFLAGS) -fpic -g -o poo poo.c client.o $(LIBS)
+alltests: test1 test2 test3 test4 test5 test6 test9
