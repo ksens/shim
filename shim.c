@@ -1061,8 +1061,8 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
   if (strlen (save) > 0)
   {
     s->save = 1;
-    snprintf (qry, k + MAX_VARLEN, "save(%s,'%s',0,'%s')", qrybuf,      // XXX XXX CHANGE INSTANCE ID FOR MULTI-HOST SUPPORT
-              stream ? s->opipe : s->obuf, save);
+    snprintf (qry, k + MAX_VARLEN, "save(%s,'%s',%d,'%s')", qrybuf,
+              stream ? s->opipe : s->obuf, SAVE_INSTACE_ID, save);
   }
   else
   {

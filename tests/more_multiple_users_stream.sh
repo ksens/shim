@@ -11,8 +11,10 @@ sleep 1
 
 # Test multiple users streaming their results
 
-# SET THIS TO BE THE NUMBER OF CONCURRENT REQUESTS TO ISSUE
+# SET THIS TO BE THE NUMBER OF CONCURRENT REQUESTS TO ISSUE AND NUMBER
+# OF TIMES TO REPEAT
 N=20
+REP=500
 
 # Call this with one argument indicating the number of doubles
 # to download. For example:
@@ -36,7 +38,7 @@ download(){
 l=0
 j=0
 
-while test $l -lt 10; do
+while test $l -lt $REP; do
 
 echo Round 1
 while test $j -lt $N;do
@@ -55,7 +57,6 @@ wait
 l=$(($l + 1))
 done
 
-wait
 
 sleep 1
 rm -rf $td
