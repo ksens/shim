@@ -40,7 +40,7 @@ help:
 	@echo "make deb-pkg   (create a binary Ubuntu/Debian package, requires fpm)"
 	@echo "make rpm-pkg   (create a binary RHEL package, requires fpm)"
 	@echo "make test<n>   (build and run test number n)"
-	@echo "make alltests  (build and run all but multiuser tests)"
+	@echo "make test      (build and run all but multiuser tests)"
 
 install: shim
 	@if test ! -d "$(SCIDB)"; then echo  "Can't find scidb. Maybe try explicitly setting SCIDB variable, for example::\n\nmake SCIDB=/opt/scidb/13.3 install"; exit 1; fi 
@@ -141,8 +141,12 @@ test9: shim
 	@LD_LIBRARY_PATH="$(SCIDB)/lib:$(SCIDB)/3rdparty/boost/lib" ./tests/readbytes.sh
 
 test10: shim
+	@echo "upload test"
+	@LD_LIBRARY_PATH="$(SCIDB)/lib:$(SCIDB)/3rdparty/boost/lib" ./tests/upload.sh
+
+test11: shim
 	@echo "valgrind test"
 	@LD_LIBRARY_PATH="$(SCIDB)/lib:$(SCIDB)/3rdparty/boost/lib" ./tests/valgrind.sh
 	@echo "Now carefully inspect the report in /tmp/valgrind.out"
 
-alltests: test1 test2 test3 test4 test5 test6 test9
+test: test1 test2 test3 test4 test5 test6 test9 test10
