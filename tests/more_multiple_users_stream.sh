@@ -13,22 +13,18 @@ sleep 1
 
 # SET THIS TO BE THE NUMBER OF CONCURRENT REQUESTS TO ISSUE AND NUMBER
 # OF TIMES TO REPEAT
-N=20
-REP=500
+N=50
+REP=10000
 
-# Call this with one argument indicating the number of doubles
-# to download. For example:
-# download 1000000
-
-download(){
+dosomething(){
   s=`curl -s -k http://${host}:${port}/new_session | tr -d '[\r\n]'`
   echo "session: $s"
   if test "${s}" != ""; then
     # The ugly url-encoded query string below is:
     # build(<x:double>[i=1:${1},10000,0],i)
-    curl -s -k "http://${host}:${port}/execute_query?id=${s}&query=build(%3Cx%3Adouble%3E%5Bi%3D1%3A${1}%2C10000%2C0%5D%2Ci)&save=(double)&stream=1"
-    echo
-    curl -s -k "http://${host}:${port}/read_bytes?id=${s}&n=0" | dd of=/dev/null
+    curl -s -k "http://${host}:${port}/execute_query?id=${s}&query=build(%3Cx%3Adouble%3E%5Bi%3D1%3A${1}%2C10000%2C0%5D%2Ci)&save=dcsv"
+    curl -s -k "http://${host}:${port}/read_lines?id=${s}&n=0" | wc -l
+    curl -s -k "http://${host}:${port}/release_session?id=${s}"
     echo "Done with session: ${s}"
   else
     echo "Resource not available"
@@ -36,25 +32,17 @@ download(){
 }
 
 l=0
-j=0
-
 while test $l -lt $REP; do
+  date | tee -a /tmp/log
+  pid=$(ps -A | grep shim | sed -e "s/^ *//;s/ .*//") && cat /proc/${pid}/status | grep RSS | tee -a /tmp/log
+  j=0
+  while test $j -lt $N;do
+    dosomething 10 &
+    j=$(($j + 1))
+  done
 
-echo Round 1
-while test $j -lt $N;do
-  download 100 &
-  j=$(($j + 1))
-done
-sleep 5
-j=0
-echo "Round 2 (many expected to have resource unavailable errors)"
-while test $j -lt $N;do
-  download 10000000 &
-  j=$(($j + 1))
-done
-
-wait
-l=$(($l + 1))
+  wait
+  l=$(($l + 1))
 done
 
 
