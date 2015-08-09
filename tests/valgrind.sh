@@ -46,7 +46,7 @@ curl -f -s -k --digest --user homer:elmo "https://${host}:${psec}/execute_query?
 curl -f -s -k --digest --user homer:elmo "https://${host}:${psec}/read_bytes?id=${id}&n=0" | dd of=/dev/null || fail
 
 # Data upload
-echo "Uncompressed data upload (may take a while...)"
+echo "Unencrypted data upload (may take a while...)"
 id=$(curl -f -s --digest --user homer:elmo "http://${host}:${port}/new_session" | sed -e "s/.*//")
 echo $id
 dd if=/dev/urandom bs=1M count=50 | curl -f -s --digest --user homer:elmo --form "fileupload=@-;filename=data" "http://${host}:${port}/upload_file?id=${id}" || fail
