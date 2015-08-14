@@ -27,9 +27,17 @@ endif
 # default: empty DESTDIR implicitly installs to /
 DESTDIR=
 
-shim:
-	$(MAKE) -C src
-	@cp src/shim .
+shim: pam client
+	$(CC) -Wall $(CFLAGS) -DUSE_WEBSOCKET $(INC) $(LDFLAGS) -fpic -g -o shim shim.c mongoose.c client.o pam.o $(LIBS)
+
+shim0: pam client
+	$(CC) -Wall $(CFLAGS) -O0 -DUSE_WEBSOCKET $(INC) $(LDFLAGS) -fpic -g -o shim shim.c mongoose.c client.o pam.o $(LIBS)
+
+client:
+	$(CXX) $(CXXFLAGS) $(INC) -fpic -g -c client.cpp -o client.o
+
+pam:
+	$(CC) -Wall $(CFLAGS) -fpic -g -c pam.c -o pam.o
 
 help:
 	@echo "make shim      (compile and link)"
@@ -108,7 +116,6 @@ rpm-pkg: shim
 	fpm -s dir -t rpm -n shim -d "openssl-devel" --vendor Paradigm4 --license AGPLv3 -m "<blewis@paradigm4.com>" --url "https://github.com/Paradigm4/shim" --description "Unofficial SciDB HTTP service" --provides "shim" -v $$(basename $(SCIDB)) --after-install init.d/after-install.sh --before-remove init.d/before-remove.sh -C pkgroot opt usr var etc/init.d
 
 clean:
-	$(MAKE) -C src clean
 	rm -fr *.o *.so shim pkgroot *.rpm *.deb
 
 
