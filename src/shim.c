@@ -15,9 +15,11 @@
 #include <time.h>
 #include <omp.h>
 #include <signal.h>
+#include <pwd.h>
+
 #include "mongoose.h"
 #include "pam.h"
-#include <pwd.h>
+#include "mbedtls/sha512.h"
 
 #define DEFAULT_MAX_SESSIONS 50  // Maximum number of concurrent http sessions
 #define MAX_VARLEN 4096          // Static buffer length for http query params
@@ -45,6 +47,7 @@ void scidbdisconnect (void *con);
 unsigned long long executeQuery (void *con, char *query, int afl, char *err);
 void completeQuery (unsigned long long id, void *con, char *err);
 void prepare_query (void *, void *, char *, int, char *);
+void *scidbauth (void *, const char*, const char*);
 // A support structure for prepare_query/execute_prepared_query
 struct prep
 {
@@ -109,7 +112,6 @@ int SCIDB_PORT = 1239;
 session *sessions;            // Fixed pool of web client sessions
 char *docroot;
 static uid_t real_uid;        // For setting uid to logged in user when required
-char *PAM_service_name = "login";       // Default PAM service name XXX make opt
 /* Big common lock used to serialize global operations.
  * Each session also has a separate session lock. All the locks support
  * nesting/recursion.
@@ -483,7 +485,7 @@ get_session ()
   return id;
 }
 
-/* Authenticate a user with PAM and return a token.
+/* Authenticate a user with PAM or SciDB authentication and return a token.
  *
  * Error 400 is returned if the query string is empty or if this is not a
  * TLS/SSL connection.  login expects two query string arguments, username and
@@ -498,6 +500,7 @@ login (struct mg_connection *conn, const struct mg_request_info *ri)
   uid_t uid;
   char u[MAX_VARLEN];
   char p[MAX_VARLEN];
+  char auth[MAX_VARLEN];
   token_list *t = NULL;
   if (!ri->query_string || !ri->is_ssl)
     {
@@ -508,7 +511,17 @@ login (struct mg_connection *conn, const struct mg_request_info *ri)
   k = strlen (ri->query_string);
   mg_get_var (ri->query_string, k, "username", u, MAX_VARLEN);
   mg_get_var (ri->query_string, k, "password", p, MAX_VARLEN);
-  k = do_pam_login (PAM_service_name, u, p);
+  mg_get_var (ri->query_string, k, "method", auth, MAX_VARLEN);   // login (PAM) or scidb
+  if(0==strncmp(auth,"scidb",5))
+  {
+    k = 0;
+  } else if(strlen(auth)<1)
+  {
+    k = do_pam_login ("login", u, p);
+  } else
+  {
+    k = do_pam_login (auth, u, p);
+  }
   if (k == 0)
     {
 /* Success. Generate a new auth token and return it.
@@ -1248,6 +1261,8 @@ check_auth (token_list * head, struct mg_connection *conn,
 
   k = strlen (ri->query_string);
   mg_get_var (ri->query_string, k, "auth", var, MAX_VARLEN);
+/* Check for SciDB authentication >= 15.7 in the form of user:password */
+  if(strstr(var,":")!=NULL) return &default_token;
   l = strtoul (var, NULL, 0);
 /* Scan the list for a match */
   while (t)
@@ -1276,10 +1291,7 @@ begin_request_handler (struct mg_connection *conn)
   token_list *tok = NULL;
 
 // Don't log login query string
-  if (strcmp (ri->uri, "/measurement") == 0)
-    {
-    }
-  else if (strcmp (ri->uri, "/login") == 0)
+  if (strcmp (ri->uri, "/login") == 0)
     syslog (LOG_INFO, "%s", ri->uri);
   else if (ri->is_ssl)
     syslog (LOG_INFO, "(SSL) %s?%s", ri->uri, ri->query_string);
@@ -1366,9 +1378,9 @@ parse_args (char **options, int argc, char **argv, int *daemonize)
         {
         case 'h':
           printf
-            ("Usage:\nshim [-h] [-v] [-f] [-n <PAM service name>] [-p <http port>] [-r <document root>] [-s <scidb port>] [-t <tmp I/O DIR>] [-m <max concurrent sessions] [-o http session timeout] [-i instance id for save]\n");
+            ("Usage:\nshim [-h] [-v] [-f] [-p <http port>] [-r <document root>] [-s <scidb port>] [-t <tmp I/O DIR>] [-m <max concurrent sessions] [-o http session timeout] [-i instance id for save]\n");
           printf
-            ("The -v option prints the version build ID and exits.\nSpecify -f to run in the foreground.\nDefault http ports are 8080 and 8083(SSL).\nDefault SciDB port is 1239.\nDefault document root is /var/lib/shim/wwwroot.\nDefault PAM service name is 'login'.\nDefault temporary I/O directory is /tmp.\nDefault max concurrent sessions is 50 (max 100).\nDefault http session timeout is 60s and min is 60 (see API doc).\nDefault instance id for save to file is 0.\n");
+            ("The -v option prints the version build ID and exits.\nSpecify -f to run in the foreground.\nDefault http ports are 8080 and 8083(SSL).\nDefault SciDB port is 1239.\nDefault document root is /var/lib/shim/wwwroot.\nDefault temporary I/O directory is /tmp.\nDefault max concurrent sessions is 50 (max 100).\nDefault http session timeout is 60s and min is 60 (see API doc).\nDefault instance id for save to file is 0.\n");
           printf
             ("Start up shim and view http://localhost:8080/api.html from a browser for help with the API.\n\n");
           exit (0);
@@ -1379,9 +1391,6 @@ parse_args (char **options, int argc, char **argv, int *daemonize)
           break;
         case 'f':
           *daemonize = 0;
-          break;
-        case 'n':
-          PAM_service_name = optarg;
           break;
         case 'p':
           options[1] = optarg;

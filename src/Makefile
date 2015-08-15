@@ -27,17 +27,26 @@ endif
 # default: empty DESTDIR implicitly installs to /
 DESTDIR=
 
-shim: pam client
-	$(CC) -Wall $(CFLAGS) -DUSE_WEBSOCKET $(INC) $(LDFLAGS) -fpic -g -o shim shim.c mongoose.c client.o pam.o $(LIBS)
+shim: pam client sha512 base64
+	$(CC) -Wall $(CFLAGS) -DUSE_WEBSOCKET $(INC) $(LDFLAGS) -fpic -g -o shim shim.c mongoose.c client.o pam.o sha512.o base64.o $(LIBS)
 
-shim0: pam client
-	$(CC) -Wall $(CFLAGS) -O0 -DUSE_WEBSOCKET $(INC) $(LDFLAGS) -fpic -g -o shim shim.c mongoose.c client.o pam.o $(LIBS)
+shim0: pam client sha512 base64
+	$(CC) -Wall $(CFLAGS) -O0 -DUSE_WEBSOCKET $(INC) $(LDFLAGS) -fpic -g -o shim shim.c mongoose.c client.o pam.o sha512.o base64.o $(LIBS)
+
+yikes: client
+	$(CC) -Wall $(CFLAGS) -O0 -DUSE_WEBSOCKET $(INC) $(LDFLAGS) -fpic -g yikes.c client.o $(LIBS)
 
 client:
 	$(CXX) $(CXXFLAGS) $(INC) -fpic -g -c client.cpp -o client.o
 
 pam:
 	$(CC) -Wall $(CFLAGS) -fpic -g -c pam.c -o pam.o
+
+sha512:
+	$(CC) -Wall $(CFLAGS) -fpic -g -c sha512.c -o sha512.o
+
+base64:
+	$(CC) -Wall $(CFLAGS) -fpic -g -c base64.c -o base64.o
 
 help:
 	@echo "make shim      (compile and link)"
