@@ -15,11 +15,10 @@
 #include <time.h>
 #include <omp.h>
 #include <signal.h>
-#include <pwd.h>
 
 #include "mongoose.h"
-#include "pam.h"
 #include "mbedtls/sha512.h"
+#include "base64.h"
 
 #define DEFAULT_MAX_SESSIONS 50  // Maximum number of concurrent http sessions
 #define MAX_VARLEN 4096          // Static buffer length for http query params
@@ -119,8 +118,6 @@ static uid_t real_uid;        // For setting uid to logged in user when required
 omp_lock_t biglock;
 char *BASEPATH;
 char *TMPDIR;                   // temporary files go here
-token_list *tokens = NULL;      // the head of the list
-token_list default_token;       // used by digest authentication
 int MAX_SESSIONS;               // configurable maximum number of concurrent sessions
 int SAVE_INSTANCE_ID;           // which instance ID should run save commands?
 time_t TIMEOUT;                    // session timeout
@@ -485,23 +482,31 @@ get_session ()
   return id;
 }
 
-/* Authenticate a user with PAM or SciDB authentication and return a token.
+/* Authenticate a user with SciDB authentication and return a token.
  *
  * Error 400 is returned if the query string is empty or if this is not a
  * TLS/SSL connection.  login expects two query string arguments, username and
- * password.  Error 401 is returned if PAM can't authenticate the
- * username/password combo.  If successful, a token is returned. Use the token
- * with other TLS connections to show authentication.
+ * password. A token is returned. Use the token with other TLS connections to
+ * show authentication.
+ *
+ * The returned token is in the form:
+ * username:base64(sha512(password))
+ *
+ * except that if base64(sha512(password)) is more than 64 characters, it's
+ * split into two parts with a newline in between (see code below).
+ *
  */
 void
 login (struct mg_connection *conn, const struct mg_request_info *ri)
 {
   int k;
-  uid_t uid;
   char u[MAX_VARLEN];
   char p[MAX_VARLEN];
+  unsigned char output[64];
+  char sout[64];
   char auth[MAX_VARLEN];
-  token_list *t = NULL;
+  char token[MAX_VARLEN];
+
   if (!ri->query_string || !ri->is_ssl)
     {
       respond (conn, plain, 400, 0, NULL);
@@ -511,69 +516,33 @@ login (struct mg_connection *conn, const struct mg_request_info *ri)
   k = strlen (ri->query_string);
   mg_get_var (ri->query_string, k, "username", u, MAX_VARLEN);
   mg_get_var (ri->query_string, k, "password", p, MAX_VARLEN);
-  mg_get_var (ri->query_string, k, "method", auth, MAX_VARLEN);   // login (PAM) or scidb
-  if(0==strncmp(auth,"scidb",5))
+
+  memset(output,0,64);
+  mbedtls_sha512((const unsigned char *)u, strlen(u), output, 0);
+  memcpy(sout,output,64);
+  Base64encode(auth, sout, strlen(sout));
+  k = strlen(auth);
+  if(k>64)
   {
-    k = 0;
-  } else if(strlen(auth)<1)
-  {
-    k = do_pam_login ("login", u, p);
-  } else
-  {
-    k = do_pam_login (auth, u, p);
-  }
-  if (k == 0)
-    {
-/* Success. Generate a new auth token and return it.
- * XXX NOTE! No limit to the number of authenticated logins.  This means a
- * careless user can extend the token list indefinitely (that is, leak).
- * FIX ME
- */
-      omp_set_lock (&biglock);
-      uid = username2uid (u);
-      while (t == NULL)
-        t = addtoken (tokens, authtoken (), uid);
-      tokens = t;
-      omp_unset_lock (&biglock);
-      memset (p, 0, MAX_VARLEN);
-      snprintf (p, MAX_VARLEN, "%lu", t->val);
-      syslog (LOG_INFO, "Authenticated user %s token %s uid %ld", u, p,
-              (long) uid);
-      respond (conn, plain, 200, strlen (p), p);
-    }
-  else
-    {
-      syslog (LOG_INFO, "PAM login for username %s returned %d", u, k);
-      respond (conn, plain, 401, 0, NULL);      // Not authorized.
-    }
+    memset(p,0,MAX_VARLEN);
+    memcpy(p,auth,64);
+    snprintf(token, MAX_VARLEN, "%s:%s\n%s", u, p, auth+64);
+  } else snprintf(token, MAX_VARLEN, "%s:%s", u, auth);
+
+// HOMER
+
+  syslog (LOG_INFO, "Authenticated user %s token %s ", u, auth);
+  respond (conn, plain, 200, strlen (token), token);
   return;
 }
 
-/* Remove an authentication token from the tokens list.
+/* Retained for compatibility
  *
- * Error 400 is returned if the query string is empty or if this is not a
- * TLS/SSL connection.
- * Expects query string argument named 'auth.'
- * 200 is returned with no message on success.
+ * 200 is returned with no message.
  */
 void
 logout (struct mg_connection *conn, const struct mg_request_info *ri)
 {
-  int k;
-  unsigned long l;
-  char a[MAX_VARLEN];
-  if (!ri->query_string || !ri->is_ssl)
-    {
-      respond (conn, plain, 400, 0, NULL);
-      syslog (LOG_ERR, "logout error invalid http query");
-      return;
-    }
-  k = strlen (ri->query_string);
-  mg_get_var (ri->query_string, k, "auth", a, MAX_VARLEN);
-  l = strtoul (a, NULL, 0);
-  omp_set_lock (&biglock);
-  tokens = removetoken (tokens, l);
-  omp_unset_lock (&biglock);
   respond (conn, plain, 200, 0, NULL);
   return;
 }
@@ -1238,48 +1207,6 @@ getlog (struct mg_connection *conn, const struct mg_request_info *ri)
   mg_send_file (conn, "/tmp/.scidb.log");
 }
 
-/* Check authentication token to see if it's in our list. */
-token_list *
-check_auth (token_list * head, struct mg_connection *conn,
-            const struct mg_request_info *ri)
-{
-  int k;
-  unsigned long l;
-  char var[MAX_VARLEN];
-  token_list *t = head;
-/* Check for basic digest authentication first */
-  if(mg_get_basic_auth(conn)==1)
-  {
-    return &default_token;
-  }
-  if (!ri->query_string)
-    {
-      respond (conn, plain, 400, 0, NULL);
-      syslog (LOG_ERR, "authentication error");
-      return NULL;
-    }
-
-  k = strlen (ri->query_string);
-  mg_get_var (ri->query_string, k, "auth", var, MAX_VARLEN);
-/* Check for SciDB authentication >= 15.7 in the form of user:password */
-  if(strstr(var,":")!=NULL) return &default_token;
-  l = strtoul (var, NULL, 0);
-/* Scan the list for a match */
-  while (t)
-    {
-      if (t->val == l)
-        {
-/* Authorized, we don't repond here since a downstream callback will */
-          return t;
-        }
-      t = (token_list *) t->next;
-    }
-/* Not authorized */
-  respond (conn, plain, 401, 0, NULL);
-  return NULL;
-}
-
-
 /* Mongoose generic begin_request callback; we dispatch URIs to their
  * appropriate handlers.
  */
@@ -1288,7 +1215,6 @@ begin_request_handler (struct mg_connection *conn)
 {
   char buf[MAX_VARLEN];
   const struct mg_request_info *ri = mg_get_request_info (conn);
-  token_list *tok = NULL;
 
 // Don't log login query string
   if (strcmp (ri->uri, "/login") == 0)
@@ -1297,20 +1223,6 @@ begin_request_handler (struct mg_connection *conn)
     syslog (LOG_INFO, "(SSL) %s?%s", ri->uri, ri->query_string);
   else
     syslog (LOG_INFO, "%s?%s", ri->uri, ri->query_string);
-
-/* Check API authentication (encrypted sessions only--only applies to
- * the listed subset of the available shim API--API services not listed
- * below work over https without needing auth)
- */
-  if (ri->is_ssl &&
-      (!strcmp (ri->uri, "/new_session") ||
-       !strcmp (ri->uri, "/upload_file") ||
-       !strcmp (ri->uri, "/read_lines") ||
-       !strcmp (ri->uri, "/read_bytes") ||
-       !strcmp (ri->uri, "/execute_query") ||
-       !strcmp (ri->uri, "/cancel")) &&
-      !(tok = check_auth (tokens, conn, ri)))
-    goto end;
 
 // CLIENT API
   if (!strcmp (ri->uri, "/new_session"))
@@ -1470,12 +1382,6 @@ main (int argc, char **argv)
   MAX_SESSIONS = DEFAULT_MAX_SESSIONS;
   SAVE_INSTANCE_ID = DEFAULT_SAVE_INSTANCE_ID;
   counter = 19;
-
-/* Set up a default token for digest authentication.  */
-  default_token.val = 1;
-  default_token.time = 0;
-  default_token.uid = getuid();
-  default_token.next = NULL;
 
   parse_args (options, argc, argv, &daemonize);
   if (stat (options[5], &check_ssl) < 0)
