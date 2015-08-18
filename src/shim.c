@@ -559,7 +559,7 @@ login (struct mg_connection *conn, const struct mg_request_info *ri)
  * 200 is returned with no message.
  */
 void
-logout (struct mg_connection *conn, const struct mg_request_info *ri)
+logout (struct mg_connection *conn)
 {
   respond (conn, plain, 200, 0, NULL);
   return;
@@ -1263,7 +1263,7 @@ startscidb (struct mg_connection *conn, const struct mg_request_info *ri)
 }
 
 void
-getlog (struct mg_connection *conn, const struct mg_request_info *ri)
+getlog (struct mg_connection *conn)
 {
   syslog (LOG_INFO, "getlog");
   system
@@ -1300,7 +1300,7 @@ begin_request_handler (struct mg_connection *conn)
   else if (!strcmp (ri->uri, "/login"))
     login (conn, ri);
   else if (!strcmp (ri->uri, "/logout"))
-    logout (conn, ri);
+    logout (conn);
   else if (!strcmp (ri->uri, "/release_session"))
     release_session (conn, ri, 1);
   else if (!strcmp (ri->uri, "/upload_file"))
@@ -1319,7 +1319,7 @@ begin_request_handler (struct mg_connection *conn)
 //      else if (!strcmp (ri->uri, "/start_scidb"))
 //        startscidb (conn, ri);
   else if (!strcmp (ri->uri, "/get_log"))
-    getlog (conn, ri);
+    getlog (conn);
   else
     {
 // fallback to http file server

@@ -16,7 +16,7 @@ function fail {
 mkdir -p $td/wwwroot
 echo "homer:elmo" > $td/wwwroot/.htpasswd
 openssl req -new -newkey rsa:4096 -days 3650 -nodes -x509 -subj "/C=US/ST=MA/L=Waltham/O=Paradigm4/CN=$(hostname)" -keyout $td/ssl_cert.pem 2>/dev/null >> $td/ssl_cert.pem
-valgrind --log-file=/tmp/valgrind.out --leak-check=yes ./shim -p "${port},${psec}s" -r $td/wwwroot  -f  &
+valgrind --log-file=/tmp/valgrind.out --leak-check=full --show-reachable=yes ./shim -p "${port},${psec}s" -r $td/wwwroot  -f  &
 sleep 5
 
 id=$(curl -f -s --digest --user homer:elmo "http://${host}:${port}/new_session" | sed -e "s/.*//")

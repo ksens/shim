@@ -31,6 +31,10 @@ shim:
 	$(MAKE) -C src
 	@cp src/shim .
 
+shim0:
+	$(MAKE) -C src shim0
+	@cp src/shim .
+
 help:
 	@echo "make shim      (compile and link)"
 	@echo
@@ -154,12 +158,12 @@ test10: shim
 	@echo "upload test"
 	@LD_LIBRARY_PATH="$(SCIDB)/lib:$(SCIDB)/3rdparty/boost/lib" ./tests/upload.sh
 
-test11: shim
+test11: shim0
 	@echo "valgrind test"
 	@LD_LIBRARY_PATH="$(SCIDB)/lib:$(SCIDB)/3rdparty/boost/lib" ./tests/valgrind.sh
 	@echo "Now carefully inspect the report in /tmp/valgrind.out"
 
-grinder: shim
+grinder: shim0
 	@echo "multiuser valgrind test"
 	@LD_LIBRARY_PATH="$(SCIDB)/lib:$(SCIDB)/3rdparty/boost/lib" ./tests/grinder.sh
 	@echo "Now carefully inspect the report in /tmp/grinder.out"

@@ -7,9 +7,9 @@ ifeq ($(SCIDB),)
 endif
 GIT_VERSION := $(shell git describe --abbrev=4 --dirty --always)
 
-CFLAGS=-std=gnu99 -fopenmp -g -pedantic -DVERSION=\"$(GIT_VERSION)\"
+CFLAGS=-Wall -Wextra -std=gnu99 -fopenmp -g -pedantic -DVERSION=\"$(GIT_VERSION)\"
 INC=-I. -DPROJECT_ROOT="\"$(SCIDB)\"" -I"$(SCIDB)/3rdparty/boost/include/" -I"$(SCIDB)/include" -I"$(SCIDB)/3rdparty/boost/include/boost/container" -DSCIDB_CLIENT
-LIBS=-lstdc++ -ldl -lz -lpthread -L"$(SCIDB)/3rdparty/boost/lib" -L"$(SCIDB)/lib" -lscidbclient -lboost_system -Wl,--enable-new-dtags -Wl,-rpath,'$$ORIGIN:$$ORIGIN/../lib:$$ORIGIN/../../:$(SCIDB)/3rdparty/boost/lib:'
+LIBS=-lstdc++ -ldl -lz -pthread -L"$(SCIDB)/3rdparty/boost/lib" -L"$(SCIDB)/lib" -lscidbclient -lboost_system -Wl,--enable-new-dtags -Wl,-rpath,'$$ORIGIN:$$ORIGIN/../lib:$$ORIGIN/../../:$(SCIDB)/3rdparty/boost/lib:'
 
 # Compiler settings for SciDB version >= 15.7
 ifneq ("$(wildcard /usr/bin/g++-4.9)","")
@@ -162,12 +162,12 @@ test10: shim
 	@echo "upload test"
 	@LD_LIBRARY_PATH="$(SCIDB)/lib:$(SCIDB)/3rdparty/boost/lib" ./tests/upload.sh
 
-test11: shim
+test11: shim0
 	@echo "valgrind test"
 	@LD_LIBRARY_PATH="$(SCIDB)/lib:$(SCIDB)/3rdparty/boost/lib" ./tests/valgrind.sh
 	@echo "Now carefully inspect the report in /tmp/valgrind.out"
 
-grinder: shim
+grinder: shim0
 	@echo "multiuser valgrind test"
 	@LD_LIBRARY_PATH="$(SCIDB)/lib:$(SCIDB)/3rdparty/boost/lib" ./tests/grinder.sh
 	@echo "Now carefully inspect the report in /tmp/grinder.out"
