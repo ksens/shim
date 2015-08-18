@@ -20,8 +20,8 @@
 #include "mbedtls/sha512.h"
 #include "base64.h"
 
-#define DEFAULT_MAX_SESSIONS 50  // Maximum number of concurrent http sessions
-#define MAX_VARLEN 4096          // Static buffer length for http query params
+#define DEFAULT_MAX_SESSIONS 50 // Maximum number of concurrent http sessions
+#define MAX_VARLEN 4096         // Static buffer length for http query params
 #define LCSV_MAX 16384
 #ifndef PATH_MAX
 #define PATH_MAX 4096
@@ -32,13 +32,14 @@
 #define DEFAULT_HTTP_PORT "8080,8083s"
 #endif
 
-#define DEFAULT_SAVE_INSTANCE_ID 0 // default instance that does the saving
+#define DEFAULT_SAVE_INSTANCE_ID 0      // default instance that does the saving
 #define DEFAULT_TMPDIR "/tmp/"  // Temporary location for I/O buffers
 #define PIDFILE "/var/run/shim.pid"
 
 #define WEEK 604800             // One week in seconds
 #define DEFAULT_TIMEOUT 60      // Timeout before a session is declared
                                 // orphaned and available to reap (seconds)
+#define SCIDB_AUTHENTICATED 2
 
 // Minimalist SciDB client API from client.cpp -------------------------------
 void *scidbconnect (const char *host, int port);
@@ -46,7 +47,7 @@ void scidbdisconnect (void *con);
 unsigned long long executeQuery (void *con, char *query, int afl, char *err);
 void completeQuery (unsigned long long id, void *con, char *err);
 void prepare_query (void *, void *, char *, int, char *);
-void *scidbauth (void *, const char*, const char*);
+void *scidbauth (void *, const char *, const char *);
 // A support structure for prepare_query/execute_prepared_query
 struct prep
 {
@@ -79,6 +80,7 @@ typedef struct
   void *con;                    // SciDB context
   time_t time;                  // Time value to help decide on orphan sessions
   available_t available;        // 1 -> available, 0 -> not available
+  int auth;                     // 0 -> none, 1 -> digest, 2 -> scidb
 } session;
 
 /*
@@ -108,9 +110,9 @@ enum mimetype
 
 const char SCIDB_HOST[] = "localhost";
 int SCIDB_PORT = 1239;
-session *sessions;            // Fixed pool of web client sessions
+session *sessions;              // Fixed pool of web client sessions
 char *docroot;
-static uid_t real_uid;        // For setting uid to logged in user when required
+static uid_t real_uid;          // For setting uid to logged in user when required
 /* Big common lock used to serialize global operations.
  * Each session also has a separate session lock. All the locks support
  * nesting/recursion.
@@ -120,7 +122,7 @@ char *BASEPATH;
 char *TMPDIR;                   // temporary files go here
 int MAX_SESSIONS;               // configurable maximum number of concurrent sessions
 int SAVE_INSTANCE_ID;           // which instance ID should run save commands?
-time_t TIMEOUT;                    // session timeout
+time_t TIMEOUT;                 // session timeout
 
 int counter;                    // Used to label sessionid
 
@@ -146,9 +148,9 @@ void
 respond (struct mg_connection *conn, enum mimetype type, int code,
          size_t length, char *data)
 {
-  if (code != 200)  // error
+  if (code != 200)              // error
     {
-      if (data) // error with data payload (always presented as text/html here)
+      if (data)                 // error with data payload (always presented as text/html here)
         {
           mg_printf (conn, "HTTP/1.1 %d ERROR\r\n"
                      "Content-Length: %lu\r\n"
@@ -264,12 +266,12 @@ release_session (struct mg_connection *conn, const struct mg_request_info *ri,
   session *s = find_session (id);
   if (s)
     {
-      if(s->stream > 0) // Not allowed!
-      {
-        respond (conn, plain, 405, 0, NULL);
-        syslog (LOG_ERR, "release_session not allowed error");
-        return;
-      }
+      if (s->stream > 0)        // Not allowed!
+        {
+          respond (conn, plain, 405, 0, NULL);
+          syslog (LOG_ERR, "release_session not allowed error");
+          return;
+        }
       omp_set_lock (&s->lock);
       cleanup_session (s);
       omp_unset_lock (&s->lock);
@@ -344,9 +346,10 @@ init_session (session * s)
   omp_set_lock (&s->lock);
   s->sessionid = counter;
   counter++;
-  if(counter<0) counter=1;
-  s->ibuf  = (char *) malloc (PATH_MAX);
-  s->obuf  = (char *) malloc (PATH_MAX);
+  if (counter < 0)
+    counter = 1;
+  s->ibuf = (char *) malloc (PATH_MAX);
+  s->obuf = (char *) malloc (PATH_MAX);
   s->opipe = (char *) malloc (PATH_MAX);
   snprintf (s->ibuf, PATH_MAX, "%s/shim_input_buf_XXXXXX", TMPDIR);
   snprintf (s->obuf, PATH_MAX, "%s/shim_output_buf_XXXXXX", TMPDIR);
@@ -403,31 +406,34 @@ init_session (session * s)
       omp_unset_lock (&s->lock);
       return 0;
     }
-  char* pipename;
+  char *pipename;
   pipename = (char *) malloc (PATH_MAX);
-  snprintf (pipename, PATH_MAX, "%s/shim_generic_pipe%d", TMPDIR,s->sessionid);
+  snprintf (pipename, PATH_MAX, "%s/shim_generic_pipe%d", TMPDIR,
+            s->sessionid);
   syslog (LOG_ERR, "creating generic pipe: %s", pipename);
-  fd = mkfifo (pipename, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
-  chmod(pipename, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
+  fd =
+    mkfifo (pipename,
+            S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
+  chmod (pipename, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
   if (fd != 0)
     {
       syslog (LOG_ERR, "init_session can't create pipe, error");
       cleanup_session (s);
-      free(pipename);
+      free (pipename);
       omp_unset_lock (&s->lock);
       return 0;
     }
-  fd = rename(pipename, s->opipe);
-  if (fd!=0)
+  fd = rename (pipename, s->opipe);
+  if (fd != 0)
     {
       syslog (LOG_ERR, "init_session can't rename pipe");
-      unlink(pipename);
-      free(pipename);
+      unlink (pipename);
+      free (pipename);
       cleanup_session (s);
       omp_unset_lock (&s->lock);
-      return 0;      
+      return 0;
     }
-  free(pipename);
+  free (pipename);
 
   time (&s->time);
   s->available = SESSION_UNAVAILABLE;
@@ -450,7 +456,7 @@ get_session ()
     {
       if (sessions[j].available == SESSION_AVAILABLE)
         {
-          k = init_session(&sessions[j]);
+          k = init_session (&sessions[j]);
           if (k > 0)
             {
               id = j;
@@ -482,18 +488,45 @@ get_session ()
   return id;
 }
 
+
+/* Authenticate an open SciDB sconnection
+ * Close the connection and set to NULL on failure
+ */
+void authenticate(void *sci_con, char *token)
+{
+  char name[MAX_VARLEN];
+  char pwd[MAX_VARLEN];
+  char *delim;
+  size_t len;
+  if(!sci_con) return;
+  delim = strchr(token, ':');
+  if (strlen (token) < 1 || !delim)
+    {
+      scidbdisconnect(sci_con);
+      sci_con = NULL;
+      return;
+    }
+  memset(name, 0, MAX_VARLEN);
+  memset(pwd, 0, MAX_VARLEN);
+  len = (size_t)(delim - token);
+  if(MAX_VARLEN < len) len = (size_t) MAX_VARLEN;
+  memcpy(name, token, len);
+  snprintf(pwd, MAX_VARLEN, "%s", ++delim);
+  scidbauth(sci_con, name, pwd);
+  if(sci_con) syslog (LOG_INFO, "SciDB authenticated user %s", name);
+  else syslog (LOG_ERR, "SciDB failed to authenticate user %s", name);
+}
+
+
 /* Authenticate a user with SciDB authentication and return a token.
+ * NOTE: THIS ROUTINE DOESN'T REALLY DO MUCH. IT'S HERE TO MAINTAIN
+ * COMPATIBILTY WITH PREVIOUS API VERSIONS. CAN OMIT IN FUTURE VERSIONS ONCE
+ * CLIENTS ARE UPDATED.
  *
  * Error 400 is returned if the query string is empty or if this is not a
  * TLS/SSL connection.  login expects two query string arguments, username and
  * password. A token is returned. Use the token with other TLS connections to
  * show authentication.
- *
- * The returned token is in the form:
- * username:base64(sha512(password))
- *
- * except that if base64(sha512(password)) is more than 64 characters, it's
- * split into two parts with a newline in between (see code below).
  *
  */
 void
@@ -502,9 +535,6 @@ login (struct mg_connection *conn, const struct mg_request_info *ri)
   int k;
   char u[MAX_VARLEN];
   char p[MAX_VARLEN];
-  unsigned char output[64];
-  char sout[64];
-  char auth[MAX_VARLEN];
   char token[MAX_VARLEN];
 
   if (!ri->query_string || !ri->is_ssl)
@@ -517,21 +547,9 @@ login (struct mg_connection *conn, const struct mg_request_info *ri)
   mg_get_var (ri->query_string, k, "username", u, MAX_VARLEN);
   mg_get_var (ri->query_string, k, "password", p, MAX_VARLEN);
 
-  memset(output,0,64);
-  mbedtls_sha512((const unsigned char *)u, strlen(u), output, 0);
-  memcpy(sout,output,64);
-  Base64encode(auth, sout, strlen(sout));
-  k = strlen(auth);
-  if(k>64)
-  {
-    memset(p,0,MAX_VARLEN);
-    memcpy(p,auth,64);
-    snprintf(token, MAX_VARLEN, "%s:%s\n%s", u, p, auth+64);
-  } else snprintf(token, MAX_VARLEN, "%s:%s", u, auth);
+  memset (token, 0, MAX_VARLEN);
+  snprintf (token, MAX_VARLEN, "%s:%s", u, p);
 
-// HOMER
-
-  syslog (LOG_INFO, "Authenticated user %s token %s ", u, auth);
   respond (conn, plain, 200, strlen (token), token);
   return;
 }
@@ -546,8 +564,6 @@ logout (struct mg_connection *conn, const struct mg_request_info *ri)
   respond (conn, plain, 200, 0, NULL);
   return;
 }
-
-
 
 /* Client file upload
  * POST upload to server-side file defined in the session identified
@@ -596,20 +612,44 @@ upload (struct mg_connection *conn, const struct mg_request_info *ri)
  * 200 OK
  * session ID
  * --or--
+ * 400 ERROR (invalid query auth parameter)
+ * 401 ERROR (authentication fail)
  * 503 ERROR (out of resources)
  *
  * An error usually means all the sessions are consumed.
  */
 void
-new_session (struct mg_connection *conn)
+new_session (struct mg_connection *conn, const struct mg_request_info *ri)
 {
   char buf[MAX_VARLEN];
+/* Check authentication.
+ * 1. First check for digest authentication
+ * 2. Check SciDB authentication
+ */
+  int auth;
+  if(mg_get_basic_auth(conn)==1)
+  {
+    syslog(LOG_INFO, "new_session DIGEST AUTH");
+    auth = 1;                                /* digest authenticated */
+  }
+  else if(!ri->is_ssl)
+  {
+     syslog(LOG_INFO, "new_session NO AUTH");
+     auth = 1;                               /* no authentication (non-TLS) */
+  }
+  else
+  {
+    syslog(LOG_INFO, "new_session SCIDB AUTH");
+    auth = SCIDB_AUTHENTICATED;              /* Use SciDB authentication */
+  }
+ 
   int j = get_session ();
   syslog (LOG_INFO, "new_session %d", j);
   if (j > -1)
     {
-      syslog (LOG_INFO, "new_session session id=%d ibuf=%s obuf=%s opipe=%s",
-              sessions[j].sessionid, sessions[j].ibuf, sessions[j].obuf,
+      sessions[j].auth = auth;
+      syslog (LOG_INFO, "new_session auth=%d session id=%d ibuf=%s obuf=%s opipe=%s",
+              sessions[j].auth, sessions[j].sessionid, sessions[j].ibuf, sessions[j].obuf,
               sessions[j].opipe);
       snprintf (buf, MAX_VARLEN, "%d\r\n", sessions[j].sessionid);
       respond (conn, plain, 200, strlen (buf), buf);
@@ -648,12 +688,15 @@ debug (struct mg_connection *conn)
   syslog (LOG_INFO, "debug \n");
   omp_set_lock (&biglock);
   for (j = 0; j < MAX_SESSIONS; ++j)
-  {
-    l = snprintf (p, k, "j=%d id=%d a=%d p=%s\n",j,sessions[j].sessionid, sessions[j].available,sessions[j].opipe);
-    k = k - l;
-    if(k<=0) break;
-    p = p + l;
-  }
+    {
+      l =
+        snprintf (p, k, "j=%d id=%d a=%d p=%s\n", j, sessions[j].sessionid,
+                  sessions[j].available, sessions[j].opipe);
+      k = k - l;
+      if (k <= 0)
+        break;
+      p = p + l;
+    }
   omp_unset_lock (&biglock);
   respond (conn, plain, 200, strlen (buf), buf);
 }
@@ -703,10 +746,9 @@ readbytes (struct mg_connection *conn, const struct mg_request_info *ri)
 // Check to see if the output buffer is open for reading, if not do so.
   if (s->pd < 1)
     {
-      s->pd = 
-          s->stream ? 
-          open(s->opipe, O_RDONLY) :
-          open (s->obuf, O_RDONLY | O_NONBLOCK);
+      s->pd =
+        s->stream ?
+        open (s->opipe, O_RDONLY) : open (s->obuf, O_RDONLY | O_NONBLOCK);
 
       if (s->pd < 1)
         {
@@ -722,25 +764,25 @@ readbytes (struct mg_connection *conn, const struct mg_request_info *ri)
   n = atoi (var);
   if (n < 1)
     {
-      syslog (LOG_INFO, "readbytes id=%d returning entire buffer",id);
+      syslog (LOG_INFO, "readbytes id=%d returning entire buffer", id);
       if (s->stream)
         mg_send_pipe (conn, s->opipe, s->stream, s->compression);
       else
         mg_send_file (conn, s->obuf);
       omp_unset_lock (&s->lock);
-      syslog (LOG_INFO, "readbytes id=%d done",id);
+      syslog (LOG_INFO, "readbytes id=%d done", id);
       return;
     }
   if (n > MAX_RETURN_BYTES)
     n = MAX_RETURN_BYTES;
-  if(fstat(s->pd, &st) < 0)
+  if (fstat (s->pd, &st) < 0)
     {
       syslog (LOG_ERR, "fstat error");
       respond (conn, plain, 507, 0, NULL);
       omp_unset_lock (&s->lock);
       return;
     }
-  if((off_t)n > st.st_size)
+  if ((off_t) n > st.st_size)
     n = (int) st.st_size;
 
   buf = (char *) malloc (n);
@@ -764,7 +806,7 @@ readbytes (struct mg_connection *conn, const struct mg_request_info *ri)
 
   l = (int) read (s->pd, buf, n);
   syslog (LOG_INFO, "readbytes  read %d n=%d", l, n);
-  if (l < 1)   // EOF or error
+  if (l < 1)                    // EOF or error
     {
       free (buf);
       respond (conn, plain, 416, 0, NULL);
@@ -966,6 +1008,7 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
   unsigned long long l;
   session *s;
   char var[MAX_VARLEN];
+  char auth[MAX_VARLEN];
   char buf[MAX_VARLEN];
   char save[MAX_VARLEN];
   char SERR[MAX_VARLEN];
@@ -993,10 +1036,11 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
   memset (var, 0, MAX_VARLEN);
   mg_get_var (ri->query_string, k, "compression", var, MAX_VARLEN);
   if (strlen (var) > 0)
-  {
-    compression = atoi (var);
-  }
-  if(compression> -1) stream=2;
+    {
+      compression = atoi (var);
+    }
+  if (compression > -1)
+    stream = 2;
   syslog (LOG_INFO, "execute_query for session id %d", id);
   s = find_session (id);
   if (!s)
@@ -1031,9 +1075,11 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
     {
       syslog (LOG_INFO, "execute_query stream indicated");
     }
-  if (stream>1)
+  if (stream > 1)
     {
-      syslog (LOG_INFO, "gzip compressed stream indicated, compression level %d", compression);
+      syslog (LOG_INFO,
+              "gzip compressed stream indicated, compression level %d",
+              compression);
     }
   omp_set_lock (&s->lock);
   memset (var, 0, MAX_VARLEN);
@@ -1041,16 +1087,16 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
   mg_get_var (ri->query_string, k, "query", qrybuf, k);
 // If save is indicated, modify query
   if (strlen (save) > 0)
-  {
-    s->save = 1;
-    snprintf (qry, k + MAX_VARLEN, "save(%s,'%s',%d,'%s')", qrybuf,
-              stream ? s->opipe : s->obuf, SAVE_INSTANCE_ID, save);
-  }
+    {
+      s->save = 1;
+      snprintf (qry, k + MAX_VARLEN, "save(%s,'%s',%d,'%s')", qrybuf,
+                stream ? s->opipe : s->obuf, SAVE_INSTANCE_ID, save);
+    }
   else
-  {
-    s->save = 0;
-    snprintf (qry, k + MAX_VARLEN, "%s", qrybuf);
-  }
+    {
+      s->save = 0;
+      snprintf (qry, k + MAX_VARLEN, "%s", qrybuf);
+    }
 
   if (!s->con)
     s->con = scidbconnect (SCIDB_HOST, SCIDB_PORT);
@@ -1061,11 +1107,29 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
       free (qrybuf);
       syslog (LOG_ERR, "execute_query error could not connect to SciDB");
       respond (conn, plain, 503, strlen ("Could not connect to SciDB"),
-                 "Could not connect to SciDB");
+               "Could not connect to SciDB");
       cleanup_session (s);
       omp_unset_lock (&s->lock);
       return;
     }
+  if(s->auth == SCIDB_AUTHENTICATED)
+  {
+    memset (auth, 0, MAX_VARLEN);
+    mg_get_var (ri->query_string, k, "auth", auth, MAX_VARLEN);
+    authenticate(s->con, auth);
+  }
+  if (!s->con)
+    {
+      free (qry);
+      free (qrybuf);
+      syslog (LOG_ERR, "execute_query SciDB authentication failure");
+      respond (conn, plain, 401, strlen ("SciDB authentication failure"),
+               "SciDB authentication failure");
+      cleanup_session (s);
+      omp_unset_lock (&s->lock);
+      return;
+    }
+
 
   syslog (LOG_INFO, "execute_query %d connected", id);
   prepare_query (&pq, s->con, qry, 1, SERR);
@@ -1097,18 +1161,18 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
   if (s->con)
     {
       if (stream)
-      {
+        {
 /* Respond with the query ID before it runs.
  * We have to release the lock to allow a client to run read_bytes or
  * read_lines to pull from the pipe. Also set rel=1 in case it isn't
  * already.
  */
-        rel = 1;
-        omp_unset_lock (&s->lock);
-        snprintf (buf, MAX_VARLEN, "%llu", l);        // Return the query ID
-        respond (conn, plain, 200, strlen (buf), buf);
+          rel = 1;
+          omp_unset_lock (&s->lock);
+          snprintf (buf, MAX_VARLEN, "%llu", l);        // Return the query ID
+          respond (conn, plain, 200, strlen (buf), buf);
 // DEBUG sleep(3);
-      }
+        }
       l = execute_prepared_query (s->con, qry, &pq, 1, SERR);
 /* execute_prepared_query blocks until the query completes or an error
  * occurs. That means that if l > 0, then by the time we get here the
@@ -1117,24 +1181,24 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
  * need to clean up.
  */
 /* Force the client thread to terminate because of error */
-      if(stream && (l < 1))
-      {
-        syslog(LOG_ERR, "streaming error %llu, shutting down pipe",l);
-        pipefd = open(s->opipe, O_WRONLY);
-        close(pipefd);
-        unlink (s->opipe);
-      }
+      if (stream && (l < 1))
+        {
+          syslog (LOG_ERR, "streaming error %llu, shutting down pipe", l);
+          pipefd = open (s->opipe, O_WRONLY);
+          close (pipefd);
+          unlink (s->opipe);
+        }
       if (stream)
-      {
-        omp_set_lock (&s->lock);
-      }
+        {
+          omp_set_lock (&s->lock);
+        }
     }
-  if (l < 1) // something went wrong
+  if (l < 1)                    // something went wrong
     {
       free (qry);
       free (qrybuf);
       syslog (LOG_ERR, "execute_prepared_query error %s", SERR);
-      if(!stream)
+      if (!stream)
         respond (conn, plain, 500, strlen (SERR), SERR);
       if (s->con)
         scidbdisconnect (s->con);
@@ -1161,11 +1225,11 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
   time (&s->time);
   omp_unset_lock (&s->lock);
 // Respond to the client
-  if(!stream)
-  {
-    snprintf (buf, MAX_VARLEN, "%llu", l);        // Return the query ID
-    respond (conn, plain, 200, strlen (buf), buf);
-  }
+  if (!stream)
+    {
+      snprintf (buf, MAX_VARLEN, "%llu", l);    // Return the query ID
+      respond (conn, plain, 200, strlen (buf), buf);
+    }
 }
 
 
@@ -1226,7 +1290,7 @@ begin_request_handler (struct mg_connection *conn)
 
 // CLIENT API
   if (!strcmp (ri->uri, "/new_session"))
-    new_session (conn);
+    new_session (conn, ri);
   else if (!strcmp (ri->uri, "/version"))
     version (conn);
 #ifdef DEBUG
@@ -1309,7 +1373,7 @@ parse_args (char **options, int argc, char **argv, int *daemonize)
           break;
         case 'r':
           options[3] = optarg;
-          memset(options[5],0,PATH_MAX);
+          memset (options[5], 0, PATH_MAX);
           strncat (options[5], optarg, PATH_MAX);
           strncat (options[5], "/../ssl_cert.pem", PATH_MAX - 17);
           break;
@@ -1320,15 +1384,15 @@ parse_args (char **options, int argc, char **argv, int *daemonize)
           TMPDIR = optarg;
           break;
         case 'i':
-          SAVE_INSTANCE_ID = atoi(optarg);
+          SAVE_INSTANCE_ID = atoi (optarg);
           SAVE_INSTANCE_ID = (SAVE_INSTANCE_ID < 0 ? 0 : SAVE_INSTANCE_ID);
           break;
         case 'm':
-          MAX_SESSIONS = atoi(optarg);
+          MAX_SESSIONS = atoi (optarg);
           MAX_SESSIONS = (MAX_SESSIONS > 100 ? 100 : MAX_SESSIONS);
           break;
         case 'o':
-          TIMEOUT = atoi(optarg);
+          TIMEOUT = atoi (optarg);
           TIMEOUT = (TIMEOUT < 60 ? 60 : TIMEOUT);
           break;
         default:
@@ -1341,7 +1405,7 @@ static void
 signalHandler (int sig)
 {
   /* catch termination signals and shut down gracefully */
-   int j;
+  int j;
   signal (sig, signalHandler);
   omp_set_lock (&biglock);
   for (j = 0; j < MAX_SESSIONS; ++j)
@@ -1372,8 +1436,8 @@ main (int argc, char **argv)
   options[2] = "document_root";
   options[3] = "/var/lib/shim/wwwroot";
   options[4] = "ssl_certificate";
-  options[5] = (char *) calloc (PATH_MAX,1);
-  snprintf(options[5],PATH_MAX,"/var/lib/shim/ssl_cert.pem");
+  options[5] = (char *) calloc (PATH_MAX, 1);
+  snprintf (options[5], PATH_MAX, "/var/lib/shim/ssl_cert.pem");
   options[6] = "authentication_domain";
   options[7] = "";
   options[8] = NULL;
@@ -1395,7 +1459,7 @@ main (int argc, char **argv)
         *cp++ = ',';
       options[1] = ports;
       options[4] = NULL;
-      free(options[5]);
+      free (options[5]);
       options[5] = NULL;
     }
   docroot = options[3];
@@ -1467,7 +1531,7 @@ main (int argc, char **argv)
   omp_destroy_lock (&biglock);
   mg_stop (ctx);
   closelog ();
-  free(options[5]);
+  free (options[5]);
 
   return 0;
 }

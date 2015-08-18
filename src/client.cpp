@@ -54,6 +54,7 @@ extern "C" void * scidbauth(void *con, const char *name, const char *password)
     db.disconnect(con);
     con=NULL;
   }
+  return con;
 }
 
 /* Connect to a SciDB instance on the specified host and port.

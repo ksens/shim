@@ -33,9 +33,6 @@ shim: client sha512 base64
 shim0: client sha512 base64
 	$(CC) -Wall $(CFLAGS) -O0 -DUSE_WEBSOCKET $(INC) $(LDFLAGS) -fpic -g -o shim shim.c mongoose.c client.o sha512.o base64.o $(LIBS)
 
-yikes:
-	$(CXX) -Wall $(CXXFLAGS) $(INC) $(LDFLAGS) -fpic -g yikes.cpp $(LIBS)
-
 client:
 	$(CXX) $(CXXFLAGS) $(INC) -fpic -g -c client.cpp -o client.o
 
