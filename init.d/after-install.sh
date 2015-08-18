@@ -26,7 +26,6 @@ cat >/var/lib/shim/conf << EOF
 # man shim
 # for more information on the options.
 
-#auth=login
 #ports=8080,8083s
 scidbport=$PORT
 tmp=$TMP

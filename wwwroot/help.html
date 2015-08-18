@@ -95,6 +95,15 @@
 
   <div class="container">
 
+<h1>IMPORTANT CHANGES</h1>
+SciDB version 15.7 introduced new native SciDB authentication. Shim has
+replaced PAM-based authentication with the new SciDB authentication methods.
+In order to maintain compatibility with pre-15.7 shim clients, the new
+SciDB authentication process mimics the PAM process using the
+/login service, see <a href="#scidbauth">TLS Authentication</a> for examples.
+
+Future versions of shim will no longer use the /login or /logout services.
+
 <h2>The Shim HTTP API for SciDB</h2>
 <p>
 Shim is a web service that exposes a very simple API for clients
@@ -134,7 +143,6 @@ per line. Available options include:
 <br/><br/>
 <pre>
 ports=8080,80803s
-auth=login
 scidbport=1239
 user=root
 tmp=/tmp
@@ -172,17 +180,13 @@ option to select the coordinator database port to locally connect to. The
 default SciDB database port value is 1239 (see the SciDB configuration
 manual for more information).
 <h3>Authentication</h3>
-The shim API uses PAM-based authentication for most API functions over
-SSL connections. Shim may use any available PAM service (usually listed
-in /etc/pam.d), and defaults to the login service. That means client
-authentication is controlled by the usernames and passwords available
-to the computer that shim is installed on.
+The shim API uses SciDB-based authentication over SSL connections.
 <p>
 Basic digest access authentication is supported too
 (see <a href="https://en.wikipedia.org/wiki/Digest_access_authentication">https://en.wikipedia.org/wiki/Digest_access_authentication</a>).
 See below for examples.
 <h3>User</h3>
-The user that the shim service runs under. Shim can run as a non-root user, but then PAM-based SSL authenticated logins are limited to the user that shim is running under.
+The user that the shim service runs under (shim can run as a non-root user).
 <h3>Temporary I/O space and streaming</h3>
 Shim's default behavior caches the output of SciDB queries in files on the
 SciDB server; set that file directory location with the config file tmp
@@ -258,33 +262,36 @@ Use plain text passwords in the file, and consider changing the permissions of
 the file to restrict access. Delete the <tt>.htpasswd</tt> file to disable
 basic digest access authentication.
 <p>
-Basic digest authentication works on plain or TLS-encrypted connections and
-takes precedence over PAM authentication when used on TLS-encrypted
-connections (see below).
+Basic digest authentication works on plain or TLS-encrypted connections but
+can not be used in combination with SciDB authentication (see below).
 </p>
 
-<h4>TLS/SSL encryption and PAM authentication</h4>
+<a id="scidbauth">
+<h4>TLS/SSL encryption and SciDB authentication</h4>
+</a>
 <p>
-Shim optionally exposes both open and encrypted (TLS) services.  Access
-to most of the API over an encrypted connection requires authentication.  API
-URIs that require authentication include: /new_session /upload_file /read_lines
-/read_bytes /execute_query and /cancel.
+Shim optionally exposes both open and encrypted (HTTPS/TLS) services. SciDB
+authentication requires encrypted HTTPS connections. SciDB authentication was
+introduced in SciDB version 15.7 and uses user names and passwords.  The shim
+implementation uses the /login service in order to maintain compatibility with
+the PAM-based pre-15.7 shim API. Future versions of shim will not use the /login
+service.
 </p><p>
-Authentication is very simple to use:
+SciDB authentication is simple to use:
 <ol>
 <li>
 Contact the /login service over SSL with username and password query string
 parameters. The /login service returns an authentication token if its
-successful.
+successful. The token is simply "username:password".
 <li>
 Use all the other URI services normally, but append the auth=&lt;token&gt;
 query string parameter, replacing &lt;token&gt; with the response from the
 /login service above.
 <li>
-Log out of the system by contacting the /logout service with your
+Optionally log out of the system by contacting the /logout service with your
 authentication token.
 </ol>
-Shim's authentication mechanism only works over encrypted connections.
+Shim's SciDB authentication mechanism only works over encrypted connections.
 Username and password query string parameters only appear in encrypted
 form over the network, and are never logged by the shim service log.
 </p><p>
@@ -293,18 +300,18 @@ talking to shim running on localhost, port 8083.
 </p>
 <pre>
 # Log in with username=scidb password=paradigm4 (assuming that such a user exists on the system that SciDB is running on):
-wget -q --no-check-certificate -O - "https://localhost:8083/login?username=scidb&password=paradigm4"
-90362228960         # (authentication token returned on success)
+wget -q --no-check-certificate -O - "https://localhost:8083/login?username=root&password=Paradigm4"
+root:Paradigm4         # (authentication token returned on success)
 
 # As a quick check, we'll try to obtain a new session without using the auth parameter (this will return an error):
 wget --no-check-certificate -O - "https://localhost:8083/new_session"
 HTTP request sent, awaiting response... 400 ERROR
 
 # Now, let's try again with auth and run a simple query and this time get a new session ID:
-wget -q --no-check-certificate -O - "https://localhost:8083/new_session?auth=90362228960"
+wget -q --no-check-certificate -O - "https://localhost:8083/new_session?auth=root:Paradigm4"
 0    # (our session ID)
-wget -q --no-check-certificate -O - "https://localhost:8083/execute_query?id=0&query=list('functions')&save=dcsv&auth=90362228960"
-wget -q --no-check-certificate -O - "https://localhost:8083/read_lines?id=0&n=0&auth=90362228960" | head -n 10
+wget -q --no-check-certificate -O - "https://localhost:8083/execute_query?id=0&query=list('functions')&save=dcsv&auth=root:Paradigm4"
+wget -q --no-check-certificate -O - "https://localhost:8083/read_lines?id=0&n=0&auth=root:Paradigm4" | head -n 10
 {No} name,profile,deterministic,library
 {0} '%','double %(double,double)',true,'scidb'
 {1} '%','int16 %(int16,int16)',true,'scidb'
@@ -317,10 +324,8 @@ wget -q --no-check-certificate -O - "https://localhost:8083/read_lines?id=0&n=0&
 {8} '%','uint8 %(uint8,uint8)',true,'scidb'
 {9} '*','double *(double,double)',true,'scidb'
 
-wget -q --no-check-certificate -O - "https://localhost:8083/release_session?id=0&auth=90362228960"
+wget -q --no-check-certificate -O - "https://localhost:8083/release_session?id=0&auth=root:Paradigm4"
 
-# ... do some other things, always adding auth=<token> ...  When you're done, log out of the system:
-wget -q --no-check-certificate -O - "https://localhost:8083/logout?auth=90362228960"
 </pre>
 Again, simply append your authentication token to your HTTP requests to use the authenticated service.
 
@@ -812,14 +817,14 @@ HTTP session is released.
 
 <tr>
 <td>
-<h3>/login</h3>
+<h3>/login</h3><i>DEPRECATED</i>
 
 <tr><td>DESCRIPTION
 <td>Authenticate a user with shim
 <tr><td>METHOD<td>GET
 <tr><td>PARAMETERS
-<td><b>username</b> (the PAM username)
-<br/><b>password</b> (the user password)
+<td><b>username</b> (the SciDB username)
+<br/><b>password</b> (the SciDB user password)
 <tr><td>RESPONSE
 <td>Success: HTTP 200 and a text authentication token to use with
 the <b>auth</b> parameter in subsequent HTTP queries.
@@ -846,7 +851,7 @@ over the network.
 
 <tr>
 <td>
-<h3>/logout</h3>
+<h3>/logout</h3><i>DEPRECATED</i>
 
 <tr><td>DESCRIPTION
 <td>Retire an authentication token.

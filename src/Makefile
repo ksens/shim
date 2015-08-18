@@ -9,7 +9,7 @@ GIT_VERSION := $(shell git describe --abbrev=4 --dirty --always)
 
 CFLAGS=-std=gnu99 -fopenmp -g -pedantic -DVERSION=\"$(GIT_VERSION)\"
 INC=-I. -DPROJECT_ROOT="\"$(SCIDB)\"" -I"$(SCIDB)/3rdparty/boost/include/" -I"$(SCIDB)/include" -I"$(SCIDB)/3rdparty/boost/include/boost/container" -DSCIDB_CLIENT
-LIBS=-lstdc++ -ldl -lz -lpthread -L"$(SCIDB)/3rdparty/boost/lib" -L"$(SCIDB)/lib" -lscidbclient -lboost_system -lpam -Wl,--enable-new-dtags -Wl,-rpath,'$$ORIGIN:$$ORIGIN/../lib:$$ORIGIN/../../:$(SCIDB)/3rdparty/boost/lib:'
+LIBS=-lstdc++ -ldl -lz -lpthread -L"$(SCIDB)/3rdparty/boost/lib" -L"$(SCIDB)/lib" -lscidbclient -lboost_system -Wl,--enable-new-dtags -Wl,-rpath,'$$ORIGIN:$$ORIGIN/../lib:$$ORIGIN/../../:$(SCIDB)/3rdparty/boost/lib:'
 
 # Compiler settings for SciDB version >= 15.7
 ifneq ("$(wildcard /usr/bin/g++-4.9)","")
@@ -27,17 +27,20 @@ endif
 # default: empty DESTDIR implicitly installs to /
 DESTDIR=
 
-shim: pam client
-	$(CC) -Wall $(CFLAGS) -DUSE_WEBSOCKET $(INC) $(LDFLAGS) -fpic -g -o shim shim.c mongoose.c client.o pam.o $(LIBS)
+shim: client sha512 base64
+	$(CC) -Wall $(CFLAGS) -DUSE_WEBSOCKET $(INC) $(LDFLAGS) -fpic -g -o shim shim.c mongoose.c client.o sha512.o base64.o $(LIBS)
 
-shim0: pam client
-	$(CC) -Wall $(CFLAGS) -O0 -DUSE_WEBSOCKET $(INC) $(LDFLAGS) -fpic -g -o shim shim.c mongoose.c client.o pam.o $(LIBS)
+shim0: client sha512 base64
+	$(CC) -Wall $(CFLAGS) -O0 -DUSE_WEBSOCKET $(INC) $(LDFLAGS) -fpic -g -o shim shim.c mongoose.c client.o sha512.o base64.o $(LIBS)
 
 client:
 	$(CXX) $(CXXFLAGS) $(INC) -fpic -g -c client.cpp -o client.o
 
-pam:
-	$(CC) -Wall $(CFLAGS) -fpic -g -c pam.c -o pam.o
+sha512:
+	$(CC) -Wall $(CFLAGS) -fpic -g -c sha512.c -o sha512.o
+
+base64:
+	$(CC) -Wall $(CFLAGS) -fpic -g -c base64.c -o base64.o
 
 help:
 	@echo "make shim      (compile and link)"

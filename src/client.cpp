@@ -41,6 +41,22 @@ struct prep
   void *queryresult;
 };
 
+/* Authenticate a SciDB connection with a user name and
+ * password. Return the connection or NULL if fail.
+ */
+extern "C" void * scidbauth(void *con, const char *name, const char *password)
+{
+  const scidb::SciDB& db = scidb::getSciDB();
+  try{
+    db.newClientStart(con, name, password);
+  } catch(std::exception& e)
+  {
+    db.disconnect(con);
+    con=NULL;
+  }
+  return con;
+}
+
 /* Connect to a SciDB instance on the specified host and port.
  * Returns a pointer to the SciDB connection context, or NULL
  * if an error occurred.

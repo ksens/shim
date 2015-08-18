@@ -1,19 +1,33 @@
 Shim is a super-basic SciDB client that exposes limited SciDB functionality
-through a simple HTTP API. It's based on the mongoose web server.
-It's a shim between the low-level SciDB C API and a higher-level and lightweight web service API.
+through a simple HTTP API. It's based on the mongoose web server.  It's a shim
+between the low-level SciDB C API and a higher-level and lightweight web
+service API.
 
-The shim program tracks SciDB releases because it uses the SciDB client API. You need to use a version of shim that matches your SciDB release. You can check your shim version from a web browser with:
+The shim program tracks SciDB releases because it uses the SciDB client API.
+You need to use a version of shim that matches your SciDB release. You can
+check your shim version from a web browser with:
 ```
 http://localhost:8080/version
 ```
-The current release version should return the tag v14.12.1  (note the extra .1 at the end was just due to a tagging mistake on my part, not a mystery SciDB release).
+The upcombing release will have the tag v15.7 and will be configured for
+SciDB version 15.7.
 
+The current release version should return the tag v14.12.1  (note the extra .1
+at the end was just due to a tagging mistake on my part, not a mystery SciDB
+release).
+
+
+## New changes for SciDB version 15.7
+
+PAM authentication has been replaced with SciDB authentication (available
+in SciDB version 15.7). In order to maintain compatibility with previous
+shim clients, the HTTPS authentication API for SciDB logins
+remains the same as PAM.
 
 ## Notes
-Shim supports TLS/SSL encryption and implements PAM
-password authentication. The encrypted, authenticated API adds one
-new argument to the unencrypted, non-authentication API, but is otherwise
-identical. See
+Shim supports TLS/SSL encryption and implements SciDB password authentication.
+The encrypted, authenticated API adds one new argument to the unencrypted,
+non-authentication API, but is otherwise identical. See
 [Paradigm4/shim/master/wwwroot/help.html](http://htmlpreview.github.io/?https://raw.github.com/Paradigm4/shim/master/wwwroot/help.html)
 for complete details.
 
