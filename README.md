@@ -25,6 +25,7 @@ shim clients, the HTTPS authentication API for SciDB logins
 remains the same as PAM.
 
 ## Notes
+
 Shim supports TLS/SSL encryption and implements SciDB password authentication.
 The encrypted, authenticated API adds one new argument to the unencrypted,
 non-authentication API, but is otherwise identical. See
