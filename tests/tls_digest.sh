@@ -22,7 +22,7 @@ sleep 1
 
 id=$(curl -f -s -k --digest --user homer:elmo "https://${host}:${port}/new_session" | sed -e "s/.*//")
 curl -f -s -k --digest --user homer:elmo "https://${host}:${port}/execute_query?id=${id}&query=list('functions')&save=dcsv" >/dev/null || fail
-curl -f -s -k --digest --user homer:elmo "https://${host}:${port}/read_lines?id=${id}&n=0"  || fail
+curl -f -s -k --digest --user homer:elmo "https://${host}:${port}/read_lines?id=${id}&n=0" >/dev/null || fail
 curl -f -s -k --digest --user homer:elmo "https://${host}:${port}/release_session?id=${id}" >/dev/null || fail
 echo "OK"
 

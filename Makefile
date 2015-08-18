@@ -111,6 +111,8 @@ clean:
 	$(MAKE) -C src clean
 	rm -fr *.o *.so shim pkgroot *.rpm *.deb
 
+test0:
+	@echo "ALL TESTS REQUIRE A SCIDB SERVER ON 127.0.0.1:1239 WITH security=trust"
 
 test1: shim
 	@echo "Non-authenticated test"
@@ -162,4 +164,4 @@ grinder: shim
 	@LD_LIBRARY_PATH="$(SCIDB)/lib:$(SCIDB)/3rdparty/boost/lib" ./tests/grinder.sh
 	@echo "Now carefully inspect the report in /tmp/grinder.out"
 
-test: test1 test2 test3 test4 test5 test6 test9 test10
+test: test0 test1 test2 test3 test4 test5 test6 test9 test10

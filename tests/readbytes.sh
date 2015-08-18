@@ -18,7 +18,7 @@ id=$(curl -s "http://${host}:${port}/new_session" | tr -d '[\r\n]')
 curl -f -s "http://${host}:${port}/execute_query?id=${id}&query=list('functions')&save=dcsv" >/dev/null || fail
 x=1
 while test $x -lt 40;do
-  curl  -s "http://${host}:${port}/read_bytes?id=${id}&n=555" 2>/dev/null  || break
+  curl  -s "http://${host}:${port}/read_bytes?id=${id}&n=555" 2>/dev/null >/dev/null  || break
   x=$(($x + 1))
 done
 curl -f -s "http://${host}:${port}/release_session?id=${id}" >/dev/null  || fail
