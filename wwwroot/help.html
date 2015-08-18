@@ -100,7 +100,7 @@ SciDB version 15.7 introduced new native SciDB authentication. Shim has
 replaced PAM-based authentication with the new SciDB authentication methods.
 In order to maintain compatibility with pre-15.7 shim clients, the new
 SciDB authentication process mimics the PAM process using the
-/login service, see <a href="scidbauth">TLS Authentication</a> for examples.
+/login service, see <a href="#scidbauth">TLS Authentication</a> for examples.
 
 Future versions of shim will no longer use the /login or /logout services.
 
@@ -266,7 +266,7 @@ Basic digest authentication works on plain or TLS-encrypted connections but
 can not be used in combination with SciDB authentication (see below).
 </p>
 
-<a name="scidbauth">
+<a id="scidbauth">
 <h4>TLS/SSL encryption and SciDB authentication</h4>
 </a>
 <p>
