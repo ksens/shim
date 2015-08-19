@@ -15,7 +15,7 @@ if test -n "$s"; then
   PORT=`echo "$s" | sed -e "s/.*-p //;s/ .*//"`
   INS=`echo "$s" | sed -e "s/.*-s //;s/ .*//" | sed -e "s@.*/[0-9]*/\([0-9]*\)/.*@\1@"`
   INS=$(( $INS ))
-  TMP=`echo "$s" | sed -e "s/.*-s //;s/ .*//" | sed -e "s@\(/[0-9]*/\)[0-9]*/.*@\1@"`
+  TMP=`echo "$s" | sed -e "s/.*-s //;s/ .*//" | sed -e "s@\(/[0-9][0-9][0-9]\)/[0-9]*.*@\1/@"`
   TMP="${TMP}/${INS}"
 fi
 # Write out an example config file to /var/lib/shim/conf
