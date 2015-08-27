@@ -1423,12 +1423,11 @@ signalHandler (int sig)
 int
 main (int argc, char **argv)
 {
-  int j, k, l, daemonize = 1;
+  int j, k, daemonize = 1;
   char *cp, *ports;
   struct mg_context *ctx;
   struct mg_callbacks callbacks;
   struct stat check_ssl;
-  struct rlimit resLimit = { 0 };
   char pbuf[MAX_VARLEN];
   char *options[9];
   options[0] = "listening_ports";
@@ -1481,11 +1480,8 @@ main (int argc, char **argv)
           fprintf (stderr, "fork error: service terminated.\n");
           exit (1);
         case 0:
-/* Close all open file descriptors */
-          resLimit.rlim_max = 0;
-          getrlimit (RLIMIT_NOFILE, &resLimit);
-          l = resLimit.rlim_max;
-          for (j = 0; j < l; j++)
+/* Close some open file descriptors */
+          for (j = 0; j < 3; j++)
             (void) close (j);
           j = open ("/dev/null", O_RDWR);
           dup (j);
