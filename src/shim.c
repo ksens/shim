@@ -1531,7 +1531,7 @@ main (int argc, char **argv)
   omp_destroy_lock (&biglock);
   mg_stop (ctx);
   closelog ();
-  free (options[5]);
+  if(options[5]) free (options[5]);
 
   return 0;
 }
