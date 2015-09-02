@@ -66,27 +66,18 @@ service.
 ## Non-dev-tools package installation.
 
 This is the fastest/easiest way to install shim as a system service.
-The author provides a few pre-built binary packages for SciDB on Ubuntu 12.04 here:
+The author provides a few pre-built binary packages for SciDB on Ubuntu 14.04 here:
 
+* [http://paradigm4.github.io/shim/ubuntu_14.04_shim_15.7_amd64.deb](http://paradigm4.github.io/shim/ubuntu_14.04_shim_15.7_amd64.deb)
+
+For SciDB 14.12 there are packages for Ubuntu 14.04 as well as 12.04:
 * [http://paradigm4.github.io/shim/ubuntu_12.04_shim_14.12_amd64.deb](http://paradigm4.github.io/shim/ubuntu_12.04_shim_14.12_amd64.deb)
-* [http://paradigm4.github.io/shim/shim_14.8_amd64-experimental.deb](http://paradigm4.github.io/shim/shim_14.8_amd64-experimental.deb)
-* [http://paradigm4.github.io/shim/shim_14.8_amd64.deb](http://paradigm4.github.io/shim/shim_14.8_amd64.deb)
-* [http://paradigm4.github.io/shim/shim_14.3-2_amd64.deb](http://paradigm4.github.io/shim/shim_14.3-2_amd64.deb) (Includes requested .htpasswd auth option)
-* [http://paradigm4.github.io/shim/shim_14.3_amd64.deb](http://paradigm4.github.io/shim/shim_14.3_amd64.deb)
-* [http://paradigm4.github.io/shim/shim_13.12_amd64.deb](http://paradigm4.github.io/shim/shim_13.12_amd64.deb)
-* [http://paradigm4.github.io/shim/shim_13.11_amd64.deb](http://paradigm4.github.io/shim/shim_13.11_amd64.deb)
-* [http://paradigm4.github.io/shim/shim_13.9_amd64.deb](http://paradigm4.github.io/shim/shim_13.9_amd64.deb)
-* [http://paradigm4.github.io/shim/shim_13.6_amd64.deb](http://paradigm4.github.io/shim/shim_13.6_amd64.deb)
-* [http://paradigm4.github.io/shim/shim_13.3_amd64.deb](http://paradigm4.github.io/shim/shim_13.3_amd64.deb)
-
-SciDB now supports Ubuntu 14.04, and here is a corresponding shim binary package for that:
-
 * [http://paradigm4.github.io/shim/ubuntu_14.04_shim_14.12_amd64.deb](http://paradigm4.github.io/shim/ubuntu_14.04_shim_14.12_amd64.deb)
 
 
 ```
 # Install with:
-sudo gdebi <ubuntu OS version>_shim_14.12_amd64.deb
+sudo gdebi ubuntu_14.04_shim_15.7_amd64.deb
 
 # Uninstall with (be sure to uninstall any existing copy before re-installing shim):
 apt-get remove shim
@@ -94,27 +85,20 @@ apt-get remove shim
 
 and for SciDB on RHEL/Centos 6 here:
 
+* [http://paradigm4.github.io/shim/shim-15.7-1.x86_64.rpm](http://paradigm4.github.io/shim/shim-15.7-1.x86_64.rpm)
 * [http://paradigm4.github.io/shim/shim-14.12-1.x86_64.rpm](http://paradigm4.github.io/shim/shim-14.12-1.x86_64.rpm)
-* [http://paradigm4.github.io/shim/shim-14.8-1-experimental.x86_64.rpm](http://paradigm4.github.io/shim/shim-14.8-1-experimental.x86_64.rpm)
-* [http://paradigm4.github.io/shim/shim-14.8-1.x86_64.rpm](http://paradigm4.github.io/shim/shim-14.8-1.x86_64.rpm)
-* [http://paradigm4.github.io/shim/shim-14.3-2.x86_64.rpm](http://paradigm4.github.io/shim/shim-14.3-2.x86_64.rpm) (Includes requested .htpasswd auth option)
-* [http://paradigm4.github.io/shim/shim-14.3-1.x86_64.rpm](http://paradigm4.github.io/shim/shim-14.3-1.x86_64.rpm)
-* [http://paradigm4.github.io/shim/shim-13.12-1.x86_64.rpm](http://paradigm4.github.io/shim/shim-13.12-1.x86_64.rpm)
-* [http://paradigm4.github.io/shim/shim-13.11-1.x86_64.rpm](http://paradigm4.github.io/shim/shim-13.11-1.x86_64.rpm)
-* [http://paradigm4.github.io/shim/shim-13.9-1.x86_64.rpm](http://paradigm4.github.io/shim/shim-13.9-1.x86_64.rpm)
-* [http://paradigm4.github.io/shim/shim-13.6-1.x86_64.rpm](http://paradigm4.github.io/shim/shim-13.6-1.x86_64.rpm)
-* [http://paradigm4.github.io/shim/shim-13.3-1.x86_64.rpm](http://paradigm4.github.io/shim/shim-13.3-1.x86_64.rpm)
+
+Packages for some older versions can be found at https://github.com/paradigm4/shim/tree/gh-pages
 
 ```
 # Install with:
-rpm -i shim-14.12-1.x86_64.rpm
+rpm -i shim-15.7-1.x86_64.rpm
 # shim depends on libgomp. If installation fails, install libgomp and try again:
 yum install libgomp
 
 # Uninstall with:
 yum remove shim
 ```
-I will continue to make binary packages available when new versions of SciDB are released.
 
 # Configuring  shim
 The `shim` service script consults the `/var/lib/shim/conf` file for
@@ -162,38 +146,50 @@ permissions to the SSL certificate is particularly important for general
 machines with many untrusted users (an unlikely setting for an installation of
 SciDB).
 
-
 You can alternatively run `shim` from the command line and use command line
 switches to set the configuration options. Run `shim -h` to see a full list
 of options. When you run shim from a non-standard location, the program
 expects to find the ssl_cert.pem file one directory above the wwwroot
 directory.
 
-##Compile and Install from Source
-Note that because shim is a SciDB client it needs the boost, zlib, log4cpp and
-log4cxx development libraries installed to compile. And because shim now uses
-PAM authentication, you'll now need the PAM development libraries for your
-system installed too. You also optionally need an SSL development library if
-you want to support TLS. We illustrate installation of Ubuntu build dependencies
-below:
+##Packages Required for Building
+Note that because shim is a SciDB client it needs the boost, zlib, log4cpp and log4cxx development libraries installed to compile. And because shim now uses PAM authentication, you'll now need the PAM development libraries for your system installed too. You also optionally need an SSL development library if you want to support TLS. Moreover, 15.7 uses a newer compiler and the paradigm4-15.7-dev package is not available if you are building SciDB from source.
+
+### Ubuntu
+For SciDB 15.7 on Ubuntu 14.04 follow these instructions:
 ```
-sudo apt-get install liblog4cpp5-dev liblog4cxx10-dev libboost-dev libboost-system-dev libpam0g-dev zlib1g-dev lib64z1-dev ruby-dev build-essential
-sudo apt-get install scidb-14.12-dev scidb-14.12-libboost1.54-all-dev
-gem install fpm
+sudo apt-get install paradigm4-15.7-dev make git scidb-15.7-libboost1.54-dev g++-4.9 gcc-4.9 libpqxx-dev liblog4cxx10-dev liblog4cpp5-dev libpam0g-dev zlib1g-dev ruby-dev build-essential libboost-system-dev gcc gdebi
+sudo gem install fpm
+```
+If you are building SciDB from source, make sure to install SciDB at /opt/scidb and omit the paradigm4-15.7-dev package from the above.
+
+For older SciDB versions:
+```
+sudo apt-get install liblog4cpp5-dev liblog4cxx10-dev libboost-dev libboost-system-dev libpam0g-dev zlib1g-dev lib64z1-dev ruby-dev build-essential scidb-14.12-dev scidb-14.12-libboost1.54-all-dev
+sudo gem install fpm
 ```
 Note: `scidb-14.12-libboost1.54-all-dev` and `scidb-14.12-dev` correspond to your
 installed version of SciDB, replace those package names as required for your
-version. Use `apt-get search scidb` to find the exact package names. (On RHEL
-platforms, you will need the `scidb-14.12-libboost-devel.x86_64` and
-`scidb-14.12-dev.x86_64` packages installed.)
+version. Use `apt-cache search scidb` to find the exact package names. 
 
-For CentOS
+### CentOS and RHEL
+For SciDB 15.7 some extra steps are needed to get the new compiler:
+```
+sudo yum install scl-utils
+wget https://www.softwarecollections.org/en/scls/rhscl/devtoolset-3/epel-6-x86_64/download/rhscl-devtoolset-3-epel-6-x86_64.noarch.rpm
+sudo rpm -i rhscl-devtoolset-3-epel-6-x86_64.noarch.rpm 
+sudo yum install paradigm4-15.7-dev git devtoolset-3-gcc-c++.x86_64 scidb-15.7-libboost-devel libpqxx-devel log4cxx-devel openssl-devel build-essential zlib-devel pam-devel ruby-devel rubygems rpm-build gcc
+sudo gem install fpm
+```
+If you are building SciDB from source, make sure to install SciDB at /opt/scidb and omit the paradigm4-15.7-dev package from the above.
+
+For older SciDB versions:
 ```
 sudo yum install pam-devel ruby-devel rubygems rpm-build
 sudo yum install --enablerepo=scidb3rdparty scidb-14.12-dev scidb-14.12-libboost-devel-1.54.0
 ```
 
-Once the build dependencies are install, build shim with:
+## Build and install
 ```
 make
 sudo make install
@@ -201,14 +197,14 @@ sudo make install
 # Or, if SCIDB is not in the PATH, can set a Make variable SCIDB that points
 # to the SCIDB home directory, for example for version 14.12:
 
-make SCIDB=/opt/scidb/14.12
-sudo make SCIDB=/opt/scidb/14.12 install
+make SCIDB=/opt/scidb/15.7
+sudo make SCIDB=/opt/scidb/15.7 install
 
 ```
 ### Optionally install as a service
 You can install shim as a system service so that it just runs all the time with:
 ```
-sudo make SCIDB=/opt/scidb/14.12 service
+sudo make SCIDB=/opt/scidb/15.7 service
 ```
 If you install shim as a service and want to change its default options, for example the default HTTP port or port to talk to SciDB on, you'll need to edit the shim configuration file. See the discussion of command line parameters below.
 ### Optionally build deb or rpm packages
@@ -235,7 +231,7 @@ If you installed the service version, then you can control when shim is running 
 ## Uninstall
 We explicitly define our SCIDB home directory for Make in the example below:
 ```
-sudo make SCIDB=/opt/scidb/14.12 uninstall
+sudo make SCIDB=/opt/scidb/15.7 uninstall
 ```
 
 
