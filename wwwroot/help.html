@@ -385,7 +385,7 @@ v14.3-15-gd71f
 <tr><td>METHOD<td>GET
 <tr><td>PARAMETERS
 <td>
-<b>auth</b> <i>optional</i> authentication token (required for encrypted connections).
+<b>auth</b> <i>optional</i> authentication token (required for authenticated connections).
 <tr><td>RESPONSE
 <td>Success: HTTP 200 and text session ID value in text/plain payload
 <br/>
@@ -416,7 +416,7 @@ Content-Type: text/plain
 <tr><td>METHOD<td>GET
 <tr><td>PARAMETERS
 <td><b>id</b> (an HTTP session ID)
-<br/><b>auth</b> <i>optional</i> authentication token (required for encrypted connections).
+<br/><b>auth</b> <i>optional</i> authentication token (required for authenticated connections).
 <tr><td>RESPONSE
 <td>Success: HTTP 200
 <br/>
@@ -457,7 +457,7 @@ specified, don't save the query output. <br/>
 <b>release</b>  <i>optional</i> 0 or 1: if 1 then release_session as soon as query completes.  The default value is 0 if not specified (see additional notes below).<br/>
 <b>stream</b> <i>optional</i> 0, 1 or 2: if 1 then stream query result; if 2 then stream a gzip compressed (RFC 1952) query result with an unspecified (automatic) compression level; otherwise send query result through a server-side output file (the default). steam&gt;0 also sets release=1.<br/>
 <b>compression</b> <i>optional</i> 0 to 9: Sets the steaming compression level from 0 (no compression), 1 (fast/light compression) to 9 (slow/high compression). Setting this option automatically also sets the stream option to <b>stream=2</b>.<br/>
-<b>auth</b> <i>optional</i> authentication token (required for encrypted connections).
+<b>auth</b> <i>optional</i> authentication token (required for authenticated connections).
 </br>
 <tr><td>RESPONSE
 <td>
@@ -568,7 +568,7 @@ wget -O - -q "http://localhost:8080/read_bytes?id=${s}&amp;n=0" &gt; /tmp/z.gz
 <tr><td>PARAMETERS
 <td><b>id</b> (an HTTP session ID)
 <br/>
-<b>auth</b> <i>optional</i> authentication token (required for encrypted connections).
+<b>auth</b> <i>optional</i> authentication token (required for authenticated connections).
 <tr><td>RESPONSE
 <td>Success: HTTP 200
 <br/>
@@ -602,7 +602,7 @@ Content-Type: text/plain
 <td>
 <b>id</b> (an HTTP session ID)<br/>
 <b>n</b> (maximum number of lines to read and return between 0 and 2147483647) <br/>
-<b>auth</b> <i>optional</i> authentication token (required for encrypted connections).
+<b>auth</b> <i>optional</i> authentication token (required for authenticated connections).
 <br/>
 <tr><td>RESPONSE
 <td>Success: HTTP 200 followed by application/octet-stream query result (up to <b>n</b> lines)
@@ -708,7 +708,7 @@ Use the 410 error code to detect end of file output.
 <td>
 <b>id</b> (an HTTP session ID)<br/>
 <b>n</b> (maximum number of bytes to read and return between 0 and 2147483647) <br/>
-<b>auth</b> <i>optional</i> authentication token (required for encrypted connections).
+<b>auth</b> <i>optional</i> authentication token (required for authenticated connections).
 <br/>
 <tr><td>RESPONSE
 <td>Success: HTTP 200 followed by application/octet-stream binary query result (up to <b>n</b> bytes)
@@ -757,7 +757,7 @@ Use the 410 error code to detect the end of output.
 <b>id</b> (an HTTP session ID)<br/>
 A valid file-upload HTTP POST message.
 <br/>
-<b>auth</b> <i>optional</i> authentication token (required for encrypted connections).
+<b>auth</b> <i>optional</i> authentication token (required for authenticated connections).
 <br/>
 <tr><td>RESPONSE
 <td>Success: HTTP 200 and the name of the file uploaded to the server in a text/plain response.
