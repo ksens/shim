@@ -10,11 +10,8 @@ check your shim version from a web browser with:
 http://localhost:8080/version
 ```
 The upcombing release will have the tag v15.7 and will be configured for
-SciDB version 15.7.
-
-The current release version should return the tag v14.12.1  (note the extra .1
-at the end was just due to a tagging mistake on my part, not a mystery SciDB
-release).
+SciDB version 15.7. You can checkout any previously released version
+by git tag.
 
 
 ## New changes for SciDB version 15.7
