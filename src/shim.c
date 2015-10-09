@@ -125,7 +125,7 @@ int SAVE_INSTANCE_ID;           // which instance ID should run save commands?
 time_t TIMEOUT;                 // session timeout
 
 int counter;                    // Used to label sessionid
-
+int USE_AIO;                    //use accelerated io for some saves: 0/1
 
 
 /*
@@ -1089,8 +1089,16 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
   if (strlen (save) > 0)
     {
       s->save = 1;
-      snprintf (qry, k + MAX_VARLEN, "save(%s,'%s',%d,'%s')", qrybuf,
-                stream ? s->opipe : s->obuf, SAVE_INSTANCE_ID, save);
+      if (USE_AIO == 1 && save[0]=='(')
+      {
+          snprintf (qry, k + MAX_VARLEN, "aio_save(%s,'path=%s','instance=%d','format=%s')", qrybuf,
+                    stream ? s->opipe : s->obuf, SAVE_INSTANCE_ID, save);
+      }
+      else
+      {                
+          snprintf (qry, k + MAX_VARLEN, "save(%s,'%s',%d,'%s')", qrybuf,
+                    stream ? s->opipe : s->obuf, SAVE_INSTANCE_ID, save);
+      }
     }
   else
     {
@@ -1348,7 +1356,7 @@ void
 parse_args (char **options, int argc, char **argv, int *daemonize)
 {
   int c;
-  while ((c = getopt (argc, argv, "hvfn:p:r:s:t:m:o:i:")) != -1)
+  while ((c = getopt (argc, argv, "hvfan:p:r:s:t:m:o:i:")) != -1)
     {
       switch (c)
         {
@@ -1368,6 +1376,9 @@ parse_args (char **options, int argc, char **argv, int *daemonize)
         case 'f':
           *daemonize = 0;
           break;
+        case 'a':
+          USE_AIO = 1;
+          break; 
         case 'p':
           options[1] = optarg;
           break;
@@ -1444,6 +1455,7 @@ main (int argc, char **argv)
   TIMEOUT = DEFAULT_TIMEOUT;
   MAX_SESSIONS = DEFAULT_MAX_SESSIONS;
   SAVE_INSTANCE_ID = DEFAULT_SAVE_INSTANCE_ID;
+  USE_AIO = 0;
   counter = 19;
 
   parse_args (options, argc, argv, &daemonize);
