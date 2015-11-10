@@ -702,7 +702,7 @@ new_session (struct mg_connection *conn, const struct mg_request_info *ri)
       syslog (LOG_INFO, "new_session auth=%d session id=%d ibuf=%s obuf=%s opipe=%s",
               sessions[j].auth, sessions[j].sessionid, sessions[j].ibuf, sessions[j].obuf,
               sessions[j].opipe);
-      snprintf (buf, MAX_VARLEN, "%d\r\n", sessions[j].sessionid);
+      snprintf (buf, MAX_VARLEN, "%d", sessions[j].sessionid);
       respond (conn, plain, 200, strlen (buf), buf);
     }
   else

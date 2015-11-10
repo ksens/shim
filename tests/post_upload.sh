@@ -19,7 +19,7 @@ sleep 1
 
 t1=$(date +"%s.%N")
 id=$(curl -f -s --digest --user homer:elmo "http://${host}:${port}/new_session" | sed -e "s/.*//")
-dd if=/dev/zero bs=1M count=500 2>/dev/null | curl -f -s --digest --user homer:elmo --data-binary @-  "http://${host}:${port}/upload?id=${id}"  >/dev/null || fail
+dd if=/dev/zero bs=100M count=5 2>/dev/null | curl -f -s --digest --user homer:elmo --data-binary @-  "http://${host}:${port}/upload?id=${id}"  >/dev/null || fail
 curl -f -s --digest --user homer:elmo "http://${host}:${port}/release_session?id=${id}" >/dev/null || fail
 t2=$(date +"%s.%N")
 

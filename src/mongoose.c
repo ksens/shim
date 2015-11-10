@@ -1530,7 +1530,9 @@ static int64_t push(FILE *fp, SOCKET sock, SSL *ssl, const char *buf,
 
 // Read from IO channel - opened file descriptor, socket, or SSL descriptor.
 // Return negative value on error, or number of bytes read on success.
-static int pull(FILE *fp, struct mg_connection *conn, char *buf, int len) {
+static int
+pull(FILE *fp, struct mg_connection *conn, char *buf, int len)
+{
   int nread;
 
   if (fp != NULL) {
@@ -1549,7 +1551,9 @@ static int pull(FILE *fp, struct mg_connection *conn, char *buf, int len) {
   return conn->ctx->stop_flag ? -1 : nread;
 }
 
-static int pull_all(FILE *fp, struct mg_connection *conn, char *buf, int len) {
+static int
+pull_all(FILE *fp, struct mg_connection *conn, char *buf, int len)
+{
   int n, nread = 0;
 
   while (len > 0 && conn->ctx->stop_flag == 0) {
@@ -1569,7 +1573,9 @@ static int pull_all(FILE *fp, struct mg_connection *conn, char *buf, int len) {
   return nread;
 }
 
-int mg_read(struct mg_connection *conn, void *buf, size_t len) {
+int
+mg_read(struct mg_connection *conn, void *buf, size_t len)
+{
   int n, buffered_len, nread;
   const char *body;
 
@@ -4500,7 +4506,6 @@ static uint32_t get_remote_ip(const struct mg_connection *conn) {
 #ifdef USE_LUA
 #include "build/mod_lua.c"
 #endif // USE_LUA
-
 
 
 
