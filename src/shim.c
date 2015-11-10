@@ -565,9 +565,60 @@ logout (struct mg_connection *conn)
   return;
 }
 
+/* Client data upload
+ * POST data upload to server-side file defined in the session
+ * identified by the 'id' variable in the mg_request_info query string.
+ * Respond to the client connection as follows:
+ * 200 success, <uploaded filename>\r\n returned in body
+ * 400 ERROR invalid data length
+ * 404 session not found
+ */
+void
+post_upload (struct mg_connection *conn, const struct mg_request_info *ri)
+{
+  int id, k;
+  session *s;
+  char var1[MAX_VARLEN];
+  char buf[MAX_VARLEN];
+  if (!ri->query_string)
+    {
+      respond (conn, plain, 400, 0, NULL);
+      syslog (LOG_INFO, "upload error invalid http query");
+      return;
+    }
+  k = strlen (ri->query_string);
+  mg_get_var (ri->query_string, k, "id", var1, MAX_VARLEN);
+  id = atoi (var1);
+  s = find_session (id);
+  if (s)
+    {
+      omp_set_lock (&s->lock);
+      s->time = time (NULL) + WEEK;     // Upload should take less than a week!
+      k = mg_post_upload (conn, s->ibuf);
+      if(k<1)
+      {
+        time (&s->time);
+        omp_unset_lock (&s->lock);
+        respond (conn, plain, 400, 0, NULL);      // not found
+        return;
+      }
+      time (&s->time);
+      snprintf (buf, MAX_VARLEN, "%s\r\n", s->ibuf);
+// XXX if fails, report server error too
+      respond (conn, plain, 200, strlen (buf), buf);    // XXX report bytes uploaded
+      omp_unset_lock (&s->lock);
+    }
+  else
+    {
+      respond (conn, plain, 404, 0, NULL);      // not found
+    }
+  return;
+}
+
+
 /* Client file upload
- * POST upload to server-side file defined in the session identified
- * by the 'id' variable in the mg_request_info query string.
+ * POST multipart/file upload to server-side file defined in the session
+ * identified by the 'id' variable in the mg_request_info query string.
  * Respond to the client connection as follows:
  * 200 success, <uploaded filename>\r\n returned in body
  * 404 session not found
@@ -1313,6 +1364,8 @@ begin_request_handler (struct mg_connection *conn)
     release_session (conn, ri, 1);
   else if (!strcmp (ri->uri, "/upload_file"))
     upload (conn, ri);
+  else if (!strcmp (ri->uri, "/upload"))
+    post_upload (conn, ri);
   else if (!strcmp (ri->uri, "/read_lines"))
     readlines (conn, ri);
   else if (!strcmp (ri->uri, "/read_bytes"))

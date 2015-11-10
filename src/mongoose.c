@@ -4501,6 +4501,52 @@ static uint32_t get_remote_ip(const struct mg_connection *conn) {
 #include "build/mod_lua.c"
 #endif // USE_LUA
 
+
+
+
+int
+mg_post_upload(struct mg_connection *conn, char *filename)
+{
+  const char *content_length;
+  FILE *fp;
+  char buf[MG_BUF_LEN];
+  int n;
+  size_t clen, len = 0;
+
+  // Request looks like this:
+  //
+  // POST / HTTP/1.1
+  // User-Agent: libcurl/7.22.0 r-curl/0.9 httr/1.0.0
+  // Host: localhost:9090
+  // Accept-Encoding: gzip, deflate
+  // Accept: application/json, text/xml, application/xml, */*
+  // Content-Length: 18
+  // (\r\n)
+  // Raw bytes go here.
+
+  if ((content_length = mg_get_header(conn, "Content-Length")) == NULL)
+  {
+    return -1;
+  }
+  clen = (size_t) atoll(content_length);
+  syslog(LOG_INFO, "post_upload expecting %s bytes\n", content_length);
+  if(clen < 1) return -1;
+  fp = NULL;
+  // Open file in binary mode for appending.
+  umask(S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+  if ((fp = fopen(filename, "a+b")) == NULL) {
+    return -1;
+  }
+  while ((n = mg_read(conn, buf, MG_BUF_LEN)) > 0 && len < clen)
+  {
+    len += n;
+    fwrite(buf, 1, n, fp);
+  }
+  fclose(fp);
+  return len;
+}
+
+
 int
 mg_append(struct mg_connection *conn, char *filename)
 {
@@ -4568,10 +4614,7 @@ mg_append(struct mg_connection *conn, char *filename)
     memmove(buf, &buf[headers_len], len - headers_len);
     len -= headers_len;
 
-    // We open the file with exclusive lock held. This guarantee us
-    // there is no other thread can save into the same file simultaneously.
     fp = NULL;
-
     // Open file in binary mode for appending.
     umask(S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
     if ((fp = fopen(filename, "a+b")) == NULL) {
