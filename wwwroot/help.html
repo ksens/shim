@@ -193,11 +193,11 @@ List on port 8080 but only on the local loopback interface; listen on port 1234(
 </div>
 <div id="max-sessions" class="section level2">
 <h2>Max sessions</h2>
-<p>Set the maximum number of concurrent <em>shim</em> sessions, beyond which clients recieve an HTTP ‘resource unavailable’ error.</p>
+<p>Set the maximum number of concurrent <em>shim</em> sessions, beyond which clients receive an HTTP ‘resource unavailable’ error.</p>
 </div>
 <div id="timeout" class="section level2">
 <h2>Timeout</h2>
-<p>Set the time in seconds after which an <em>inactive</em> session is considered timed out and a canidate for resource de-allocation. After sessions time out their resources are not freed unless the need to be to satisfy additional session demands. See the lazy timeout section below. Active sessions that are waiting on SciDB query results or transferring data are not subject to timeout and may run indefinitely.</p>
+<p>Set the time in seconds after which an <em>inactive</em> session is considered timed out and a candidate for resource de-allocation. After sessions time out their resources are not freed unless the need to be to satisfy additional session demands. See the lazy timeout section below. Active sessions that are waiting on SciDB query results or transferring data are not subject to timeout and may run indefinitely.</p>
 </div>
 <div id="tlsssl-certificate" class="section level2">
 <h2>TLS/SSL Certificate</h2>
@@ -206,11 +206,11 @@ List on port 8080 but only on the local loopback interface; listen on port 1234(
 </div>
 <div id="api-reference" class="section level1">
 <h1>API Reference</h1>
-<p>Examples use the URL <code>http://localhost:8080</code> or <code>https://localhost:8083</code> (TLS) below. Parameters are required unless marked optional. All shim API services support CORS.</p>
+<p>Examples use the URL <code>http://localhost:8080</code> or <code>https://localhost:8083</code> (TLS) below. Parameters are required unless marked optional. All shim API services support CORS, see <a href="http://www.w3.org/TR/cors/">http://www.w3.org/TR/cors/</a> .</p>
 <div id="limits" class="section level2">
 <h2>Limits</h2>
 <p>HTTP 1.1 clients or greater are required.</p>
-<p>All HTTP query parameters are passed to the service as string values. They are limited to a maximum of 4096 characters unless otherwise indicated (a notable exception is the SciDB query string parameter, limited to 262,144 characers).</p>
+<p>All HTTP query parameters are passed to the service as string values. They are limited to a maximum of 4096 characters unless otherwise indicated (a notable exception is the SciDB query string parameter, limited to 262,144 characters).</p>
 <p>HTTP query string parameters that represent numbers have limits. Unless otherwise indicated whole-number values (session ID, number of bytes to return, etc.) are interpreted by shim as signed 32-bit integers and are generally limited to values between zero and 2147483647. Values outside that range will result in an HTTP 400 error (invalid query).</p>
 </div>
 <div id="response-codes" class="section level2">
@@ -289,7 +289,7 @@ wget -q --no-check-certificate -O - &quot;https://localhost:8083/release_session
 <div id="streaming-and-compression" class="section level2">
 <h2>Streaming and Compression</h2>
 <p>Specify <code>stream &gt; 0</code> in the <code>/execute_query</code> service endpoint to stream SciDB results directly to the client using the HTTP 1.1 chunked transfer encoding mechanism. With this option, a named pipe is created in the temporary I/O directory instead of a file. See the <code>/execute_query</code> API doc below for more information. This option is automatically set by the compression option below.</p>
-<p>Specify <code>compression=n</code>, for values of <code>n</code> in <code>1,...,9</code> in <code>/excute_query</code> to stream gzip compressed (RFC 1952) results directly to the client using HTTP 1.1 chunked transfer encoding. The stream compression level is set by the compression query parameter in the range <code>1,...,9</code> (1 fast but poor compression to 9 slow but great compression). It’s up to the client to decompress the data. Setting this option autmatically also sets the stream option to a nonzero value of 2 indicating gzip-compressed streaming.</p>
+<p>Specify <code>compression=n</code>, for values of <code>n</code> in <code>1,...,9</code> in <code>/excute_query</code> to stream gzip compressed (RFC 1952) results directly to the client using HTTP 1.1 chunked transfer encoding. The stream compression level is set by the compression query parameter in the range <code>1,...,9</code> (1 fast but poor compression to 9 slow but great compression). It’s up to the client to decompress the data. Setting this option automatically also sets the stream option to a nonzero value of 2 indicating gzip-compressed streaming.</p>
 </div>
 <div id="api-service-endpoints" class="section level2">
 <h2>API Service Endpoints</h2>
@@ -323,7 +323,7 @@ EXAMPLE (R)
 
 <pre class="r"><code>httr::GET(&quot;http://localhost:8080/version&quot;)</code></pre>
 <pre><code>Response [http://localhost:8080/version]
-  Date: 2015-11-10 09:49
+  Date: 2015-11-10 10:17
   Status: 200
   Content-Type: text/plain
   Size: 25 B
@@ -361,14 +361,13 @@ EXAMPLE (curl)
 </li>
 </ul>
 <pre class="bash"><code>curl -s http://localhost:8080/new_session </code></pre>
-<pre><code>246</code></pre>
 <tr><td>
 EXAMPLE (R)
 <td>
 
 <pre class="r"><code>id = httr::GET(&quot;http://localhost:8080/new_session&quot;)
 (id = rawToChar(id$content))</code></pre>
-<pre><code>[1] &quot;247&quot;</code></pre>
+<pre><code>[1] &quot;&quot;</code></pre>
 </table>
 
 </div>
@@ -403,12 +402,12 @@ EXAMPLE (R)
 </ul>
 <pre class="r"><code>id = httr::GET(&quot;http://localhost:8080/new_session&quot;)
 (id = rawToChar(id$content))</code></pre>
-<pre><code>[1] &quot;248&quot;</code></pre>
+<pre><code>[1] &quot;&quot;</code></pre>
 <pre class="r"><code>httr::GET(sprintf(&quot;http://localhost:8080/release_session?id=%s&quot;,id))</code></pre>
-<pre><code>Response [http://localhost:8080/release_session?id=248]
-  Date: 2015-11-10 09:49
-  Status: 200
-  Content-Type: text/plain
+<pre><code>Response [http://localhost:8080/release_session?id=]
+  Date: 2015-11-10 10:17
+  Status: 404
+  Content-Type: &lt;unknown&gt;
 &lt;EMPTY BODY&gt;</code></pre>
 <tr><td>
 EXAMPLE (curl)
@@ -437,7 +436,7 @@ PARAMETERS
 <ul>
 <li><strong>id</strong> an HTTP session ID obtained from <code>/new_session</code></li>
 <li><strong>auth</strong> <em>optional</em> authentication token (required for authenticated connections).</li>
-<li><strong>query</strong> AFL query string, encoded for use in URL as required, limited to a maximum of 1,000,000 characters</li>
+<li><strong>query</strong> AFL query string, encoded for use in URL as required, limited to a maximum of 262,144 characters</li>
 <li><strong>save</strong> optional SciDB save format string, limited to a maximum of 4096 characters; Save the query output in the specified format for subsequent download by <code>read_lines</code> or <code>read_bytes</code>. If the save parameter is not specified, don’t save the query output.</li>
 <li><strong>release</strong> optional 0 or 1: if 1 then release_session as soon as query completes. The default value is 0 if not specified (see additional notes below).</li>
 <li><strong>stream</strong> optional 0, 1 or 2: if 1 then stream query result; if 2 then stream a gzip compressed (RFC 1952) query result with an unspecified (automatic) compression level; otherwise send query result through a server-side output file (the default). steam&gt;0 also sets release=1.</li>
@@ -488,14 +487,14 @@ ans = httr::GET(query)
 
 # The response in this example is just the SciDB query ID:
 (rawToChar(ans$content))</code></pre>
-<pre><code>[1] &quot;1100966654871&quot;</code></pre>
+<pre><code>[1] &quot;Invalid session ID&quot;</code></pre>
 <tr><td>
 EXAMPLE (curl)
 <td>
 
 <pre class="bash"><code>s=`curl -s &quot;http://localhost:8080/new_session&quot;`
 curl -s &quot;http://localhost:8080/execute_query?id=${s}&amp;query=consume(list())&amp;release=1&quot;</code></pre>
-<pre><code>1100966684872</code></pre>
+<pre><code>Invalid session ID</code></pre>
 <tr><td>
 EXAMPLE w/ERROR (R)
 <td>
@@ -505,15 +504,11 @@ session = rawToChar(id$content)
 query = sprintf(&quot;http://localhost:8080/execute_query?id=%s&amp;query=consume(42)&amp;release=1&quot;,
                 session)
 httr::GET(query)</code></pre>
-<pre><code>Response [http://localhost:8080/execute_query?id=252&amp;query=consume(42)&amp;release=1]
-  Date: 2015-11-10 09:49
-  Status: 500
+<pre><code>Response [http://localhost:8080/execute_query?id=&amp;query=consume(42)&amp;release=1]
+  Date: 2015-11-10 10:17
+  Status: 404
   Content-Type: text/html
-  Size: 279 B
-UserQueryException in file: src/query/parser/Translator.cpp function: ma...
-Error id: scidb::SCIDB_SE_QPROC::SCIDB_LE_WRONG_OPERATOR_ARGUMENT2
-Error description: Query processor error. Parameter must be array name o...
-consume(42)</code></pre>
+  Size: 18 B</code></pre>
 <tr><td><td>
 See <code>/read_lines</code> and <code>/read_bytes</code> below for running queries that return results and downloading them.
 </table>
@@ -604,16 +599,7 @@ EXAMPLE (curl)
 curl -s &quot;http://localhost:8080/execute_query?id=${s}&amp;query=list('functions')&amp;save=dcsv&quot;
 curl -s &quot;http://localhost:8080/read_lines?id=${s}&amp;n=10&quot;
 curl -s &quot;http://localhost:8080/release_session?id=${s}&quot;</code></pre>
-<pre><code>1100966724874{No} name,profile,deterministic,library
-{0} '%','double %(double,double)',true,'scidb'
-{1} '%','int16 %(int16,int16)',true,'scidb'
-{2} '%','int32 %(int32,int32)',true,'scidb'
-{3} '%','int64 %(int64,int64)',true,'scidb'
-{4} '%','int8 %(int8,int8)',true,'scidb'
-{5} '%','uint16 %(uint16,uint16)',true,'scidb'
-{6} '%','uint32 %(uint32,uint32)',true,'scidb'
-{7} '%','uint64 %(uint64,uint64)',true,'scidb'
-{8} '%','uint8 %(uint8,uint8)',true,'scidb'</code></pre>
+<pre><code>Invalid session ID</code></pre>
 <tr><td>
 EXAMPLE streaming (curl)
 <td>
@@ -622,16 +608,7 @@ EXAMPLE streaming (curl)
 curl -s &quot;http://localhost:8080/execute_query?id=${s}&amp;query=list('functions')&amp;save=dcsv&amp;stream=1&quot;
 curl -s &quot;http://localhost:8080/read_lines?id=${s}&quot; | head -n 10
 curl -s &quot;http://localhost:8080/release_session?id=${s}&quot;</code></pre>
-<pre><code>1100966754875{No} name,profile,deterministic,library
-{0} '%','double %(double,double)',true,'scidb'
-{1} '%','int16 %(int16,int16)',true,'scidb'
-{2} '%','int32 %(int32,int32)',true,'scidb'
-{3} '%','int64 %(int64,int64)',true,'scidb'
-{4} '%','int8 %(int8,int8)',true,'scidb'
-{5} '%','uint16 %(uint16,uint16)',true,'scidb'
-{6} '%','uint32 %(uint32,uint32)',true,'scidb'
-{7} '%','uint64 %(uint64,uint64)',true,'scidb'
-{8} '%','uint8 %(uint8,uint8)',true,'scidb'</code></pre>
+<pre><code>Invalid session ID</code></pre>
 <tr><td>
 EXAMPLE compressed streaming (curl)
 <td>
@@ -640,16 +617,9 @@ EXAMPLE compressed streaming (curl)
 curl -f -s -k &quot;http://localhost:8080/execute_query?id=${s}&amp;query=list('functions')&amp;save=dcsv&amp;compression=9&quot; &gt;/dev/null || fail
 curl -f -s -k &quot;http://localhost:8080/read_bytes?id=${s}&amp;n=0&quot;  | zcat | head -n 10
 curl &quot;http://localhost:8080/release_session?id=${s}&quot;</code></pre>
-<pre><code>{No} name,profile,deterministic,library
-{0} '%','double %(double,double)',true,'scidb'
-{1} '%','int16 %(int16,int16)',true,'scidb'
-{2} '%','int32 %(int32,int32)',true,'scidb'
-{3} '%','int64 %(int64,int64)',true,'scidb'
-{4} '%','int8 %(int8,int8)',true,'scidb'
-{5} '%','uint16 %(uint16,uint16)',true,'scidb'
-{6} '%','uint32 %(uint32,uint32)',true,'scidb'
-{7} '%','uint64 %(uint64,uint64)',true,'scidb'
-{8} '%','uint8 %(uint8,uint8)',true,'scidb'
+<pre><code>bash: line 1: fail: command not found
+
+gzip: stdin: unexpected end of file
   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
                                  Dload  Upload   Total   Spent    Left  Speed
 
@@ -716,12 +686,7 @@ curl -s &quot;http://localhost:8080/read_bytes?id=${s}&quot; | od -t f8
 
 # Release the session
 curl -s &quot;http://localhost:8080/release_session?id=${s}&quot;</code></pre>
-<pre><code>11009668248770000000                        1                        2
-0000020                        3                        4
-0000040                        5                        6
-0000060                        7                        8
-0000100                        9                       10
-0000120</code></pre>
+<pre><code>Invalid session ID0000000</code></pre>
 </table>
 
 
@@ -768,8 +733,7 @@ dd if=/dev/urandom bs=1M count=5  | \
 curl -s &quot;http://localhost:8080/release_session?id=${id}&quot;</code></pre>
 <pre><code>## 5+0 records in
 ## 5+0 records out
-## 5242880 bytes (5.2 MB) copied, 0.333311 s, 15.7 MB/s
-## /dev/shm/000//0/shim_input_buf_rsDXKy</code></pre>
+## 5242880 bytes (5.2 MB) copied, 0.31973 s, 16.4 MB/s</code></pre>
 </table>
 
 
@@ -820,8 +784,7 @@ dd if=/dev/urandom bs=1M count=5  | \
 curl -s &quot;http://localhost:8080/release_session?id=${id}&quot;</code></pre>
 <pre><code>## 5+0 records in
 ## 5+0 records out
-## 5242880 bytes (5.2 MB) copied, 0.318861 s, 16.4 MB/s
-## /dev/shm/000//0/shim_input_buf_5E5p1W</code></pre>
+## 5242880 bytes (5.2 MB) copied, 0.331286 s, 15.8 MB/s</code></pre>
 <tr><td>
 EXAMPLE (R)
 <td>
@@ -832,18 +795,17 @@ session = rawToChar(id$content)
 
 # Upload a character string:
 httr::POST(sprintf(&quot;http://localhost:8080/upload?id=%s&quot;, session), body=&quot;Hello shim&quot;)</code></pre>
-<pre><code>## Response [http://localhost:8080/upload?id=259]
-##   Date: 2015-11-10 09:49
-##   Status: 200
-##   Content-Type: text/plain
-##   Size: 39 B
-## /dev/shm/000//0/shim_input_buf_sLp4fC</code></pre>
+<pre><code>## Response [http://localhost:8080/upload?id=]
+##   Date: 2015-11-10 10:17
+##   Status: 404
+##   Content-Type: &lt;unknown&gt;
+## &lt;EMPTY BODY&gt;</code></pre>
 <pre class="r"><code># Release our session ID
 httr::GET(sprintf(&quot;http://localhost:8080/release_session?id=%s&quot;, session))</code></pre>
-<pre><code>## Response [http://localhost:8080/release_session?id=259]
-##   Date: 2015-11-10 09:49
-##   Status: 200
-##   Content-Type: text/plain
+<pre><code>## Response [http://localhost:8080/release_session?id=]
+##   Date: 2015-11-10 10:17
+##   Status: 404
+##   Content-Type: &lt;unknown&gt;
 ## &lt;EMPTY BODY&gt;</code></pre>
 </table>
 

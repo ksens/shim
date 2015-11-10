@@ -109,11 +109,11 @@ The user that the shim service runs under (shim can run as a non-root user).
 
 ## Max sessions
 
-Set the maximum number of concurrent _shim_ sessions, beyond which clients recieve an HTTP 'resource unavailable' error.
+Set the maximum number of concurrent _shim_ sessions, beyond which clients receive an HTTP 'resource unavailable' error.
 
 ## Timeout
 
-Set the time in seconds after which an _inactive_ session is considered timed out and a canidate for resource de-allocation.
+Set the time in seconds after which an _inactive_ session is considered timed out and a candidate for resource de-allocation.
 After sessions time out their resources are not freed unless the need to be to satisfy additional session demands. See the
 lazy timeout section below. Active sessions that are waiting on SciDB query results or transferring data are not subject
 to timeout and may run indefinitely.
@@ -128,13 +128,15 @@ Shim supports TLS/SSL encryption. Packaged versions of shim (RPM and Debian pack
 
 # API Reference
 
-Examples use the URL `http://localhost:8080` or `https://localhost:8083` (TLS) below. Parameters are required unless marked optional. All shim API services support CORS.
+Examples use the URL `http://localhost:8080` or `https://localhost:8083` (TLS) below.
+Parameters are required unless marked optional. All shim API services support CORS, see http://www.w3.org/TR/cors/ .
+
 
 ## Limits
 
 HTTP 1.1 clients or greater are required.
 
-All HTTP query parameters are passed to the service as string values. They are limited to a maximum of 4096 characters unless otherwise indicated (a notable exception is the SciDB query string parameter, limited to 262,144 characers).
+All HTTP query parameters are passed to the service as string values. They are limited to a maximum of 4096 characters unless otherwise indicated (a notable exception is the SciDB query string parameter, limited to 262,144 characters).
 
 HTTP query string parameters that represent numbers have limits. Unless otherwise indicated whole-number values (session ID, number of bytes to return, etc.) are interpreted by shim as signed 32-bit integers and are generally limited to values between zero and 2147483647. Values outside that range will result in an HTTP 400 error (invalid query).
 
@@ -233,7 +235,7 @@ Again, simply append your authentication token to your HTTP requests to use the 
 
 Specify `stream > 0` in the `/execute_query` service endpoint to stream SciDB results directly to the client using the HTTP 1.1 chunked transfer encoding mechanism. With this option, a named pipe is created in the temporary I/O directory instead of a file. See the `/execute_query` API doc below for more information. This option is automatically set by the compression option below.
 
-Specify `compression=n`, for values of `n` in `1,...,9` in `/excute_query` to stream gzip compressed (RFC 1952) results directly to the client using HTTP 1.1 chunked transfer encoding. The stream compression level is set by the compression query parameter in the range `1,...,9` (1 fast but poor compression to 9 slow but great compression). It's up to the client to decompress the data. Setting this option autmatically also sets the stream option to a nonzero value of 2 indicating gzip-compressed streaming.
+Specify `compression=n`, for values of `n` in `1,...,9` in `/excute_query` to stream gzip compressed (RFC 1952) results directly to the client using HTTP 1.1 chunked transfer encoding. The stream compression level is set by the compression query parameter in the range `1,...,9` (1 fast but poor compression to 9 slow but great compression). It's up to the client to decompress the data. Setting this option automatically also sets the stream option to a nonzero value of 2 indicating gzip-compressed streaming.
 
 
 
@@ -320,7 +322,7 @@ curl -s "http://localhost:8080/release_session?id=${s}"
 <tr><td>PARAMETERS <td>
 - **id** an HTTP session ID obtained from `/new_session`
 - **auth** _optional_ authentication token (required for authenticated connections). 
-- **query** AFL query string, encoded for use in URL as required, limited to a maximum of 1,000,000 characters
+- **query** AFL query string, encoded for use in URL as required, limited to a maximum of 262,144 characters
 - **save** optional SciDB save format string, limited to a maximum of 4096 characters; Save the query output in the specified format for subsequent download by `read_lines` or `read_bytes`. If the save parameter is not specified, don't save the query output. 
 - **release** optional 0 or 1: if 1 then release_session as soon as query completes. The default value is 0 if not specified (see additional notes below).
 - **stream** optional 0, 1 or 2: if 1 then stream query result; if 2 then stream a gzip compressed (RFC 1952) query result with an unspecified (automatic) compression level; otherwise send query result through a server-side output file (the default). steam>0 also sets release=1.
