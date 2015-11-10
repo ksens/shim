@@ -3,6 +3,8 @@ through a simple HTTP API. It's based on the mongoose web server.  It's a shim
 between the low-level SciDB C API and a higher-level and lightweight web
 service API.
 
+The API documentation is here: http://htmlpreview.github.io/?https://raw.github.com/Paradigm4/shim/master/wwwroot/help.html
+
 The shim program tracks SciDB releases because it uses the SciDB client API.
 You need to use a version of shim that matches your SciDB release. You can
 check your shim version from a web browser with:
@@ -20,6 +22,8 @@ PAM authentication has been replaced with SciDB authentication (available
 in SciDB version 15.7). In order to maintain compatibility with previous
 shim clients, the HTTPS authentication API for SciDB logins
 remains the same as PAM.
+
+Many other changes -- see http://htmlpreview.github.io/?https://raw.github.com/Paradigm4/shim/master/wwwroot/help.html
 
 ## Notes
 
