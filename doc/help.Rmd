@@ -1,9 +1,10 @@
 ---
 title: "shim: A Simple HTTP Service for SciDB"
-author: "B. W. Lewis <blewis@paradigm4.com>"
-date: "11/9/2015"
+author: "<div style='font-size: 0.7em'>B. W. Lewis <blewis@paradigm4.com></div>"
+date: "<div style='font-size: 0.7em'>11/9/2015</div>"
 output:
   html_document:
+    toc: true
     theme: cerulean
     css: shimstyle.css
 ---
@@ -30,9 +31,18 @@ Shim can now use any SciDB instance as a query coordinator. That means that you 
 
 # Overview
 
-Shim is a web service that exposes a very simple API for clients to interact with SciDB over HTTP connections. The API consists of a small number of URIs (described in detail below), including: `/login`, `/new_session`, `/release_session`, `/execute_query`, `/cancel`, `/read_lines`, `/read_bytes`, `/upload_file`, `/version`, and `/logout`.
+Shim is a web service that exposes a very simple API for clients to interact with SciDB over HTTP connections. The API consists of a small number of services (described in detail below), including: `/new_session`, `/release_session`, `/execute_query`, `/cancel`, `/read_lines`, `/read_bytes`, `/upload_file`, `/upload`, `/version`, `/login` and `/logout`.
 
 There are more direct ways to talk to SciDB over a network. See https://github.com/artyom-smirnov/scidb4py for a great example of direct network communication with SciDB using Python and Google protocol buffers (written by Artyom Smirnov, one of the core SciDB developers). The protocol buffers approach is comparatively low-level, but possibly more efficient than shim. Shim is designed to be a convenient and easy way to talk to SciDB. Note that both shim and Artyom's Python interface are community open source projects; they are not official components of SciDB.
+
+```{r, echo=FALSE}
+if(! require(jpeg, quietly=TRUE)) install.packages('jpeg',,'http://www.rforge.net/') 
+x = readJPEG("shim.jpg")
+p = par(mar=c(0,0,0,0))
+plot(1:2,type="n",xaxt="n",yaxt="n",bty="n",xlab="",ylab="",asp=1)
+rasterImage(x, 1,1,2,2)
+par(p)
+```
 
 Shim clients begin by requesting a session ID from the service, then running a query and releasing the session ID when done. Session IDs are distinct from SciDB query IDs--a session ID groups a SciDB query together with server resources for input and output to the client.
 
@@ -265,13 +275,12 @@ httr::GET("http://localhost:8080/version")
 <tr><td>EXAMPLE (curl)
 <td>
 ```{r, engine='bash', comment=NA}
-curl -f -s http://localhost:8080/new_session 
+curl -s http://localhost:8080/new_session 
 ```
 <tr><td>EXAMPLE (R)
 <td>
 ```{r, comment=NA}
 id = httr::GET("http://localhost:8080/new_session")
-
 (id = rawToChar(id$content))
 ```
 </table>
@@ -291,7 +300,15 @@ id = httr::GET("http://localhost:8080/new_session")
 <tr><td>EXAMPLE (R)
 <td>
 ```{r, comment=NA}
+id = httr::GET("http://localhost:8080/new_session")
+(id = rawToChar(id$content))
 httr::GET(sprintf("http://localhost:8080/release_session?id=%s",id))
+```
+<tr><td>EXAMPLE (curl)
+<td>
+```{r, engine='bash', comment=NA}
+s=`curl -s "http://localhost:8080/new_session"`
+curl -s "http://localhost:8080/release_session?id=${s}"
 ```
 </table>
 
@@ -316,7 +333,6 @@ httr::GET(sprintf("http://localhost:8080/release_session?id=%s",id))
 - Failure (Invalid session): HTTP 404 
 - Failure (invalid http query): HTTP 400 
 - Not authorized (encrypted only): HTTP 401 
-<tr><td>EXAMPLE (curl)
 <tr><td>NOTES <td>
 Shim only supports AFL queries. 
 <p>
@@ -349,10 +365,12 @@ ans = httr::GET(query)
 
 # The response in this example is just the SciDB query ID:
 (rawToChar(ans$content))
-
-
-# Release our session ID
-httr::GET(sprintf("http://localhost:8080/release_session?id=%s", session))
+```
+<tr><td>EXAMPLE (curl)
+<td>
+```{r, comment=NA, engine='bash'}
+s=`curl -s "http://localhost:8080/new_session"`
+curl -s "http://localhost:8080/execute_query?id=${s}&query=consume(list())&release=1"
 ```
 <tr><td>EXAMPLE w/ERROR (R)
 <td>
@@ -362,7 +380,6 @@ session = rawToChar(id$content)
 query = sprintf("http://localhost:8080/execute_query?id=%s&query=consume(42)&release=1",
                 session)
 httr::GET(query)
-httr::GET(sprintf("http://localhost:8080/release_session?id=%s", session))
 ```
 <tr><td><td>See `/read_lines` and `/read_bytes` below for running queries that return results and downloading them.
 </table>

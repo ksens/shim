@@ -323,7 +323,7 @@ EXAMPLE (R)
 
 <pre class="r"><code>httr::GET(&quot;http://localhost:8080/version&quot;)</code></pre>
 <pre><code>Response [http://localhost:8080/version]
-  Date: 2015-11-10 09:34
+  Date: 2015-11-10 09:49
   Status: 200
   Content-Type: text/plain
   Size: 25 B
@@ -360,16 +360,15 @@ EXAMPLE (curl)
 <td>
 </li>
 </ul>
-<pre class="bash"><code>curl -f -s http://localhost:8080/new_session </code></pre>
-<pre><code>221</code></pre>
+<pre class="bash"><code>curl -s http://localhost:8080/new_session </code></pre>
+<pre><code>246</code></pre>
 <tr><td>
 EXAMPLE (R)
 <td>
 
 <pre class="r"><code>id = httr::GET(&quot;http://localhost:8080/new_session&quot;)
-
 (id = rawToChar(id$content))</code></pre>
-<pre><code>[1] &quot;222&quot;</code></pre>
+<pre><code>[1] &quot;247&quot;</code></pre>
 </table>
 
 </div>
@@ -402,12 +401,21 @@ EXAMPLE (R)
 <td>
 </li>
 </ul>
+<pre class="r"><code>id = httr::GET(&quot;http://localhost:8080/new_session&quot;)
+(id = rawToChar(id$content))</code></pre>
+<pre><code>[1] &quot;248&quot;</code></pre>
 <pre class="r"><code>httr::GET(sprintf(&quot;http://localhost:8080/release_session?id=%s&quot;,id))</code></pre>
-<pre><code>Response [http://localhost:8080/release_session?id=222]
-  Date: 2015-11-10 09:34
+<pre><code>Response [http://localhost:8080/release_session?id=248]
+  Date: 2015-11-10 09:49
   Status: 200
   Content-Type: text/plain
 &lt;EMPTY BODY&gt;</code></pre>
+<tr><td>
+EXAMPLE (curl)
+<td>
+
+<pre class="bash"><code>s=`curl -s &quot;http://localhost:8080/new_session&quot;`
+curl -s &quot;http://localhost:8080/release_session?id=${s}&quot;</code></pre>
 </table>
 
 
@@ -445,8 +453,6 @@ RESPONSE
 <li>Failure (invalid http query): HTTP 400</li>
 <li>Not authorized (encrypted only): HTTP 401
 <tr><td>
-EXAMPLE (curl)
-<tr><td>
 NOTES
 <td>
 Shim only supports AFL queries.
@@ -482,14 +488,14 @@ ans = httr::GET(query)
 
 # The response in this example is just the SciDB query ID:
 (rawToChar(ans$content))</code></pre>
-<pre><code>[1] &quot;1100966233992&quot;</code></pre>
-<pre class="r"><code># Release our session ID
-httr::GET(sprintf(&quot;http://localhost:8080/release_session?id=%s&quot;, session))</code></pre>
-<pre><code>Response [http://localhost:8080/release_session?id=223]
-  Date: 2015-11-10 09:34
-  Status: 404
-  Content-Type: &lt;unknown&gt;
-&lt;EMPTY BODY&gt;</code></pre>
+<pre><code>[1] &quot;1100966654871&quot;</code></pre>
+<tr><td>
+EXAMPLE (curl)
+<td>
+
+<pre class="bash"><code>s=`curl -s &quot;http://localhost:8080/new_session&quot;`
+curl -s &quot;http://localhost:8080/execute_query?id=${s}&amp;query=consume(list())&amp;release=1&quot;</code></pre>
+<pre><code>1100966684872</code></pre>
 <tr><td>
 EXAMPLE w/ERROR (R)
 <td>
@@ -499,8 +505,8 @@ session = rawToChar(id$content)
 query = sprintf(&quot;http://localhost:8080/execute_query?id=%s&amp;query=consume(42)&amp;release=1&quot;,
                 session)
 httr::GET(query)</code></pre>
-<pre><code>Response [http://localhost:8080/execute_query?id=224&amp;query=consume(42)&amp;release=1]
-  Date: 2015-11-10 09:34
+<pre><code>Response [http://localhost:8080/execute_query?id=252&amp;query=consume(42)&amp;release=1]
+  Date: 2015-11-10 09:49
   Status: 500
   Content-Type: text/html
   Size: 279 B
@@ -508,12 +514,6 @@ UserQueryException in file: src/query/parser/Translator.cpp function: ma...
 Error id: scidb::SCIDB_SE_QPROC::SCIDB_LE_WRONG_OPERATOR_ARGUMENT2
 Error description: Query processor error. Parameter must be array name o...
 consume(42)</code></pre>
-<pre class="r"><code>httr::GET(sprintf(&quot;http://localhost:8080/release_session?id=%s&quot;, session))</code></pre>
-<pre><code>Response [http://localhost:8080/release_session?id=224]
-  Date: 2015-11-10 09:34
-  Status: 404
-  Content-Type: &lt;unknown&gt;
-&lt;EMPTY BODY&gt;</code></pre>
 <tr><td><td>
 See <code>/read_lines</code> and <code>/read_bytes</code> below for running queries that return results and downloading them.
 </table>
@@ -604,7 +604,7 @@ EXAMPLE (curl)
 curl -s &quot;http://localhost:8080/execute_query?id=${s}&amp;query=list('functions')&amp;save=dcsv&quot;
 curl -s &quot;http://localhost:8080/read_lines?id=${s}&amp;n=10&quot;
 curl -s &quot;http://localhost:8080/release_session?id=${s}&quot;</code></pre>
-<pre><code>1100966253994{No} name,profile,deterministic,library
+<pre><code>1100966724874{No} name,profile,deterministic,library
 {0} '%','double %(double,double)',true,'scidb'
 {1} '%','int16 %(int16,int16)',true,'scidb'
 {2} '%','int32 %(int32,int32)',true,'scidb'
@@ -622,7 +622,7 @@ EXAMPLE streaming (curl)
 curl -s &quot;http://localhost:8080/execute_query?id=${s}&amp;query=list('functions')&amp;save=dcsv&amp;stream=1&quot;
 curl -s &quot;http://localhost:8080/read_lines?id=${s}&quot; | head -n 10
 curl -s &quot;http://localhost:8080/release_session?id=${s}&quot;</code></pre>
-<pre><code>1100966293995{No} name,profile,deterministic,library
+<pre><code>1100966754875{No} name,profile,deterministic,library
 {0} '%','double %(double,double)',true,'scidb'
 {1} '%','int16 %(int16,int16)',true,'scidb'
 {2} '%','int32 %(int32,int32)',true,'scidb'
@@ -716,7 +716,7 @@ curl -s &quot;http://localhost:8080/read_bytes?id=${s}&quot; | od -t f8
 
 # Release the session
 curl -s &quot;http://localhost:8080/release_session?id=${s}&quot;</code></pre>
-<pre><code>11009663739980000000                        1                        2
+<pre><code>11009668248770000000                        1                        2
 0000020                        3                        4
 0000040                        5                        6
 0000060                        7                        8
@@ -768,8 +768,8 @@ dd if=/dev/urandom bs=1M count=5  | \
 curl -s &quot;http://localhost:8080/release_session?id=${id}&quot;</code></pre>
 <pre><code>## 5+0 records in
 ## 5+0 records out
-## 5242880 bytes (5.2 MB) copied, 0.328703 s, 16.0 MB/s
-## /dev/shm/000//0/shim_input_buf_LN46iM</code></pre>
+## 5242880 bytes (5.2 MB) copied, 0.333311 s, 15.7 MB/s
+## /dev/shm/000//0/shim_input_buf_rsDXKy</code></pre>
 </table>
 
 
@@ -820,8 +820,8 @@ dd if=/dev/urandom bs=1M count=5  | \
 curl -s &quot;http://localhost:8080/release_session?id=${id}&quot;</code></pre>
 <pre><code>## 5+0 records in
 ## 5+0 records out
-## 5242880 bytes (5.2 MB) copied, 0.334301 s, 15.7 MB/s
-## /dev/shm/000//0/shim_input_buf_tIPoNl</code></pre>
+## 5242880 bytes (5.2 MB) copied, 0.318861 s, 16.4 MB/s
+## /dev/shm/000//0/shim_input_buf_5E5p1W</code></pre>
 <tr><td>
 EXAMPLE (R)
 <td>
@@ -832,16 +832,16 @@ session = rawToChar(id$content)
 
 # Upload a character string:
 httr::POST(sprintf(&quot;http://localhost:8080/upload?id=%s&quot;, session), body=&quot;Hello shim&quot;)</code></pre>
-<pre><code>## Response [http://localhost:8080/upload?id=231]
-##   Date: 2015-11-10 09:34
+<pre><code>## Response [http://localhost:8080/upload?id=259]
+##   Date: 2015-11-10 09:49
 ##   Status: 200
 ##   Content-Type: text/plain
 ##   Size: 39 B
-## /dev/shm/000//0/shim_input_buf_gmysec</code></pre>
+## /dev/shm/000//0/shim_input_buf_sLp4fC</code></pre>
 <pre class="r"><code># Release our session ID
 httr::GET(sprintf(&quot;http://localhost:8080/release_session?id=%s&quot;, session))</code></pre>
-<pre><code>## Response [http://localhost:8080/release_session?id=231]
-##   Date: 2015-11-10 09:34
+<pre><code>## Response [http://localhost:8080/release_session?id=259]
+##   Date: 2015-11-10 09:49
 ##   Status: 200
 ##   Content-Type: text/plain
 ## &lt;EMPTY BODY&gt;</code></pre>
