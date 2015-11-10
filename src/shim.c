@@ -724,7 +724,7 @@ version (struct mg_connection *conn)
 {
   char buf[MAX_VARLEN];
   syslog (LOG_INFO, "version \n");
-  snprintf (buf, MAX_VARLEN, "%s\r\n", VERSION);
+  snprintf (buf, MAX_VARLEN, "%s", VERSION);
   respond (conn, plain, 200, strlen (buf), buf);
 }
 

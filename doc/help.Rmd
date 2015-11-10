@@ -14,7 +14,7 @@ output:
 
 ## SciDB authentication replaced PAM
 
-SciDB version 15.7 introduced new native SciDB authentication. Shim has replaced PAM-based authentication with the new SciDB authentication methods. In order to maintain compatibility with pre-15.7 shim clients, the new SciDB authentication process mimics the PAM process using the `/login` service, see TLS Authentication for examples. At some point in the future, shim will no longer use the `/login` or `/logout` services.
+SciDB version 15.7 introduced new native SciDB authentication. Shim has replaced PAM-based authentication with the new SciDB authentication methods. The old `/login` service is no longer requrired, but in order to maintain compatibility with pre-15.7 shim clients, the new SciDB authentication process mimics the PAM process using the `/login` service, see TLS Authentication for examples. At some point in the future, shim will drop the `/login` and `/logout` services.
 
 ## Use the new **/upload** service in place of **/upload_file**
 
@@ -33,7 +33,7 @@ Shim can now use any SciDB instance as a query coordinator. That means that you 
 
 Shim is a web service that exposes a very simple API for clients to interact with SciDB over HTTP connections. The API consists of a small number of services (described in detail below), including: `/new_session`, `/release_session`, `/execute_query`, `/cancel`, `/read_lines`, `/read_bytes`, `/upload_file`, `/upload`, `/version`, `/login` and `/logout`.
 
-There are more direct ways to talk to SciDB over a network. See https://github.com/artyom-smirnov/scidb4py for a great example of direct network communication with SciDB using Python and Google protocol buffers (written by Artyom Smirnov, one of the core SciDB developers). The protocol buffers approach is comparatively low-level, but possibly more efficient than shim. Shim is designed to be a convenient and easy way to talk to SciDB. Note that both shim and Artyom's Python interface are community open source projects; they are not official components of SciDB.
+There are more direct ways to talk to SciDB over a network. See https://github.com/artyom-smirnov/scidb4py for a great example of direct network communication with SciDB using Python and Google protocol buffers (written by Artyom Smirnov, one of the core SciDB developers). Artyom's approach is comparatively low-level, but possibly more efficient than shim. Shim is designed to be a convenient and easy way to talk to SciDB. Note that both shim and Artyom's Python interface are community open source projects; they are not official components of SciDB.
 
 ```{r, echo=FALSE}
 if(! require(jpeg, quietly=TRUE)) install.packages('jpeg',,'http://www.rforge.net/') 
@@ -44,18 +44,18 @@ rasterImage(x, 1,1,2,2)
 par(p)
 ```
 
-Shim clients begin by requesting a session ID from the service, then running a query and releasing the session ID when done. Session IDs are distinct from SciDB query IDs--a session ID groups a SciDB query together with server resources for input and output to the client.
+Shim clients begin by requesting a session ID from the service, then running a query and releasing the session ID when done. Session IDs are distinct from SciDB query IDs--a  shim session ID groups a SciDB query together with server resources for input and output to the client.
 
 
 # Configuration
 
-Shim runs as a system service or may be invoked directly from the command line. See the shim manual page for command-line options (type `man shim` from a terminal). Service configuration is determined by the `/var/lib/shim/conf` configuration file. The default conf file is a sample that displays the default configuration options, which are listed as one key=value pair per line. Available options include: 
+Shim runs as a system service or can be invoked directly from the command line. See the shim manual page for command-line options (type `man shim` from a terminal). Service configuration is determined by the `/var/lib/shim/conf` configuration file. The default conf file is a sample that displays the default configuration options, which are listed as one key=value pair per line. Available options include: 
 
 ```
 #ports=8080,8083s
 scidbport=1239
 instance=0
-tmp=/home/scidbdata/000/0/tmp
+tmp=/home/scidb/scidbdata/000/0/tmp
 #user=root
 #max_sessions=50
 #timeout=60
@@ -96,7 +96,7 @@ number for the instance, and also set a corresponding temporary I/O location tha
 
 ## Temporary I/O space and streaming
 
-Shim's default behavior caches the output of SciDB queries in files on the SciDB server; set that file directory location with the config file tmp option or the command-line -t argument. This temporary director is also used to upload data from clients over the http connection for input into SciDB. Select a directory that is writable by the shim user (see the user option).
+Shim's default behavior caches the output of SciDB queries in files on the SciDB server; set that file directory location with the config file tmp option or the command-line -t argument. This temporary directory is also used to upload data from clients over the http connection for input into SciDB. Select a directory that is writable by the shim user (see the user option).
 
 If you install shim from an RPM or Debian package as a service, the package will configure shim to use a SciDB data directory for temporary
 storage. You can edit the config file and restart shim to change that default.
@@ -147,7 +147,7 @@ Possible responses for each URI are listed below. HTTP status code 200 always in
 
 ## Basic digest access authentication
 
-Shim supports basic digest access authentication. (See https://en.wikipedia.org/wiki/Digest_access_authentication and the references therein for a good description of the method.) Enable digest access authentication by creating an .htpasswd file in shim's default `/var/lib/shim/wwwroot` directory (the .htpasswd file must be located in shim's wwwroot directory, which can be changed with the command line switch -r. The format of the file must be:
+Shim supports basic digest access authentication. (See https://en.wikipedia.org/wiki/Digest_access_authentication and the references therein for a good description of the method.) Enable digest access authentication by creating an .htpasswd file in shim's default `/var/lib/shim/wwwroot` directory (the .htpasswd file must be located in shim's wwwroot directory, which can be changed with the command line switch -r). The format of the file must be:
 
 ```
 username1:password1
