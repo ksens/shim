@@ -172,4 +172,4 @@ grinder: shim0
 	@LD_LIBRARY_PATH="$(SCIDB)/lib:$(SCIDB)/3rdparty/boost/lib" ./tests/grinder.sh
 	@echo "Now carefully inspect the report in /tmp/grinder.out"
 
-test: test0 test1 test2 test3 test4 test5 test6 test9 test10
+test: test0 test1 test2 test3 test4 test5 test6 test9 test10 test12

@@ -4545,7 +4545,17 @@ mg_post_upload(struct mg_connection *conn, char *filename)
   while ((n = mg_read(conn, buf, MG_BUF_LEN)) > 0 && len < clen)
   {
     len += n;
-    fwrite(buf, 1, n, fp);
+    if(n != (int)fwrite(buf, 1, n, fp))
+    {
+      syslog(LOG_ERR, "post_upload short fwrite\n");
+      len = -1;
+      break;
+    }
+  }
+  if(n < 0)
+  {
+    syslog(LOG_ERR, "post_upload connection read error\n");
+    len = -1;
   }
   fclose(fp);
   return len;
