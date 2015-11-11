@@ -18,12 +18,12 @@ echo "homer:elmo" > $td/wwwroot/.htpasswd
 ./shim -p $port -r $td/wwwroot  -f &
 sleep 1
 
-t1=$(date +%s)
+t1=$(date +"%s.%N")
 id=$(curl -f -s --digest --user homer:elmo "http://${host}:${port}/new_session" | sed -e "s/.*//")
 dd if=/dev/zero bs=1M count=50 2>/dev/null  | curl -f -s --digest --user homer:elmo --form "fileupload=@-;filename=data" "http://${host}:${port}/upload_file?id=${id}"  >/dev/null || fail
 curl -f -s --digest --user homer:elmo "http://${host}:${port}/release_session?id=${id}" >/dev/null || fail
-t2=$(date +%s)
-x=$(( 50 / ($t2 - $t1 ) ))
+t2=$(date +"%s.%N")
+x=$(echo "50 / ($t2 - $t1)" | bc)
 
 
 echo "OK (about ${x} MB/s)"
