@@ -41,7 +41,7 @@ if test $? -ne 0; then
   echo "SSL certificate generation failed openssl not found: TLS disabled."
   rm -f /var/lib/shim/ssl_cert.pem
 fi
-if test -n "$(which update-rc.d)"; then
+if test -n "$(which update-rc.d 2>/dev/null)"; then
 # Ubuntu
   update-rc.d shimsvc defaults
 elif test -n "$(which chkconfig)"; then
