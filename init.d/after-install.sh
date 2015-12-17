@@ -17,7 +17,8 @@ if test -n "$s"; then
   INS=$(( $INS ))
   TMP=`echo "$s" | sed -e "s/.*-s //;s/ .*//" | sed -e "s@\(/[0-9][0-9][0-9]\)/[0-9]*.*@\1/@"`
   TMP="${TMP}${INS}"
-  INS=`su - scidb -c "iquery -p $PORT -aq \"list('instances')\" | grep \"'$TMP'\" | cut -d \"{\" -f 2 | cut -d \"}\" -f 1"`
+  SCIDBUSER=`ps -ef  | grep scidb | grep dbname | head -n 1 | cut -d ' ' -f 1`
+  INS=`su - $SCIDBUSER -c "iquery -p $PORT -aq \"list('instances')\" | grep \"'$TMP'\" | cut -d \"{\" -f 2 | cut -d \"}\" -f 1"`
 fi
 # Write out an example config file to /var/lib/shim/conf
 cat >/var/lib/shim/conf << EOF
