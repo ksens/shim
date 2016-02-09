@@ -35,6 +35,7 @@ tmp=$TMP
 #max_sessions=50
 #timeout=60
 instance=$INS
+#aio=1
 EOF
 
 # Generate a certificate

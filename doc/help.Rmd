@@ -12,6 +12,14 @@ output:
 
 # What's new (for SciDB 15.7)
 
+## Support for the SciDB advanced I/O toolbox (_aio_tools_)
+
+Use the `-a` command line flag, or add the line
+```
+aio=1
+```
+to the `/var/lib/shim.conf` file to save data using the SciDB aio_tools plugin (required).
+
 ## SciDB authentication replaced PAM
 
 SciDB version 15.7 introduced new native SciDB authentication. Shim has replaced PAM-based authentication with the new SciDB authentication methods. The old `/login` service is no longer requrired, but in order to maintain compatibility with pre-15.7 shim clients, the new SciDB authentication process mimics the PAM process using the `/login` service, see TLS Authentication for examples. At some point in the future, shim will drop the `/login` and `/logout` services.
@@ -59,6 +67,7 @@ tmp=/home/scidb/scidbdata/000/0/tmp
 #user=root
 #max_sessions=50
 #timeout=60
+#aio=1
 ```
 
 Each option is described below.
@@ -106,7 +115,6 @@ storage. You can edit the config file and restart shim to change that default.
 
 The user that the shim service runs under (shim can run as a non-root user).
 
-
 ## Max sessions
 
 Set the maximum number of concurrent _shim_ sessions, beyond which clients receive an HTTP 'resource unavailable' error.
@@ -118,6 +126,9 @@ After sessions time out their resources are not freed unless the need to be to s
 lazy timeout section below. Active sessions that are waiting on SciDB query results or transferring data are not subject
 to timeout and may run indefinitely.
 
+## AIO plugin
+
+Set `aio=1` in the config file to enable fast AIO save using the SciDB aio_tools plugin.
 
 
 ## TLS/SSL Certificate
