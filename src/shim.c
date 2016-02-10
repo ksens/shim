@@ -492,29 +492,34 @@ get_session ()
 /* Authenticate an open SciDB sconnection
  * Close the connection and set to NULL on failure
  */
-void authenticate(void *sci_con, char *token)
+void
+authenticate (void *sci_con, char *token)
 {
   char name[MAX_VARLEN];
   char pwd[MAX_VARLEN];
   char *delim;
   size_t len;
-  if(!sci_con) return;
-  delim = strchr(token, ':');
+  if (!sci_con)
+    return;
+  delim = strchr (token, ':');
   if (strlen (token) < 1 || !delim)
     {
-      scidbdisconnect(sci_con);
+      scidbdisconnect (sci_con);
       sci_con = NULL;
       return;
     }
-  memset(name, 0, MAX_VARLEN);
-  memset(pwd, 0, MAX_VARLEN);
-  len = (size_t)(delim - token);
-  if(MAX_VARLEN < len) len = (size_t) MAX_VARLEN;
-  memcpy(name, token, len);
-  snprintf(pwd, MAX_VARLEN, "%s", ++delim);
-  scidbauth(sci_con, name, pwd);
-  if(sci_con) syslog (LOG_INFO, "SciDB authenticated user %s", name);
-  else syslog (LOG_ERR, "SciDB failed to authenticate user %s", name);
+  memset (name, 0, MAX_VARLEN);
+  memset (pwd, 0, MAX_VARLEN);
+  len = (size_t) (delim - token);
+  if (MAX_VARLEN < len)
+    len = (size_t) MAX_VARLEN;
+  memcpy (name, token, len);
+  snprintf (pwd, MAX_VARLEN, "%s", ++delim);
+  scidbauth (sci_con, name, pwd);
+  if (sci_con)
+    syslog (LOG_INFO, "SciDB authenticated user %s", name);
+  else
+    syslog (LOG_ERR, "SciDB failed to authenticate user %s", name);
 }
 
 
@@ -566,6 +571,62 @@ logout (struct mg_connection *conn)
 }
 
 /* Client data upload
+ * POST data upload to server-side file
+ * GET variables: sync=<0|1>
+ * Respond to the client connection as follows:
+ * 200 success, <uploaded filename>\r\n returned in body
+ * 400 ERROR, generic
+ */
+void
+cache (struct mg_connection *conn, const struct mg_request_info *ri)
+{
+  int k, fd;
+  char fn[PATH_MAX];
+  char buf[MAX_VARLEN];
+  int sync = 0;
+  char var[MAX_VARLEN];
+  k = strlen (ri->query_string);
+  mg_get_var (ri->query_string, k, "sync", var, MAX_VARLEN);
+  if (strlen (var) > 0)
+    sync = atoi (var);
+  snprintf (fn, PATH_MAX, "%s/shim_cache", TMPDIR);
+// this might fail, but we defer error checking until file creation...
+  k = mkdir(fn, S_IRWXU | S_IRWXG);
+  snprintf (fn, PATH_MAX, "%s/shim_cache/XXXXXX", TMPDIR);
+  fd = mkstemp (fn);
+  if (fd >= 0)
+    {
+      fchmod (fd, S_IRUSR | S_IWUSR);
+      close (fd);
+    }
+  else
+    {
+      respond (conn, plain, 400, 0, NULL);
+      syslog (LOG_ERR, "can't create cached file");
+      return;
+    }
+  k = mg_post_upload (conn, fn);
+  if (k < 1)
+    {
+      respond (conn, plain, 400, 0, NULL);
+      return;
+    }
+  if (sync)
+    {
+      fd = open(fn, O_RDWR, S_IRUSR | S_IWUSR);
+      if(fd > -1)
+        {
+          fsync(fd);
+          close(fd);
+        }
+    }
+  snprintf (buf, MAX_VARLEN, "%s", fn);
+  respond (conn, plain, 200, strlen (buf), buf);        // XXX report bytes uploaded
+  return;
+}
+
+
+/* Client data upload
  * POST data upload to server-side file defined in the session
  * identified by the 'id' variable in the mg_request_info query string.
  * Respond to the client connection as follows:
@@ -595,15 +656,15 @@ post_upload (struct mg_connection *conn, const struct mg_request_info *ri)
       omp_set_lock (&s->lock);
       s->time = time (NULL) + WEEK;     // Upload should take less than a week!
       k = mg_post_upload (conn, s->ibuf);
-      if(k<1)
-      {
-        time (&s->time);
-        omp_unset_lock (&s->lock);
-        respond (conn, plain, 400, 0, NULL);      // not found
-        return;
-      }
+      if (k < 1)
+        {
+          time (&s->time);
+          omp_unset_lock (&s->lock);
+          respond (conn, plain, 400, 0, NULL);  // not found
+          return;
+        }
       time (&s->time);
-      snprintf (buf, MAX_VARLEN, "%s\r\n", s->ibuf);
+      snprintf (buf, MAX_VARLEN, "%s", s->ibuf);
 // XXX if fails, report server error too
       respond (conn, plain, 200, strlen (buf), buf);    // XXX report bytes uploaded
       omp_unset_lock (&s->lock);
@@ -678,30 +739,31 @@ new_session (struct mg_connection *conn, const struct mg_request_info *ri)
  * 2. Check SciDB authentication
  */
   int auth;
-  if(mg_get_basic_auth(conn)==1)
-  {
-    syslog(LOG_INFO, "new_session DIGEST AUTH");
-    auth = 1;                                /* digest authenticated */
-  }
-  else if(!ri->is_ssl)
-  {
-     syslog(LOG_INFO, "new_session NO AUTH");
-     auth = 1;                               /* no authentication (non-TLS) */
-  }
+  if (mg_get_basic_auth (conn) == 1)
+    {
+      syslog (LOG_INFO, "new_session DIGEST AUTH");
+      auth = 1;                 /* digest authenticated */
+    }
+  else if (!ri->is_ssl)
+    {
+      syslog (LOG_INFO, "new_session NO AUTH");
+      auth = 1;                 /* no authentication (non-TLS) */
+    }
   else
-  {
-    syslog(LOG_INFO, "new_session SCIDB AUTH");
-    auth = SCIDB_AUTHENTICATED;              /* Use SciDB authentication */
-  }
- 
+    {
+      syslog (LOG_INFO, "new_session SCIDB AUTH");
+      auth = SCIDB_AUTHENTICATED;       /* Use SciDB authentication */
+    }
+
   int j = get_session ();
   syslog (LOG_INFO, "new_session %d", j);
   if (j > -1)
     {
       sessions[j].auth = auth;
-      syslog (LOG_INFO, "new_session auth=%d session id=%d ibuf=%s obuf=%s opipe=%s",
-              sessions[j].auth, sessions[j].sessionid, sessions[j].ibuf, sessions[j].obuf,
-              sessions[j].opipe);
+      syslog (LOG_INFO,
+              "new_session auth=%d session id=%d ibuf=%s obuf=%s opipe=%s",
+              sessions[j].auth, sessions[j].sessionid, sessions[j].ibuf,
+              sessions[j].obuf, sessions[j].opipe);
       snprintf (buf, MAX_VARLEN, "%d", sessions[j].sessionid);
       respond (conn, plain, 200, strlen (buf), buf);
     }
@@ -1140,16 +1202,18 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
   if (strlen (save) > 0)
     {
       s->save = 1;
-      if (USE_AIO == 1 && save[0]=='(')
-      {
-          snprintf (qry, k + MAX_VARLEN, "aio_save(%s,'path=%s','instance=%d','format=%s')", qrybuf,
-                    stream ? s->opipe : s->obuf, SAVE_INSTANCE_ID, save);
-      }
+      if (USE_AIO == 1 && save[0] == '(')
+        {
+          snprintf (qry, k + MAX_VARLEN,
+                    "aio_save(%s,'path=%s','instance=%d','format=%s')",
+                    qrybuf, stream ? s->opipe : s->obuf, SAVE_INSTANCE_ID,
+                    save);
+        }
       else
-      {                
+        {
           snprintf (qry, k + MAX_VARLEN, "save(%s,'%s',%d,'%s')", qrybuf,
                     stream ? s->opipe : s->obuf, SAVE_INSTANCE_ID, save);
-      }
+        }
     }
   else
     {
@@ -1171,12 +1235,12 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
       omp_unset_lock (&s->lock);
       return;
     }
-  if(s->auth == SCIDB_AUTHENTICATED)
-  {
-    memset (auth, 0, MAX_VARLEN);
-    mg_get_var (ri->query_string, k, "auth", auth, MAX_VARLEN);
-    authenticate(s->con, auth);
-  }
+  if (s->auth == SCIDB_AUTHENTICATED)
+    {
+      memset (auth, 0, MAX_VARLEN);
+      mg_get_var (ri->query_string, k, "auth", auth, MAX_VARLEN);
+      authenticate (s->con, auth);
+    }
   if (!s->con)
     {
       free (qry);
@@ -1366,6 +1430,8 @@ begin_request_handler (struct mg_connection *conn)
     upload (conn, ri);
   else if (!strcmp (ri->uri, "/upload"))
     post_upload (conn, ri);
+  else if (!strcmp (ri->uri, "/cache"))
+    cache (conn, ri);
   else if (!strcmp (ri->uri, "/read_lines"))
     readlines (conn, ri);
   else if (!strcmp (ri->uri, "/read_bytes"))
@@ -1431,7 +1497,7 @@ parse_args (char **options, int argc, char **argv, int *daemonize)
           break;
         case 'a':
           USE_AIO = 1;
-          break; 
+          break;
         case 'p':
           options[1] = optarg;
           break;
@@ -1592,7 +1658,8 @@ main (int argc, char **argv)
   omp_destroy_lock (&biglock);
   mg_stop (ctx);
   closelog ();
-  if(options[5]) free (options[5]);
+  if (options[5])
+    free (options[5]);
 
   return 0;
 }
