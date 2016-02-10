@@ -620,7 +620,7 @@ cache (struct mg_connection *conn, const struct mg_request_info *ri)
           close(fd);
         }
     }
-  snprintf (buf, MAX_VARLEN, "%s", fn);
+  snprintf (buf, MAX_VARLEN, "%s", basename(fn));
   respond (conn, plain, 200, strlen (buf), buf);        // XXX report bytes uploaded
   return;
 }
