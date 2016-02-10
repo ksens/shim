@@ -625,6 +625,41 @@ cache (struct mg_connection *conn, const struct mg_request_info *ri)
   return;
 }
 
+/* Client cached data download
+ * GET variables: name=<filename> remve=<0|1>
+ * Respond to the client connection as follows:
+ * 200 success, data
+ * 400 ERROR, generic
+ */
+void
+uncache (struct mg_connection *conn, const struct mg_request_info *ri)
+{
+  int k, remove = 0;
+  char fn[PATH_MAX];
+  char var[MAX_VARLEN];
+  if (!ri->query_string)
+    {
+      respond (conn, plain, 400, 0, NULL);
+      syslog (LOG_INFO, "uncache error invalid http query");
+      return;
+    }
+  k = strlen (ri->query_string);
+  mg_get_var (ri->query_string, k, "remove", var, MAX_VARLEN);
+  if (strlen (var) > 0)
+    remove = atoi (var);
+  memset (var, 0, MAX_VARLEN);
+  mg_get_var (ri->query_string, k, "name", var, MAX_VARLEN);
+  if (strlen (var) < 1)
+    {
+      respond (conn, plain, 400, 0, NULL);
+      syslog (LOG_INFO, "uncache error invalid http query");
+      return;
+    }
+  snprintf (fn, PATH_MAX, "%s/shim_cache/%s", TMPDIR, var);
+  mg_send_file (conn, fn);
+  if(remove) unlink(fn);
+}
+
 
 /* Client data upload
  * POST data upload to server-side file defined in the session
@@ -1432,6 +1467,8 @@ begin_request_handler (struct mg_connection *conn)
     post_upload (conn, ri);
   else if (!strcmp (ri->uri, "/cache"))
     cache (conn, ri);
+  else if (!strcmp (ri->uri, "/uncache"))
+    uncache (conn, ri);
   else if (!strcmp (ri->uri, "/read_lines"))
     readlines (conn, ri);
   else if (!strcmp (ri->uri, "/read_bytes"))

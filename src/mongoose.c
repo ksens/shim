@@ -4518,6 +4518,14 @@ mg_post_upload(struct mg_connection *conn, char *filename)
   int n;
   size_t clen, len = 0;
 
+
+  const char *expect;
+  expect = mg_get_header(conn, "Expect");
+  if (expect != NULL) {
+      (void) mg_printf(conn, "%s", "HTTP/1.1 100 Continue\r\n\r\n");
+  }
+
+
   // Request looks like this:
   //
   // POST / HTTP/1.1
