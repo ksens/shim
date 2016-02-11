@@ -4509,7 +4509,7 @@ static uint32_t get_remote_ip(const struct mg_connection *conn) {
 
 
 int
-mg_post_upload(struct mg_connection *conn, char *filename, int append)
+mg_post_upload(struct mg_connection *conn, char *filename, int append, int lock)
 {
   const char *content_length;
   FILE *fp;
@@ -4547,10 +4547,11 @@ mg_post_upload(struct mg_connection *conn, char *filename, int append)
   if(append) fp = fopen(filename, "a+b");
   else fp = fopen(filename, "w+b");
   if (fp == NULL) return -1;
+  if(lock) flockfile(fp);
   while ((n = mg_read(conn, buf, MG_BUF_LEN)) > 0 && len < clen)
   {
     len += n;
-    if(n != (int)fwrite(buf, 1, n, fp))
+    if(n != (int) fwrite(buf, 1, n, fp))
     {
       syslog(LOG_ERR, "post_upload short fwrite\n");
       len = -1;
@@ -4562,6 +4563,7 @@ mg_post_upload(struct mg_connection *conn, char *filename, int append)
     syslog(LOG_ERR, "post_upload connection read error\n");
     len = -1;
   }
+  funlockfile(fp);
   fclose(fp);
   return len;
 }
