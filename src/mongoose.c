@@ -4508,9 +4508,8 @@ static uint32_t get_remote_ip(const struct mg_connection *conn) {
 #endif // USE_LUA
 
 
-
 int
-mg_post_upload(struct mg_connection *conn, char *filename)
+mg_post_upload(struct mg_connection *conn, char *filename, int append)
 {
   const char *content_length;
   FILE *fp;
@@ -4518,13 +4517,11 @@ mg_post_upload(struct mg_connection *conn, char *filename)
   int n;
   size_t clen, len = 0;
 
-
   const char *expect;
   expect = mg_get_header(conn, "Expect");
   if (expect != NULL) {
       (void) mg_printf(conn, "%s", "HTTP/1.1 100 Continue\r\n\r\n");
   }
-
 
   // Request looks like this:
   //
@@ -4545,11 +4542,11 @@ mg_post_upload(struct mg_connection *conn, char *filename)
   syslog(LOG_INFO, "post_upload expecting %s bytes\n", content_length);
   if(clen < 1) return -1;
   fp = NULL;
-  // Open file in binary mode for appending.
-  umask(S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
-  if ((fp = fopen(filename, "a+b")) == NULL) {
-    return -1;
-  }
+  // Open file in binary mode for append or write
+  umask(0022);
+  if(append) fp = fopen(filename, "a+b");
+  else fp = fopen(filename, "w+b");
+  if (fp == NULL) return -1;
   while ((n = mg_read(conn, buf, MG_BUF_LEN)) > 0 && len < clen)
   {
     len += n;

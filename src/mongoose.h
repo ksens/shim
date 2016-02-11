@@ -364,9 +364,9 @@ int mg_upload(struct mg_connection *conn, const char *destination_dir);
 // Return number of uploaded files.
 int mg_append(struct mg_connection *conn, char *file);
 
-// Append bytes to an existing file, required by pipe operations.
+// Write or append bytes to an existing file, required by pipe operations.
 // Return number of uploaded bytes.
-int mg_post_upload(struct mg_connection *conn, char *file);
+int mg_post_upload(struct mg_connection *conn, char *file, int append);
 
 // Convenience function -- create detached thread.
 // Return: 0 on success, non-0 on error.
