@@ -692,7 +692,7 @@ uncache (struct mg_connection *conn, const struct mg_request_info *ri)
   if (!ri->query_string)
     {
       respond (conn, plain, 400, 0, NULL);
-      syslog (LOG_INFO, "uncache error invalid http query");
+      syslog (LOG_ERR, "uncache error invalid http query");
       return;
     }
   k = strlen (ri->query_string);
@@ -700,11 +700,12 @@ uncache (struct mg_connection *conn, const struct mg_request_info *ri)
   if (strlen (var) > 0)
     remove = atoi (var);
   memset (var, 0, MAX_VARLEN);
+  memset (var1, 0, MAX_VARLEN);
   mg_get_var (ri->query_string, k, "name", var, MAX_VARLEN);
   if (strlen (var) < 1)
     {
       respond (conn, plain, 400, 0, NULL);
-      syslog (LOG_INFO, "uncache error invalid http query");
+      syslog (LOG_ERR, "uncache error invalid http query");
       return;
     }
   nodots(var, var1); // strip dots from the name
