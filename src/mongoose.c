@@ -4540,13 +4540,13 @@ mg_post_upload(struct mg_connection *conn, char *filename, int append, int lock)
   }
   clen = (size_t) atoll(content_length);
   syslog(LOG_INFO, "post_upload expecting %s bytes\n", content_length);
-  if(clen < 1) return -1;
+  if(clen < 1) return -2;
   fp = NULL;
   // Open file in binary mode for append or write
   umask(0022);
   if(append) fp = fopen(filename, "a+b");
   else fp = fopen(filename, "w+b");
-  if (fp == NULL) return -1;
+  if (fp == NULL) return -3;
   if(lock) flockfile(fp);
   while ((n = mg_read(conn, buf, MG_BUF_LEN)) > 0 && len < clen)
   {

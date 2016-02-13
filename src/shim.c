@@ -622,12 +622,12 @@ cache (struct mg_connection *conn, const struct mg_request_info *ri)
     nodots(var1, var);
     memcpy(name, var, MAX_VARLEN);  
     snprintf (fn, PATH_MAX, "%s/shim_cache", TMPDIR);
-    k = mkdir(fn, S_IRUSR | S_IWUSR);  // may fail, we implicitly check later
+    k = mkdir(fn, S_IRUSR | S_IWUSR | S_IXUSR);  // may fail, we implicitly check later
     var2 = dirname(var);
     if (strlen (var2) > 0)
     {
       snprintf (fn, PATH_MAX, "%s/shim_cache/%s", TMPDIR, var2);
-      k = mkdir(fn, S_IRUSR | S_IWUSR);  // may fail, we implicitly check later
+      k = mkdir(fn, S_IRUSR | S_IWUSR | S_IXUSR);  // may fail, we implicitly check later
     }
     snprintf (fn, PATH_MAX, "%s/shim_cache/%s", TMPDIR, name);
     fd = open(fn, O_RDWR, S_IRUSR | S_IWUSR);
@@ -658,7 +658,7 @@ cache (struct mg_connection *conn, const struct mg_request_info *ri)
   if (k < 1)
     {
       respond (conn, plain, 400, 0, NULL);
-      syslog (LOG_ERR, "cache upload failed");
+      syslog (LOG_ERR, "cache upload failed %s %d", fn, k);
       return;
     }
   if (sync)
