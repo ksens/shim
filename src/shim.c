@@ -131,17 +131,18 @@ int USE_AIO;                    //use accelerated io for some saves: 0/1
  * of dot characters. output must have allocated size sufficient to hold the
  * result, a copy of input will do since its size will not exceed that.
  */
-int nodots(const char *input, char *output)
+int
+nodots (const char *input, char *output)
 {
-  size_t k, i=0;
-  for(k=0; k < strlen(input); ++k)
-  {
-    if(input[k] != '.')
-    { 
-      output[i] = input[k];
-      i++;
+  size_t k, i = 0;
+  for (k = 0; k < strlen (input); ++k)
+    {
+      if (input[k] != '.')
+        {
+          output[i] = input[k];
+          i++;
+        }
     }
-  }
   return 0;
 }
 
@@ -598,7 +599,7 @@ logout (struct mg_connection *conn)
 void
 cache (struct mg_connection *conn, const struct mg_request_info *ri)
 {
-  int k, fd, named=0;
+  int k, fd, named = 0;
   char fn[PATH_MAX];
   char buf[MAX_VARLEN];
   int sync = 0;
@@ -608,52 +609,53 @@ cache (struct mg_connection *conn, const struct mg_request_info *ri)
   char *var2;
   memset (var1, 0, MAX_VARLEN);
   if (ri->query_string)
-  {
-    k = strlen (ri->query_string);
-    mg_get_var (ri->query_string, k, "sync", var, MAX_VARLEN);
-    if (strlen (var) > 0)
-      sync = atoi (var);
-    memset (var, 0, MAX_VARLEN);
-    mg_get_var (ri->query_string, k, "name", var1, MAX_VARLEN);
-  }
-  if (strlen (var1) > 0)
-  {
-    named = 1;
-    nodots(var1, var);
-    memcpy(name, var, MAX_VARLEN);  
-    snprintf (fn, PATH_MAX, "%s/shim_cache", TMPDIR);
-    k = mkdir(fn, S_IRUSR | S_IWUSR | S_IXUSR);  // may fail, we implicitly check later
-    var2 = dirname(var);
-    if (strlen (var2) > 0)
     {
-      snprintf (fn, PATH_MAX, "%s/shim_cache/%s", TMPDIR, var2);
-      k = mkdir(fn, S_IRUSR | S_IWUSR | S_IXUSR);  // may fail, we implicitly check later
+      k = strlen (ri->query_string);
+      mg_get_var (ri->query_string, k, "sync", var, MAX_VARLEN);
+      if (strlen (var) > 0)
+        sync = atoi (var);
+      mg_get_var (ri->query_string, k, "name", var1, MAX_VARLEN);
     }
-    snprintf (fn, PATH_MAX, "%s/shim_cache/%s", TMPDIR, name);
-    fd = open(fn, O_RDWR, S_IRUSR | S_IWUSR);
-    if (fd >= 0)
-      {
-        fchmod (fd, S_IRUSR | S_IWUSR);
-        close (fd);
-      }
-  } else
-  {
-    snprintf (fn, PATH_MAX, "%s/shim_cache", TMPDIR);
-    k = mkdir(fn, S_IRWXU | S_IRWXG);
-    snprintf (fn, PATH_MAX, "%s/shim_cache/XXXXXX", TMPDIR);
-    fd = mkstemp (fn);
-    if (fd >= 0)
-      {
-        fchmod (fd, S_IRUSR | S_IWUSR);
-        close (fd);
-      }
-    else
-      {
-        respond (conn, plain, 400, 0, NULL);
-        syslog (LOG_ERR, "can't create cached file");
-        return;
-      }
-  }
+  if (strlen (var1) > 0)
+    {
+      named = 1;
+      memset (var, 0, MAX_VARLEN);
+      nodots (var1, var);
+      memcpy (name, var, MAX_VARLEN);
+      snprintf (fn, PATH_MAX, "%s/shim_cache", TMPDIR);
+      k = mkdir (fn, S_IRUSR | S_IWUSR | S_IXUSR);      // may fail, we implicitly check later
+      var2 = dirname (var);
+      if (strlen (var2) > 0)
+        {
+          snprintf (fn, PATH_MAX, "%s/shim_cache/%s", TMPDIR, var2);
+          k = mkdir (fn, S_IRUSR | S_IWUSR | S_IXUSR);  // may fail, we implicitly check later
+        }
+      snprintf (fn, PATH_MAX, "%s/shim_cache/%s", TMPDIR, name);
+      fd = open (fn, O_RDWR, S_IRUSR | S_IWUSR);
+      if (fd >= 0)
+        {
+          fchmod (fd, S_IRUSR | S_IWUSR);
+          close (fd);
+        }
+    }
+  else
+    {
+      snprintf (fn, PATH_MAX, "%s/shim_cache", TMPDIR);
+      k = mkdir (fn, S_IRUSR | S_IWUSR | S_IXUSR);      // may fail, we implicitly check later
+      snprintf (fn, PATH_MAX, "%s/shim_cache/XXXXXX", TMPDIR);
+      fd = mkstemp (fn);
+      if (fd >= 0)
+        {
+          fchmod (fd, S_IRUSR | S_IWUSR);
+          close (fd);
+        }
+      else
+        {
+          respond (conn, plain, 400, 0, NULL);
+          syslog (LOG_ERR, "can't create cached file");
+          return;
+        }
+    }
   k = mg_post_upload (conn, fn, 0, 1);
   if (k < 1)
     {
@@ -663,16 +665,18 @@ cache (struct mg_connection *conn, const struct mg_request_info *ri)
     }
   if (sync)
     {
-      fd = open(fn, O_RDWR, S_IRUSR | S_IWUSR);
-      if(fd > -1)
+      fd = open (fn, O_RDWR, S_IRUSR | S_IWUSR);
+      if (fd > -1)
         {
-          fsync(fd);
-          close(fd);
+          fsync (fd);
+          close (fd);
         }
     }
-  if(named) snprintf (buf, MAX_VARLEN, "%s", name);
-  else snprintf (buf, MAX_VARLEN, "%s", basename(fn));
-  respond (conn, plain, 200, strlen (buf), buf);        // XXX report bytes uploaded
+  if (named)
+    snprintf (buf, MAX_VARLEN, "%s", name);
+  else
+    snprintf (buf, MAX_VARLEN, "%s", basename (fn));
+  respond (conn, plain, 200, strlen (buf), buf);        // XXX report bytes uploaded?
   return;
 }
 
@@ -708,10 +712,11 @@ uncache (struct mg_connection *conn, const struct mg_request_info *ri)
       syslog (LOG_ERR, "uncache error invalid http query");
       return;
     }
-  nodots(var, var1); // strip dots from the name
+  nodots (var, var1);           // strip dots from the name
   snprintf (fn, PATH_MAX, "%s/shim_cache/%s", TMPDIR, var1);
   mg_send_file (conn, fn);
-  if(remove) unlink(fn);
+  if (remove)
+    unlink (fn);
 }
 
 
