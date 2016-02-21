@@ -3243,7 +3243,7 @@ void mg_send_pipe(struct mg_connection *conn, const char *path, int opt, int lev
   if (stat(path, &st) == 0) {
     handle_pipe_request(conn, path, opt, level);
   } else {
-//    send_http_error(conn, 404, "Not Found", "%s", "Pipe not found");
+    send_http_error(conn, 404, "Not Found", "%s", "Pipe not found");
   }
 }
 
