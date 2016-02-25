@@ -1296,7 +1296,7 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
   if (strlen (save) > 0)
     {
       s->save = 1;
-      if (USE_AIO == 1 && save[0] == '(')
+      if (USE_AIO == 1 && (save[0] == '(' || strcmp(save, "csv+") == 0 || strcmp(save, "lcsv+") == 0))
         {
           snprintf (qry, k + MAX_VARLEN,
                     "aio_save(%s,'path=%s','instance=%d','format=%s')",
