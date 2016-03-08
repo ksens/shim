@@ -45,17 +45,20 @@
 void *scidbconnect (const char *host, int port);
 void scidbdisconnect (void *con);
 unsigned long long executeQuery (void *con, char *query, int afl, char *err);
-void completeQuery (unsigned long long id, void *con, char *err);
 void prepare_query (void *, void *, char *, int, char *);
-void *scidbauth (void *, const char *, const char *);
-// A support structure for prepare_query/execute_prepared_query
+typedef struct queryid
+{
+  unsigned long long coordinatorid;
+  unsigned long long queryid;
+} QueryID;
 struct prep
 {
-  unsigned long long queryid;
+  QueryID queryid;
   void *queryresult;
 };
-unsigned long long execute_prepared_query (void *, char *, struct prep *, int,
+QueryID execute_prepared_query (void *, char *, struct prep *, int,
                                            char *);
+void completeQuery (QueryID id, void *con, char *err);
 // End of mimimalist SciDB client API -----------------------------------------
 
 /* A session consists of client I/O buffers, and an optional SciDB query ID. */
@@ -68,10 +71,10 @@ typedef struct
 {
   omp_lock_t lock;
   int sessionid;                // session identifier
-  unsigned long long queryid;   // SciDB query identifier
+  QueryID qid;                  // SciDB query identifier
   int pd;                       // output buffer file descrptor
   FILE *pf;                     //   and FILE pointer
-  int stream;                   // non-zero if output streaming enabled
+  int stream;                   // non-zero if output streaming enabled (DISABLED)
   int save;                     // non-zero if output is to be saved/streamed
   int compression;              // gzip compression level for stream
   char *ibuf;                   // input buffer name
@@ -235,7 +238,7 @@ cleanup_session (session * s)
 {
   syslog (LOG_INFO, "cleanup_session releasing %d", s->sessionid);
   s->available = SESSION_AVAILABLE;
-  s->queryid = 0;
+  s->qid.queryid = 0;
   s->time = 0;
   if (s->pd > 0)
     close (s->pd);
@@ -284,12 +287,6 @@ release_session (struct mg_connection *conn, const struct mg_request_info *ri,
   session *s = find_session (id);
   if (s)
     {
-      if (s->stream > 0)        // Not allowed!
-        {
-          respond (conn, plain, 405, 0, NULL);
-          syslog (LOG_ERR, "release_session not allowed error");
-          return;
-        }
       omp_set_lock (&s->lock);
       cleanup_session (s);
       omp_unset_lock (&s->lock);
@@ -321,9 +318,9 @@ cancel_query (struct mg_connection *conn, const struct mg_request_info *ri)
   mg_get_var (ri->query_string, k, "id", var1, MAX_VARLEN);
   id = atoi (var1);
   session *s = find_session (id);
-  if (s && s->queryid > 0)
+  if (s && s->qid.queryid > 0)
     {
-      syslog (LOG_INFO, "cancel_query %d %llu", id, s->queryid);
+      syslog (LOG_INFO, "cancel_query %d %llu", id, s->qid.queryid);
       if (s->con)
         {
 // Establish a new SciDB context used to issue the cancel query.
@@ -340,7 +337,7 @@ cancel_query (struct mg_connection *conn, const struct mg_request_info *ri)
             }
 
           memset (var1, 0, MAX_VARLEN);
-          snprintf (var1, MAX_VARLEN, "cancel(%llu)", s->queryid);
+          snprintf (var1, MAX_VARLEN, "cancel(%llu)", s->qid.queryid);
           memset (SERR, 0, MAX_VARLEN);
           executeQuery (can_con, var1, 1, SERR);
           syslog (LOG_INFO, "cancel_query %s", SERR);
@@ -507,73 +504,11 @@ get_session ()
 }
 
 
-/* Authenticate an open SciDB sconnection
- * Close the connection and set to NULL on failure
- */
+/* Retained for compatibility */
 void
-authenticate (void *sci_con, char *token)
+login (struct mg_connection *conn)
 {
-  char name[MAX_VARLEN];
-  char pwd[MAX_VARLEN];
-  char *delim;
-  size_t len;
-  if (!sci_con)
-    return;
-  delim = strchr (token, ':');
-  if (strlen (token) < 1 || !delim)
-    {
-      scidbdisconnect (sci_con);
-      sci_con = NULL;
-      return;
-    }
-  memset (name, 0, MAX_VARLEN);
-  memset (pwd, 0, MAX_VARLEN);
-  len = (size_t) (delim - token);
-  if (MAX_VARLEN < len)
-    len = (size_t) MAX_VARLEN;
-  memcpy (name, token, len);
-  snprintf (pwd, MAX_VARLEN, "%s", ++delim);
-  scidbauth (sci_con, name, pwd);
-  if (sci_con)
-    syslog (LOG_INFO, "SciDB authenticated user %s", name);
-  else
-    syslog (LOG_ERR, "SciDB failed to authenticate user %s", name);
-}
-
-
-/* Authenticate a user with SciDB authentication and return a token.
- * NOTE: THIS ROUTINE DOESN'T REALLY DO MUCH. IT'S HERE TO MAINTAIN
- * COMPATIBILTY WITH PREVIOUS API VERSIONS. CAN OMIT IN FUTURE VERSIONS ONCE
- * CLIENTS ARE UPDATED.
- *
- * Error 400 is returned if the query string is empty or if this is not a
- * TLS/SSL connection.  login expects two query string arguments, username and
- * password. A token is returned. Use the token with other TLS connections to
- * show authentication.
- *
- */
-void
-login (struct mg_connection *conn, const struct mg_request_info *ri)
-{
-  int k;
-  char u[MAX_VARLEN];
-  char p[MAX_VARLEN];
-  char token[MAX_VARLEN];
-
-  if (!ri->query_string || !ri->is_ssl)
-    {
-      respond (conn, plain, 400, 0, NULL);
-      syslog (LOG_ERR, "login error invalid http query");
-      return;
-    }
-  k = strlen (ri->query_string);
-  mg_get_var (ri->query_string, k, "username", u, MAX_VARLEN);
-  mg_get_var (ri->query_string, k, "password", p, MAX_VARLEN);
-
-  memset (token, 0, MAX_VARLEN);
-  snprintf (token, MAX_VARLEN, "%s:%s", u, p);
-
-  respond (conn, plain, 200, strlen (token), token);
+  respond (conn, plain, 200, 0, NULL);
   return;
 }
 
@@ -830,7 +765,6 @@ new_session (struct mg_connection *conn, const struct mg_request_info *ri)
   char buf[MAX_VARLEN];
 /* Check authentication.
  * 1. First check for digest authentication
- * 2. Check SciDB authentication
  */
   int auth;
   if (mg_get_basic_auth (conn) == 1)
@@ -972,10 +906,7 @@ readbytes (struct mg_connection *conn, const struct mg_request_info *ri)
   if (n < 1)
     {
       syslog (LOG_INFO, "readbytes id=%d returning entire buffer", id);
-      if (s->stream)
-        mg_send_pipe (conn, s->opipe, s->stream, s->compression);
-      else
-        mg_send_file (conn, s->obuf);
+      mg_send_file (conn, s->obuf);
       omp_unset_lock (&s->lock);
       syslog (LOG_INFO, "readbytes id=%d done", id);
       return;
@@ -1078,11 +1009,7 @@ readlines (struct mg_connection *conn, const struct mg_request_info *ri)
   if ((n < 1) || s->stream)
     {
       syslog (LOG_INFO, "readlines returning entire buffer");
-      if (s->stream)
-        mg_send_pipe (conn, s->opipe, s->stream, s->compression);
-      else
-        mg_send_file (conn, s->obuf);
-
+      mg_send_file (conn, s->obuf);
       omp_unset_lock (&s->lock);
       return;
     }
@@ -1204,6 +1131,9 @@ readlines (struct mg_connection *conn, const struct mg_request_info *ri)
  * compression={-1,0,1,...,9}
  *   optional compression level when stream=2. If compression>=0, then this
  *   automatically sets stream=2.
+ * ------------------------------------------------------
+ * NOTE: stream > 0 has been disabled as of 15.12. Sorry.
+ * ------------------------------------------------------
  *
  * Any error that occurs during execute_query that is associated
  * with a valid session ID results in the release of the session.
@@ -1211,11 +1141,10 @@ readlines (struct mg_connection *conn, const struct mg_request_info *ri)
 void
 execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
 {
-  int id, k, rel = 0, stream = 0, compression = -1, pipefd;
-  unsigned long long l;
+  int id, k, rel = 0, stream = 0, compression = -1;
+  QueryID q;
   session *s;
   char var[MAX_VARLEN];
-  char auth[MAX_VARLEN];
   char buf[MAX_VARLEN];
   char save[MAX_VARLEN];
   char SERR[MAX_VARLEN];
@@ -1246,8 +1175,6 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
     {
       compression = atoi (var);
     }
-  if (compression > -1)
-    stream = 2;
   syslog (LOG_INFO, "execute_query for session id %d", id);
   s = find_session (id);
   if (!s)
@@ -1277,16 +1204,6 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
       cleanup_session (s);
       omp_unset_lock (&s->lock);
       return;
-    }
-  if (stream)
-    {
-      syslog (LOG_INFO, "execute_query stream indicated");
-    }
-  if (stream > 1)
-    {
-      syslog (LOG_INFO,
-              "gzip compressed stream indicated, compression level %d",
-              compression);
     }
   omp_set_lock (&s->lock);
   memset (var, 0, MAX_VARLEN);
@@ -1331,28 +1248,20 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
     }
   if (s->auth == SCIDB_AUTHENTICATED)
     {
-      memset (auth, 0, MAX_VARLEN);
-      mg_get_var (ri->query_string, k, "auth", auth, MAX_VARLEN);
-      authenticate (s->con, auth);
-    }
-  if (!s->con)
-    {
       free (qry);
       free (qrybuf);
-      syslog (LOG_ERR, "execute_query SciDB authentication failure");
-      respond (conn, plain, 401, strlen ("SciDB authentication failure"),
-               "SciDB authentication failure");
+      syslog (LOG_ERR, "SciDB authentication not supported");
+      respond (conn, plain, 401, strlen ("SciDB authentication not supported"),
+               "SciDB authentication not supported");
       cleanup_session (s);
       omp_unset_lock (&s->lock);
       return;
     }
 
-
   syslog (LOG_INFO, "execute_query %d connected", id);
   prepare_query (&pq, s->con, qry, 1, SERR);
-  l = pq.queryid;
-  syslog (LOG_INFO, "execute_query id=%d scidb queryid = %llu", id, l);
-  if (l < 1 || !pq.queryresult)
+  q = pq.queryid;
+  if (q.queryid < 1 || !pq.queryresult)
     {
       free (qry);
       free (qrybuf);
@@ -1365,52 +1274,22 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
       omp_unset_lock (&s->lock);
       return;
     }
+  syslog (LOG_INFO, "execute_query id=%d scidb queryid = %llu", id, q.queryid);
 /* Set the queryID for potential future cancel event.
  * The time flag is set to a future value to prevent get_session from
  * declaring this session orphaned while a query is running. This
  * session cannot be reclaimed until the query finishes, since the
  * lock is held.
  */
-  s->queryid = l;
+  s->qid = q;
   s->time = time (NULL) + WEEK;
   s->stream = stream;
   s->compression = compression;
   if (s->con)
     {
-      if (stream)
-        {
-/* Respond with the query ID before it runs.
- * We have to release the lock to allow a client to run read_bytes or
- * read_lines to pull from the pipe. Also set rel=1 in case it isn't
- * already.
- */
-          rel = 1;
-          omp_unset_lock (&s->lock);
-          snprintf (buf, MAX_VARLEN, "%llu", l);        // Return the query ID
-          respond (conn, plain, 200, strlen (buf), buf);
-// DEBUG sleep(3);
-        }
-      l = execute_prepared_query (s->con, qry, &pq, 1, SERR);
-/* execute_prepared_query blocks until the query completes or an error
- * occurs. That means that if l > 0, then by the time we get here the
- * client read_bytes is done and we can safely re-acquire the lock
- * without risking deadlock. If l < 1, then an error occurred and we
- * need to clean up.
- */
-/* Force the client thread to terminate because of error */
-      if (stream && (l < 1))
-        {
-          syslog (LOG_ERR, "streaming error %llu, shutting down pipe", l);
-          pipefd = open (s->opipe, O_WRONLY);
-          close (pipefd);
-          unlink (s->opipe);
-        }
-      if (stream)
-        {
-          omp_set_lock (&s->lock);
-        }
+      q = execute_prepared_query (s->con, qry, &pq, 1, SERR);
     }
-  if (l < 1)                    // something went wrong
+  if (q.queryid < 1)               // something went wrong
     {
       free (qry);
       free (qrybuf);
@@ -1425,7 +1304,7 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
       return;
     }
   if (s->con)
-    completeQuery (l, s->con, SERR);
+    completeQuery (q, s->con, SERR);
 
   free (qry);
   free (qrybuf);
@@ -1441,12 +1320,9 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
     }
   time (&s->time);
   omp_unset_lock (&s->lock);
-// Respond to the client
-  if (!stream)
-    {
-      snprintf (buf, MAX_VARLEN, "%llu", l);    // Return the query ID
-      respond (conn, plain, 200, strlen (buf), buf);
-    }
+  // Respond to the client (the query ID)
+  snprintf (buf, MAX_VARLEN, "%llu", q.queryid);  // Return the query ID
+  respond (conn, plain, 200, strlen (buf), buf);
 }
 
 
@@ -1515,7 +1391,7 @@ begin_request_handler (struct mg_connection *conn)
     debug (conn);
 #endif
   else if (!strcmp (ri->uri, "/login"))
-    login (conn, ri);
+    login (conn);
   else if (!strcmp (ri->uri, "/logout"))
     logout (conn);
   else if (!strcmp (ri->uri, "/release_session"))

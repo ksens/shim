@@ -32,18 +32,24 @@
 #include "SciDBAPI.h"
 using namespace std;
 
+/* This structure mirrors the 'QueryID' object data in SciDB 15.7 */
+typedef struct queryid
+{
+  unsigned long long coordinatorid;
+  unsigned long long queryid;
+} QueryID;
+
 /* This structure is used to hand off a SciDB QueryResult object back into
  * C functions.
  */
 struct prep
 {
-  unsigned long long queryid;
+  QueryID queryid;
   void *queryresult;
 };
 
 /* Authenticate a SciDB connection with a user name and
  * password. Return the connection or NULL if fail.
- */
 extern "C" void * scidbauth(void *con, const char *name, const char *password)
 {
   const scidb::SciDB& db = scidb::getSciDB();
@@ -56,6 +62,7 @@ extern "C" void * scidbauth(void *con, const char *name, const char *password)
   }
   return con;
 }
+ */
 
 /* Connect to a SciDB instance on the specified host and port.
  * Returns a pointer to the SciDB connection context, or NULL
@@ -105,7 +112,7 @@ executeQuery(void *con, char *query, int afl, char *err)
   scidb::QueryResult queryResult;
   try{
     db.executeQuery(queryString, bool(afl), queryResult, (void *)con);
-    id = (unsigned long long)queryResult.queryID;
+    id = (unsigned long long)queryResult.queryID.getId();
   } catch(std::exception& e)
   {
     snprintf(err,MAX_VARLEN,"%s",e.what());
@@ -141,7 +148,8 @@ prepare_query(void *result, void *con, char *query, int afl, char *err)
   {
     db.prepareQuery(queryString, bool(afl), "", *q, con);
     p->queryresult = (void *)q;
-    p->queryid = (unsigned long long)q->queryID;
+    p->queryid.queryid = (unsigned long long)q->queryID.getId();
+    p->queryid.coordinatorid = (unsigned long long)q->queryID.getCoordinatorId();
   } catch(std::exception& e)
   {
     delete q;
@@ -156,42 +164,45 @@ prepare_query(void *result, void *con, char *query, int afl, char *err)
  * char buffer err is a buffer of length MAX_VARLEN on input that will hold an
  * error string on output, should one occur. The queryresult object pointed to
  * from within pq is de-allocated by this function.  Successful exit returns
- * the queryid.  Failure populates the err buffer with an error string and
- * returns 0.
+ * a QueryID struct.  Failure populates the err buffer with an error string and
+ * returns a QueryID struct with queryid set to 0.
  */
-extern "C" unsigned long long
+extern "C" QueryID
 execute_prepared_query(void *con, char *query, struct prep *pq, int afl, char *err)
 {
-  unsigned long long id = -1;
+  QueryID qid;
   const string &queryString = (const char *)query;
   const scidb::SciDB& db = scidb::getSciDB();
+  qid.queryid = 0;
+  qid.coordinatorid = 0;
   scidb::QueryResult *q = (scidb::QueryResult *)pq->queryresult;
   if(!q)
   {
     snprintf(err,MAX_VARLEN,"Invalid query result object.\n");
-    return 0;
+    return qid;
   }
   try{
     db.executeQuery(queryString, bool(afl), *q, (void *)con);
-    id = pq->queryid;
+    qid.queryid = pq->queryid.queryid;
+    qid.coordinatorid = pq->queryid.coordinatorid;
   } catch(std::exception& e)
   {
-    id = 0;
+    qid.queryid = 0;
     snprintf(err,MAX_VARLEN,"%s",e.what());
   }
   delete q;
   pq->queryresult = NULL;
-  return id;
+  return qid;
 }
 
 
 /* Complete a SciDB query, where char buffer err is a buffer of length
  * MAX_VARLEN on input that will hold an error message should one occur.
  */
-extern "C" void completeQuery(unsigned long long id, void *con, char *err)
+extern "C" void completeQuery(QueryID qid, void *con, char *err)
 {
   const scidb::SciDB& db = scidb::getSciDB();
-  scidb::QueryID q = (scidb::QueryID)(id);
+  scidb::QueryID q = scidb::QueryID(qid.coordinatorid, qid.queryid);
   try{
     db.completeQuery(q, (void *)con);
   } catch(std::exception& e)

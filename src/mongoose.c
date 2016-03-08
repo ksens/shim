@@ -4553,7 +4553,7 @@ mg_post_upload(struct mg_connection *conn, char *filename, int append, int lock)
     len += n;
     if(n != (int) fwrite(buf, 1, n, fp))
     {
-      syslog(LOG_ERR, "post_upload short fwrite\n");
+      syslog(LOG_ERR, "post_upload short fwrite %d\n", ferror(fp));
       len = -1;
       break;
     }
