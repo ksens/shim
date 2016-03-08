@@ -9,8 +9,10 @@ output:
     css: shimstyle.css
 ---
 
+# What's new (for SciDB 15.12)
 
-# What's new (for SciDB 15.7)
+This is likely to be the last version of the shim. Bryan will be switching the
+R client to use JDBC, and all other clients are encouraged to migrate too.
 
 ## Support for the SciDB advanced I/O toolbox (_aio_tools_)
 
@@ -20,28 +22,33 @@ aio=1
 ```
 to the `/var/lib/shim.conf` file to save data using the SciDB aio_tools plugin (required).
 
-## SciDB authentication replaced PAM
+## No support for SciDB native authentication
 
-SciDB version 15.7 introduced new native SciDB authentication. Shim has replaced PAM-based authentication with the new SciDB authentication methods. The old `/login` service is no longer requrired, but in order to maintain compatibility with pre-15.7 shim clients, the new SciDB authentication process mimics the PAM process using the `/login` service, see TLS Authentication for examples. At some point in the future, shim will drop the `/login` and `/logout` services.
+The shim still provides tls and basic digest authentication. If you need to use SciDB
+authentication, then use the jquery or iquery client.
 
-## Use the new **/upload** service in place of **/upload_file**
+## Streaming and compression have been disabled
 
-The new `/upload` service is faster and simpler to use.
-
-## Irritating trailing carriage return/newlines have been reduced
-
-This is in particular the case for the `/new_session` service. You should no longer need to strip off trailing newlines from the response.
-
-## New config settings for maximum concurrent shim sessions and SciDB instance
-
-Shim can now use any SciDB instance as a query coordinator. That means that you can run more than one shim service, for example one service per SciDB cluster node.
+The `execute_query` service no longer supports either option, if you use these
+options they will be ignored.
 
 
 # Overview
 
-Shim is a web service that exposes a very simple API for clients to interact with SciDB over HTTP connections. The API consists of a small number of services (described in detail below), including: `/new_session`, `/release_session`, `/execute_query`, `/cancel`, `/read_lines`, `/read_bytes`, `/upload_file`, `/upload`, `/version`, `/login` and `/logout`.
+Shim is a web service that exposes a very simple API for clients to interact
+with SciDB over HTTP connections. The API consists of a small number of
+services (described in detail below), including: `/new_session`,
+`/release_session`, `/execute_query`, `/cancel`, `/read_lines`, `/read_bytes`,
+`/upload_file`, `/upload`, `/version`.
 
-There are more direct ways to talk to SciDB over a network. See https://github.com/artyom-smirnov/scidb4py for a great example of direct network communication with SciDB using Python and Google protocol buffers (written by Artyom Smirnov, one of the core SciDB developers). Artyom's approach is comparatively low-level, but possibly more efficient than shim. Shim is designed to be a convenient and easy way to talk to SciDB. Note that both shim and Artyom's Python interface are community open source projects; they are not official components of SciDB.
+There are more direct ways to talk to SciDB over a network. See
+https://github.com/artyom-smirnov/scidb4py for a great example of direct
+network communication with SciDB using Python and Google protocol buffers
+(written by Artyom Smirnov, one of the core SciDB developers). Artyom's
+approach is comparatively low-level, but possibly more efficient than shim.
+Shim is designed to be a convenient and easy way to talk to SciDB. Note that
+both shim and Artyom's Python interface are community open source projects;
+they are not official components of SciDB.
 
 ```{r, echo=FALSE}
 if(! require(jpeg, quietly=TRUE)) install.packages('jpeg',,'http://www.rforge.net/') 
@@ -52,12 +59,20 @@ rasterImage(x, 1,1,2,2)
 par(p)
 ```
 
-Shim clients begin by requesting a session ID from the service, then running a query and releasing the session ID when done. Session IDs are distinct from SciDB query IDs--a  shim session ID groups a SciDB query together with server resources for input and output to the client.
+Shim clients begin by requesting a session ID from the service, then running a
+query and releasing the session ID when done. Session IDs are distinct from
+SciDB query IDs--a  shim session ID groups a SciDB query together with server
+resources for input and output to the client.
 
 
 # Configuration
 
-Shim runs as a system service or can be invoked directly from the command line. See the shim manual page for command-line options (type `man shim` from a terminal). Service configuration is determined by the `/var/lib/shim/conf` configuration file. The default conf file is a sample that displays the default configuration options, which are listed as one key=value pair per line. Available options include: 
+Shim runs as a system service or can be invoked directly from the command line.
+See the shim manual page for command-line options (type `man shim` from a
+terminal). Service configuration is determined by the `/var/lib/shim/conf`
+configuration file. The default conf file is a sample that displays the default
+configuration options, which are listed as one key=value pair per line.
+Available options include: 
 
 ```
 #ports=8080,8083s
@@ -95,20 +110,31 @@ Here are some examples of possible port configurations:
 
 ## SciDB Port
 
-Shim runs on the same computer as a SciDB coordinator. Set the 'scidbport' option to select the coordinator database port to locally connect to. The default SciDB database port value is 1239 (see the SciDB configuration manual for more information). Since any SciDB instance can act as a query
-coordinator, it is possible to configure multiple shim services, for example one shim service per computer IP address.
+Shim runs on the same computer as a SciDB coordinator. Set the 'scidbport'
+option to select the coordinator database port to locally connect to. The
+default SciDB database port value is 1239 (see the SciDB configuration manual
+for more information). Since any SciDB instance can act as a query coordinator,
+it is possible to configure multiple shim services, for example one shim
+service per computer IP address.
 
 ## Instance
 
-Set the SciDB instance number to use as a query coordinator. Make sure that this option is set together with the corresponding SciDB port
-number for the instance, and also set a corresponding temporary I/O location that the instance has read/write access to.
+Set the SciDB instance number to use as a query coordinator. Make sure that
+this option is set together with the corresponding SciDB port number for the
+instance, and also set a corresponding temporary I/O location that the instance
+has read/write access to.
 
-## Temporary I/O space and streaming
+## Temporary I/O space
 
-Shim's default behavior caches the output of SciDB queries in files on the SciDB server; set that file directory location with the config file tmp option or the command-line -t argument. This temporary directory is also used to upload data from clients over the http connection for input into SciDB. Select a directory that is writable by the shim user (see the user option).
+Shim's default behavior caches the output of SciDB queries in files on the
+SciDB server; set that file directory location with the config file tmp option
+or the command-line -t argument. This temporary directory is also used to
+upload data from clients over the http connection for input into SciDB. Select
+a directory that is writable by the shim user (see the user option).
 
-If you install shim from an RPM or Debian package as a service, the package will configure shim to use a SciDB data directory for temporary
-storage. You can edit the config file and restart shim to change that default.
+If you install shim from an RPM or Debian package as a service, the package
+will configure shim to use a SciDB data directory for temporary storage. You
+can edit the config file and restart shim to change that default.
 
 
 ## User
@@ -147,18 +173,35 @@ Parameters are required unless marked optional. All shim API services support CO
 
 HTTP 1.1 clients or greater are required.
 
-All HTTP query parameters are passed to the service as string values. They are limited to a maximum of 4096 characters unless otherwise indicated (a notable exception is the SciDB query string parameter, limited to 262,144 characters).
+All HTTP query parameters are passed to the service as string values. They are
+limited to a maximum of 4096 characters unless otherwise indicated (a notable
+exception is the SciDB query string parameter, limited to 262,144 characters).
 
-HTTP query string parameters that represent numbers have limits. Unless otherwise indicated whole-number values (session ID, number of bytes to return, etc.) are interpreted by shim as signed 32-bit integers and are generally limited to values between zero and 2147483647. Values outside that range will result in an HTTP 400 error (invalid query).
+HTTP query string parameters that represent numbers have limits. Unless
+otherwise indicated whole-number values (session ID, number of bytes to return,
+etc.) are interpreted by shim as signed 32-bit integers and are generally
+limited to values between zero and 2147483647. Values outside that range will
+result in an HTTP 400 error (invalid query).
 
 ## Response codes
 
-Possible responses for each URI are listed below. HTTP status code 200 always indicates success; other standard HTTP status codes indicate various errors. The returned data may be UTF-8 or binary depending on the request and is always returned using the generic application/octet-stream MIME type. Depending on the request, data may used chunked HTTP transfer encoding and may also use gzip content encoding.
+Possible responses for each URI are listed below. HTTP status code 200 always
+indicates success; other standard HTTP status codes indicate various errors.
+The returned data may be UTF-8 or binary depending on the request and is always
+returned using the generic application/octet-stream MIME type. Depending on the
+request, data may used chunked HTTP transfer encoding and may also use gzip
+content encoding.
 
 
 ## Basic digest access authentication
 
-Shim supports basic digest access authentication. (See https://en.wikipedia.org/wiki/Digest_access_authentication and the references therein for a good description of the method.) Enable digest access authentication by creating an .htpasswd file in shim's default `/var/lib/shim/wwwroot` directory (the .htpasswd file must be located in shim's wwwroot directory, which can be changed with the command line switch -r). The format of the file must be:
+Shim supports basic digest access authentication. (See
+https://en.wikipedia.org/wiki/Digest_access_authentication and the references
+therein for a good description of the method.) Enable digest access
+authentication by creating an .htpasswd file in shim's default
+`/var/lib/shim/wwwroot` directory (the .htpasswd file must be located in shim's
+wwwroot directory, which can be changed with the command line switch -r). The
+format of the file must be:
 
 ```
 username1:password1
@@ -166,59 +209,21 @@ username2:password2
 ...
 ```
 
-Use plain text passwords in the file, and consider changing the permissions of the file to restrict access.
-Delete the .htpasswd file to disable basic digest access authentication.
+Use plain text passwords in the file, and consider changing the permissions of
+the file to restrict access.  Delete the .htpasswd file to disable basic digest
+access authentication.
 
-Basic digest authentication works on plain or TLS-encrypted connections but can not be used in combination with SciDB authentication (see below).
+Basic digest authentication works on plain or TLS-encrypted connections but can
+not be used in combination with SciDB authentication (see below).
 
 
-## TLS/SSL encryption and SciDB authentication
+## TLS/SSL encryption
 
-Shim optionally exposes both open and encrypted (HTTPS/TLS) services. SciDB authentication requires encrypted HTTPS connections. SciDB authentication was introduced in SciDB version 15.7 and uses user names and passwords. The shim implementation uses the `/login` service in order to maintain compatibility with the PAM-based pre-15.7 shim API. Future versions of shim may not use the `/login` service.
+Shim optionally exposes both open and encrypted (HTTPS/TLS) services. You can
+provide a signed certificate in the `/var/lib/shim` directory. A generic
+random unsigned certific is automatically generated for you if you install
+shim using either the .deb or .rpm package installer.
 
-SciDB authentication is simple to use:
-
-- Contact the `/login` service over SSL with username and password query string parameters. The `/login` service returns an authentication token if its successful. The token is simply "username:password".
-- Use all the other URI services normally, but append the auth=<token> query string parameter, replacing <token> with the response from the `/login` service above.
-- Optionally log out of the system by contacting the `/logout` service with your authentication token.
-- Shim's SciDB authentication mechanism only works over encrypted connections. Username and password query string parameters only appear in encrypted form over the network, and are never logged by the shim service log.
-
-Here is a full example using the `wget` program at the command line talking to shim running on localhost, port 8083.
-
-```{r, engine='bash', eval=FALSE}
-# Log in with username=root password=paradigm4
-# (assuming that such a user exists on the system that SciDB is running on):
-
-wget -q --no-check-certificate -O - "https://localhost:8083/login?username=root&password=Paradigm4"
-root:Paradigm4         # (authentication token returned on success)
-
-# As a quick check, we'll try to obtain a new session without using the auth
-# parameter (this will return an error):
-
-wget --no-check-certificate -O - "https://localhost:8083/new_session"
-HTTP request sent, awaiting response... 400 ERROR
-
-# Now, let's try again with auth and run a simple query and this time get a new session ID:
-
-wget -q --no-check-certificate -O - "https://localhost:8083/new_session?auth=root:Paradigm4"
-0    # (our session ID)
-wget -q --no-check-certificate -O - "https://localhost:8083/execute_query?id=0&query=list('functions')&save=dcsv&auth=root:Paradigm4"
-wget -q --no-check-certificate -O - "https://localhost:8083/read_lines?id=0&n=0&auth=root:Paradigm4" | head -n 10
-{No} name,profile,deterministic,library
-{0} '%','double %(double,double)',true,'scidb'
-{1} '%','int16 %(int16,int16)',true,'scidb'
-{2} '%','int32 %(int32,int32)',true,'scidb'
-{3} '%','int64 %(int64,int64)',true,'scidb'
-{4} '%','int8 %(int8,int8)',true,'scidb'
-{5} '%','uint16 %(uint16,uint16)',true,'scidb'
-{6} '%','uint32 %(uint32,uint32)',true,'scidb'
-{7} '%','uint64 %(uint64,uint64)',true,'scidb'
-{8} '%','uint8 %(uint8,uint8)',true,'scidb'
-{9} '*','double *(double,double)',true,'scidb'
-
-wget -q --no-check-certificate -O - "https://localhost:8083/release_session?id=0&auth=root:Paradigm4"
-```
-Again, simply append your authentication token to your HTTP requests to use the authenticated service.
 
 
 ## Generic API Workflow
@@ -242,18 +247,11 @@ Again, simply append your authentication token to your HTTP requests to use the 
 ```
 
 
-## Streaming and Compression
-
-Specify `stream > 0` in the `/execute_query` service endpoint to stream SciDB results directly to the client using the HTTP 1.1 chunked transfer encoding mechanism. With this option, a named pipe is created in the temporary I/O directory instead of a file. See the `/execute_query` API doc below for more information. This option is automatically set by the compression option below.
-
-Specify `compression=n`, for values of `n` in `1,...,9` in `/excute_query` to stream gzip compressed (RFC 1952) results directly to the client using HTTP 1.1 chunked transfer encoding. The stream compression level is set by the compression query parameter in the range `1,...,9` (1 fast but poor compression to 9 slow but great compression). It's up to the client to decompress the data. Setting this option automatically also sets the stream option to a nonzero value of 2 indicating gzip-compressed streaming.
-
-
-
 ## API Service Endpoints
 
-The R examples below use the `httr` package. We try to illustrate API calls with real examples using either curl or R.
-See https://github.com/Paradigm4/shim/tree/master/tests for additional examples.
+The R examples below use the `httr` package. We try to illustrate API calls
+with real examples using either curl or R.  See
+https://github.com/Paradigm4/shim/tree/master/tests for additional examples.
 
 ### **/version**
 <table>
@@ -336,8 +334,6 @@ curl -s "http://localhost:8080/release_session?id=${s}"
 - **query** AFL query string, encoded for use in URL as required, limited to a maximum of 262,144 characters
 - **save** optional SciDB save format string, limited to a maximum of 4096 characters; Save the query output in the specified format for subsequent download by `read_lines` or `read_bytes`. If the save parameter is not specified, don't save the query output. 
 - **release** optional 0 or 1: if 1 then release_session as soon as query completes. The default value is 0 if not specified (see additional notes below).
-- **stream** optional 0, 1 or 2: if 1 then stream query result; if 2 then stream a gzip compressed (RFC 1952) query result with an unspecified (automatic) compression level; otherwise send query result through a server-side output file (the default). steam>0 also sets release=1.
-- **compression** optional 0 to 9: Sets the steaming compression level from 0 (no compression), 1 (fast/light compression) to 9 (slow/high compression). Setting this option automatically also sets the stream option to stream=2.
 <tr><td>RESPONSE <td>
 - Success: HTTP 200 text/plain (SciDB Query ID)
 - Failure (SciDB not available error): HTTP 503 text/plain (ERROR TEXT) 
@@ -353,17 +349,9 @@ Remember to URL-encode the SciDB query string.
 <p>
 500 and 503 errors result in removal of the web session ID and related resources (thus, `release_session` does not have to be called after such an error). 
 <p>
-This method blocks until the query completes unless stream>0. When stream>0, this method returns immediately with the query ID (before the query completes). 
+This method blocks until the query completes.
 <p>
-Do not specify the option release=1 when stream=0 and when the save option is also set, or output will not be available to `read_bytes` or `read_lines`. Instead, explicitly call `release_session` after reading is complete. 
-<p>
-Setting stream > 0 is an experimental feature added after version 14.7. Setting stream > 0 sends query results through a server-side named pipe into the client without storing the query results on the server. This option uses the HTTP 1.1 chunked transfer encoding; stream termination is indicated by a chunk of length zero. 
-<p>
-When stream>0 is set then release=1 is also automatically set. That means that clients are free to not call `/release_session` after receiving their stream data via `/read_lines` or `/read_bytes`;however, calling `/release_session` will not cause problems and clients can still do it if they wish. 
-<p>
-NOTE: WHEN stream>0, SciDB QUERIES REMAIN ACTIVE UNTIL THE CLIENT RECEIVES THE RESULT DATA. IT'S UP TO THE CLIENT TO RECEIVE THE DATA TO TERMINATE THE QUERY. 
-<p>
-Set stream=2 to enable gzip-compressed streaming (RFC 1952). When stream=2 one may also set the compression level with the compression option in the range 0 to 9. If the compression query parameter is specified, then stream is automatically set to 2.
+Do not specify the option release=1 when the save option is also set, or output will not be available to `read_bytes` or `read_lines`. Instead, explicitly call `release_session` after reading is complete. 
 <tr><td>EXAMPLE (R)
 <td>
 ```{r, comment=NA}
@@ -438,7 +426,7 @@ httr::GET("http://localhost:8080/cancel?id=19")
 - Failure (server out of memory): HTTP 507
 - Not authorized (encrypted only): HTTP 401
 <tr><td>NOTES <td>
-Set n=0 to download the entire output buffer. The parameter n is automatically set to zero when streaming is indicated. Simply terminate the read early if desired in those cases (see example above). You should almost always set n=0.
+Set n=0 to download the entire output buffer. You should almost always set n=0.
 <p>
 Be sure to properly url-encode special characters like the plus sign (+) in the request.
 <p>
@@ -452,20 +440,6 @@ s=`curl -s "http://localhost:8080/new_session"`
 curl -s "http://localhost:8080/execute_query?id=${s}&query=list('functions')&save=dcsv"
 curl -s "http://localhost:8080/read_lines?id=${s}&n=10"
 curl -s "http://localhost:8080/release_session?id=${s}"
-```
-<tr><td>EXAMPLE streaming (curl) <td>
-```{r, comment=NA, engine='bash'}
-s=`curl -s "http://localhost:8080/new_session"`
-curl -s "http://localhost:8080/execute_query?id=${s}&query=list('functions')&save=dcsv&stream=1"
-curl -s "http://localhost:8080/read_lines?id=${s}" | head -n 10
-curl -s "http://localhost:8080/release_session?id=${s}"
-```
-<tr><td>EXAMPLE compressed streaming (curl) <td>
-```{r, comment=NA, engine='bash'}
-s=`curl -s "http://localhost:8080/new_session"`
-curl -f -s -k "http://localhost:8080/execute_query?id=${s}&query=list('functions')&save=dcsv&compression=9" >/dev/null || fail
-curl -f -s -k "http://localhost:8080/read_bytes?id=${s}&n=0"  | zcat | head -n 10
-curl "http://localhost:8080/release_session?id=${s}"
 ```
 </table>
 
@@ -489,7 +463,7 @@ curl "http://localhost:8080/release_session?id=${s}"
 - Failure (server out of memory): HTTP 507
 - Not authorized (encrypted only): HTTP 401
 <tr><td>NOTES <td>
-Set n=0 to download the entire output buffer. The parameter n is automatically set to zero when streaming is indicated. Simply terminate the read early if desired in those cases (see example above). You should almost always set n=0.
+Set n=0 to download the entire output buffer. You should almost always set n=0.
 <p>
 Be sure to properly url-encode special characters like the plus sign (+) in the request.
 <p>
@@ -585,40 +559,15 @@ httr::GET(sprintf("http://localhost:8080/release_session?id=%s", session))
 ```
 </table>
 
-### **/login**
-<table>
-<tr><td>DESCRIPTION  <td>Authenticate a SciDB user.
-<tr><td>METHOD <td>GET
-<tr><td>PARAMETERS <td>
-- **username** SciDB username
-- **password** SciDB password. 
-<tr><td>RESPONSE <td>
-- Success: HTTP 200 and a text authentication token to use with the auth parameter in subsequent HTTP queries. 
-- Failure (invalid http query): HTTP 400
-- Not authorized: HTTP 401
-<tr><td>NOTE<td>**/login requires a TLS-encrypted connection.** It won't work over un-encrypted shim connections.
-<p>The returned token is simply username:password. This method is only present for backwards-compatibility and
-will be removed in the future. You don't need to use it.
-<tr><td>EXAMPLE<td>
-
-```{}
-# Example service URL for user 'scidb' and password 'paradigm4':
-https://localhost:8083/login?username=scidb&password=paradigm4 
-
-# Example response:
-HTTP/1.0 200 OK
-Content-Length: 11
-Content-Type: text/plain
-
-scidb:paradigm4
-```
-
-</table>
 
 
 # Orphaned Sessions
 
-Shim limits the number of simultaneous open sessions. Absent-minded or malicious clients are prevented from opening too many new sessions repeatedly without closing them (which could eventually result in denial of service). Shim uses a lazy timeout mechanism to detect unused sessions and reclaim them. It works like this:
+Shim limits the number of simultaneous open sessions. Absent-minded or
+malicious clients are prevented from opening too many new sessions repeatedly
+without closing them (which could eventually result in denial of service). Shim
+uses a lazy timeout mechanism to detect unused sessions and reclaim them. It
+works like this:
 
 - The session time value is set to the current time when an API event finishes.
 - If a new_session request fails to find any available session slots, it inspects the existing session time values for all the sessions, computing the difference between current time and the time value. If a session time difference exceeds a timeout value, then that session is harvested and returned as a new session.
