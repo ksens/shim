@@ -5,7 +5,7 @@ ifeq ($(SCIDB),)
     SCIDB := $(shell dirname ${X})
   endif
 endif
-GIT_VERSION := $(shell git describe --abbrev=4 --dirty --always)
+GIT_VERSION := $(shell git describe --tags --abbrev=4 --dirty --always)
 
 CFLAGS=-std=gnu99 -fopenmp -g -pedantic -DVERSION=\"$(GIT_VERSION)\"
 INC=-I. -DPROJECT_ROOT="\"$(SCIDB)\"" -I"$(SCIDB)/3rdparty/boost/include/" -I"$(SCIDB)/include" -I"$(SCIDB)/3rdparty/boost/include/boost/container" -DSCIDB_CLIENT
