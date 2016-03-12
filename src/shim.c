@@ -100,7 +100,7 @@ typedef struct
  *    computing the difference between current time and the time value.
  *    If a session time difference exceeds TIMEOUT, then that session is
  *    cleaned up (cleanup_session), re-initialized, and returned as a
- *    new session. Queries are not cancelled though.
+ *    new session. Queries are not canceled though.
  *
  * Operations that are in-flight but may take an indeterminate amount of
  * time, for example PUT file uploads or execute_query statements, set their
@@ -320,7 +320,7 @@ cancel_query (struct mg_connection *conn, const struct mg_request_info *ri)
   session *s = find_session (id);
   if (s && s->qid.queryid > 0)
     {
-      syslog (LOG_INFO, "cancel_query %d %llu", id, s->qid.queryid);
+      syslog (LOG_INFO, "cancel_query session %d queryid %llu.%llu", id, s->qid.coordinatorid, s->qid.queryid);
       if (s->con)
         {
 // Establish a new SciDB context used to issue the cancel query.
@@ -337,7 +337,7 @@ cancel_query (struct mg_connection *conn, const struct mg_request_info *ri)
             }
 
           memset (var1, 0, MAX_VARLEN);
-          snprintf (var1, MAX_VARLEN, "cancel(%llu)", s->qid.queryid);
+          snprintf (var1, MAX_VARLEN, "cancel(%llu.%llu)", s->qid.coordinatorid, s->qid.queryid);
           memset (SERR, 0, MAX_VARLEN);
           executeQuery (can_con, var1, 1, SERR);
           syslog (LOG_INFO, "cancel_query %s", SERR);
@@ -1166,15 +1166,6 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
   if (strlen (var) > 0)
     rel = atoi (var);
   memset (var, 0, MAX_VARLEN);
-  mg_get_var (ri->query_string, k, "stream", var, MAX_VARLEN);
-  if (strlen (var) > 0)
-    stream = atoi (var);
-  memset (var, 0, MAX_VARLEN);
-  mg_get_var (ri->query_string, k, "compression", var, MAX_VARLEN);
-  if (strlen (var) > 0)
-    {
-      compression = atoi (var);
-    }
   syslog (LOG_INFO, "execute_query for session id %d", id);
   s = find_session (id);
   if (!s)
@@ -1274,7 +1265,7 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
       omp_unset_lock (&s->lock);
       return;
     }
-  syslog (LOG_INFO, "execute_query id=%d scidb queryid = %llu", id, q.queryid);
+  syslog (LOG_INFO, "execute_query id=%d scidb queryid = %llu.%llu", id, q.coordinatorid, q.queryid);
 /* Set the queryID for potential future cancel event.
  * The time flag is set to a future value to prevent get_session from
  * declaring this session orphaned while a query is running. This
@@ -1325,35 +1316,6 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
   respond (conn, plain, 200, strlen (buf), buf);
 }
 
-
-// Control API ---------------------------------------------------------------
-void
-stopscidb (struct mg_connection *conn, const struct mg_request_info *ri)
-{
-  int k;
-  char var[MAX_VARLEN];
-  char cmd[2 * MAX_VARLEN];
-  k = strlen (ri->query_string);
-  mg_get_var (ri->query_string, k, "db", var, MAX_VARLEN);
-  syslog (LOG_INFO, "stopscidb %s", var);
-  snprintf (cmd, 2 * MAX_VARLEN, "scidb.py stopall %s", var);
-  k = system (cmd);
-  respond (conn, plain, 200, 0, NULL);
-}
-
-void
-startscidb (struct mg_connection *conn, const struct mg_request_info *ri)
-{
-  int k;
-  char var[MAX_VARLEN];
-  char cmd[2 * MAX_VARLEN];
-  k = strlen (ri->query_string);
-  mg_get_var (ri->query_string, k, "db", var, MAX_VARLEN);
-  syslog (LOG_INFO, "startscidb %s", var);
-  snprintf (cmd, 2 * MAX_VARLEN, "scidb.py startall %s", var);
-  k = system (cmd);
-  respond (conn, plain, 200, 0, NULL);
-}
 
 void
 getlog (struct mg_connection *conn)
