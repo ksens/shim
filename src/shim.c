@@ -337,7 +337,7 @@ cancel_query (struct mg_connection *conn, const struct mg_request_info *ri)
             }
 
           memset (var1, 0, MAX_VARLEN);
-          snprintf (var1, MAX_VARLEN, "cancel(%llu.%llu)", s->qid.coordinatorid, s->qid.queryid);
+          snprintf (var1, MAX_VARLEN, "cancel(\'%llu.%llu\')", s->qid.coordinatorid, s->qid.queryid);
           memset (SERR, 0, MAX_VARLEN);
           executeQuery (can_con, var1, 1, SERR);
           syslog (LOG_INFO, "cancel_query %s", SERR);
