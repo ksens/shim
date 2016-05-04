@@ -36,6 +36,10 @@ shim0: client sha512 base64
 client:
 	$(CXX) $(CXXFLAGS) $(INC) -fpic -g -c client.cpp -o client.o
 
+authtest:
+	$(CXX) $(CXXFLAGS) $(INC) -fpic -g test.cpp -o test
+
+
 sha512:
 	$(CC) -Wall $(CFLAGS) -fpic -g -c sha512.c -o sha512.o
 
