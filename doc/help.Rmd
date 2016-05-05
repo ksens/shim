@@ -22,12 +22,13 @@ aio=1
 ```
 to the `/var/lib/shim.conf` file to save data using the SciDB aio_tools plugin (required).
 
-## No support for SciDB native authentication
+## SciDB native authentication
 
-The shim still provides tls and basic digest authentication. If you need to use SciDB
-authentication, then use the jquery or iquery client.
+But only for the  `/execute_query` services (the only services that really
+talk directly to SciDB). If you need to protect the other shim services, consider using
+digest authentication.
 
-## Streaming and compression have been disabled
+## Streaming and compression options no longer supported
 
 The `execute_query` service no longer supports either option, if you use these
 options they will be ignored.
@@ -90,14 +91,20 @@ Each option is described below.
 
 ## Ports and Network Interfaces
 
-Shim listens on default ports 8080 (open, not encrypted), and 8083 (TLS encrypted) on all available network interfaces. Ports and listening interfaces are configured with the command line '-p' option or with the 'ports=' option in the `/var/lib/shim/conf` file when shim is run as a service. The ports/interface specification uses the following syntax:
+Shim listens on default ports 8080 (open, not encrypted), and 8083 (TLS
+encrypted) on all available network interfaces. Ports and listening interfaces
+are configured with the command line '-p' option or with the 'ports=' option in
+the `/var/lib/shim/conf` file when shim is run as a service. The
+ports/interface specification uses the following syntax:
 
 ```
 [address:]port[s][,[address:]port[s]][,...]
 ```
 where:
 
-- *address* indicates an optional I.P. address associated with a specific available network device, only specify this if you want to restrict shim to operate on a specific network device.
+- *address* indicates an optional I.P. address associated with a specific
+  available network device, only specify this if you want to restrict shim to
+  operate on a specific network device.
 - *port* indicates a required available port number
 - *s* is an optional single character 's' suffix indicating that TLS/SSL should be used on that port.
 
@@ -225,6 +232,10 @@ random unsigned certific is automatically generated for you if you install
 shim using either the .deb or .rpm package installer.
 
 
+## SciDB authentication
+
+See the `/execute_query` service documentation below.
+
 
 ## Generic API Workflow
 
@@ -233,17 +244,6 @@ shim using either the .deb or .rpm package installer.
 /execute_query
 /read_lines or /read_bytes
 /release_session
-```
-
-## Generic Authenticated API Workflow
-
-```
-/login
-/new_session
-/execute_query
-/read_lines or /read_bytes
-/release_session
-...
 ```
 
 
@@ -277,12 +277,10 @@ httr::GET("http://localhost:8080/version")
 <tr><td>DESCRIPTION  <td>Request a new HTTP session from the service.
 <tr><td>METHOD <td>GET
 <tr><td>PARAMETERS <td>
-- **auth** _optional_ authentication token (required for authenticated connections). 
 <tr><td>RESPONSE <td>
 - Success: HTTP 200 and text session ID value in text/plain payload 
 - Failure (out of resources/server unavailable): HTTP 503 
-- Invalid request (encrypted only -- this means auth is missing): HTTP 400 
-- Not authorized (encrypted only): HTTP 401
+- Invalid request: HTTP 400 
 <tr><td>EXAMPLE (curl)
 <td>
 ```{r, engine='bash', comment=NA}
@@ -302,12 +300,10 @@ id = httr::GET("http://localhost:8080/new_session")
 <tr><td>METHOD <td>GET
 <tr><td>PARAMETERS <td>
 - **id** an HTTP session ID obtained from `/new_session`
-- **auth** _optional_ authentication token (required for authenticated connections). 
 <tr><td>RESPONSE <td>
 - Success: HTTP 200 
 - Failure (Session not found): HTTP 404 
 - Failure (invalid http query): HTTP 400 
-- Not authorized (encrypted only): HTTP 401
 <tr><td>EXAMPLE (R)
 <td>
 ```{r, comment=NA}
@@ -330,7 +326,8 @@ curl -s "http://localhost:8080/release_session?id=${s}"
 <tr><td>METHOD <td>GET
 <tr><td>PARAMETERS <td>
 - **id** an HTTP session ID obtained from `/new_session`
-- **auth** _optional_ authentication token (required for authenticated connections). 
+- **user** _optional_ SciDB authentication user name (TLS connections only)
+- **password** _optional_ encoded SciDB authentication password (TLS connections only)
 - **query** AFL query string, encoded for use in URL as required, limited to a maximum of 262,144 characters
 - **save** optional SciDB save format string, limited to a maximum of 4096 characters; Save the query output in the specified format for subsequent download by `read_lines` or `read_bytes`. If the save parameter is not specified, don't save the query output. 
 - **release** optional 0 or 1: if 1 then release_session as soon as query completes. The default value is 0 if not specified (see additional notes below).
@@ -346,6 +343,9 @@ curl -s "http://localhost:8080/release_session?id=${s}"
 Shim only supports AFL queries. 
 <p>
 Remember to URL-encode the SciDB query string.
+<p>
+Specify optional user and password information for SciDB authentication. The password must be encoded as
+`base64( sha512("plain text password") )` -- authentication requires a TLS encrypted connection.
 <p>
 500 and 503 errors result in removal of the web session ID and related resources (thus, `release_session` does not have to be called after such an error). 
 <p>
@@ -391,13 +391,11 @@ httr::GET(query)
 <tr><td>METHOD <td>GET
 <tr><td>PARAMETERS <td>
 - **id** an HTTP session ID obtained from `/new_session`
-- **auth** _optional_ authentication token (required for authenticated connections). 
 <tr><td>RESPONSE <td>
 - Success: HTTP 200 
 - Failure (session not found): HTTP 404 
 - Failure (invalid http query): HTTP 400 
 - Failure (could not connect to SciDB): HTTP 503 
-- Not authorized (encrypted only): HTTP 401
 <tr><td>EXAMPLE (R)
 <td>
 ```{r, comment=NA, eval=FALSE}
@@ -414,7 +412,6 @@ httr::GET("http://localhost:8080/cancel?id=19")
 <tr><td>PARAMETERS <td>
 - **id** an HTTP session ID obtained from `/new_session`
 - **n**  the maximum number of lines to read and return between 0 and 2147483647.
-- **auth** _optional_ authentication token (required for authenticated connections). 
 <tr><td>RESPONSE <td>
 - Success: HTTP 200 followed by application/octet-stream query result (up to n lines) 
 - Failure (invalid HTTP query string): HTTP 400 
@@ -424,7 +421,6 @@ httr::GET("http://localhost:8080/cancel?id=19")
 - Failure (SciDB server error): HTTP 500
 - Failure (could not connect to SciDB server error): HTTP 503
 - Failure (server out of memory): HTTP 507
-- Not authorized (encrypted only): HTTP 401
 <tr><td>NOTES <td>
 Set n=0 to download the entire output buffer. You should almost always set n=0.
 <p>
@@ -451,7 +447,6 @@ curl -s "http://localhost:8080/release_session?id=${s}"
 <tr><td>PARAMETERS <td>
 - **id** an HTTP session ID obtained from `/new_session`
 - **n**  the maximum number of bytes to read and return between 0 and 2147483647.
-- **auth** _optional_ authentication token (required for authenticated connections). 
 <tr><td>RESPONSE <td>
 - Success: HTTP 200 followed by application/octet-stream query result (up to n lines) 
 - Failure (invalid HTTP query string): HTTP 400 
@@ -461,7 +456,6 @@ curl -s "http://localhost:8080/release_session?id=${s}"
 - Failure (SciDB server error): HTTP 500
 - Failure (could not connect to SciDB server error): HTTP 503
 - Failure (server out of memory): HTTP 507
-- Not authorized (encrypted only): HTTP 401
 <tr><td>NOTES <td>
 Set n=0 to download the entire output buffer. You should almost always set n=0.
 <p>
@@ -496,13 +490,11 @@ curl -s "http://localhost:8080/release_session?id=${s}"
 <tr><td>PARAMETERS <td>
 - **id** an HTTP session ID obtained from `/new_session`
 - A valid multipart/file POST body -- see the example below
-- **auth** _optional_ authentication token (required for authenticated connections). 
 <tr><td>RESPONSE <td>
 - Success: HTTP 200 and the name of the file uploaded to the server in a text/plain response. 
 - Failure (invalid HTTP query string): HTTP 400 
 - Failure (Session not found): HTTP 404 
 - Failure (Server error): HTTP 500 
-- Not authorized (encrypted only): HTTP 401 
 <tr><td>NOTES <td>Try to avoid using this method. It's fairly slow to transfer data and difficult to get the POST
 body message right. Instead use the faster and simpler `/upload` method shown below.
 <tr><td>EXAMPLE (curl)
@@ -524,13 +516,11 @@ curl -s "http://localhost:8080/release_session?id=${id}"
 <tr><td>PARAMETERS <td>
 - **id** an HTTP session ID obtained from `/new_session`
 - A valid POST body -- see the example below
-- **auth** _optional_ authentication token (required for authenticated connections). 
 <tr><td>RESPONSE <td>
 - Success: HTTP 200 and the name of the file uploaded to the server in a text/plain response. 
 - Failure (invalid HTTP query string): HTTP 400 
 - Failure (Session not found): HTTP 404 
 - Failure (Server error): HTTP 500 
-- Not authorized (encrypted only): HTTP 401 
 <tr><td>NOTES <td>Use the returned server-side file name in later calls, for example to `execute_query`.
 <p>
 This method is faster and easier to use than the older `/upload_file` method.

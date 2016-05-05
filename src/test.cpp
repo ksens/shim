@@ -102,7 +102,7 @@ int main()
         1239);
 
     const std::string username = "root";
-    const std::string hashedPassword = "Paradigm4";
+    const std::string hashedPassword = "eUCUk3B57IVO9ZfJB6CIEHl/0lxrWg/7PV8KytUNY6kPLhTX2db48GHGHoizKyH+uGkCfNTYZrJgKzjWOhjuvg==";
     std::string errorMessage;
 
     if (myNewClientStart(connection, username, hashedPassword, &errorMessage)) {

@@ -639,17 +639,17 @@ new_session (struct mg_connection *conn, const struct mg_request_info *ri)
   int auth;
   if (mg_get_basic_auth (conn) == 1)
     {
-      syslog (LOG_INFO, "new_session DIGEST AUTH");
+      syslog (LOG_INFO, "new_session with digest auth");
       auth = 1;                 /* digest authenticated */
     }
   else if (!ri->is_ssl)
     {
-      syslog (LOG_INFO, "new_session NO AUTH");
+      syslog (LOG_INFO, "new_session no auth");
       auth = 1;                 /* no authentication (non-TLS) */
     }
   else
     {
-      syslog (LOG_INFO, "new_session SCIDB AUTH");
+      syslog (LOG_INFO, "new_session TLS + optional scidb auth");
       auth = SCIDB_AUTHENTICATED;       /* Use SciDB authentication */
     }
 
@@ -994,16 +994,8 @@ readlines (struct mg_connection *conn, const struct mg_request_info *ri)
  *   release > 0 invokes release_session after completeQuery.
  * save=<format string> (optional, default 0-length string)
  *   set the save format to something to wrap the query in a save
- * stream={0,1,2} (optional, default 0)
- *   stream = 0 indicates no streaming, save query output to server file
- *   stream = 1 indicates stream output through server named pipe
- *   stream = 2 indicates stream compressed output through server named pipe
- * compression={-1,0,1,...,9}
- *   optional compression level when stream=2. If compression>=0, then this
- *   automatically sets stream=2.
- * ------------------------------------------------------
- * NOTE: stream > 0 has been disabled as of 15.12. Sorry.
- * ------------------------------------------------------
+ * user=<user name> (optional)
+ * password=<passowrd> (optional)
  *
  * Any error that occurs during execute_query that is associated
  * with a valid session ID results in the release of the session.
@@ -1018,6 +1010,8 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
   char buf[MAX_VARLEN];
   char save[MAX_VARLEN];
   char SERR[MAX_VARLEN];
+  char USER[MAX_VARLEN];
+  char PASS[MAX_VARLEN];
   char *qrybuf, *qry;
   struct prep pq;               // prepared query storage
 
@@ -1035,6 +1029,10 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
   mg_get_var (ri->query_string, k, "release", var, MAX_VARLEN);
   if (strlen (var) > 0)
     rel = atoi (var);
+  memset (USER, 0, MAX_VARLEN);
+  memset (PASS, 0, MAX_VARLEN);
+  mg_get_var (ri->query_string, k, "user", USER, MAX_VARLEN);
+  mg_get_var (ri->query_string, k, "password", PASS, MAX_VARLEN);
   memset (var, 0, MAX_VARLEN);
   syslog (LOG_INFO, "execute_query for session id %d", id);
   s = find_session (id);
@@ -1107,16 +1105,21 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
       omp_unset_lock (&s->lock);
       return;
     }
-  if (s->auth == SCIDB_AUTHENTICATED)
+  if (s->auth == SCIDB_AUTHENTICATED && strlen (USER) > 0)
     {
-      free (qry);
-      free (qrybuf);
-      syslog (LOG_ERR, "SciDB authentication not supported");
-      respond (conn, plain, 401, strlen ("SciDB authentication not supported"),
-               "SciDB authentication not supported");
-      cleanup_session (s);
-      omp_unset_lock (&s->lock);
-      return;
+syslog(LOG_INFO, "USER %s PASSWD %s", USER, PASS);
+      s->con  = scidbauth(s->con, USER, PASS);
+      if(!s->con)
+      {
+        free (qry);
+        free (qrybuf);
+        syslog (LOG_ERR, "SciDB authentication failed");
+        respond (conn, plain, 401, strlen ("SciDB authentication failed"),
+               "SciDB authentication failed");
+        cleanup_session (s);
+        omp_unset_lock (&s->lock);
+        return;
+      }
     }
 
   syslog (LOG_INFO, "execute_query %d connected", id);
@@ -1205,13 +1208,7 @@ begin_request_handler (struct mg_connection *conn)
   char buf[MAX_VARLEN];
   const struct mg_request_info *ri = mg_get_request_info (conn);
 
-// Don't log login query string
-  if (strcmp (ri->uri, "/login") == 0)
-    syslog (LOG_INFO, "%s", ri->uri);
-  else if (ri->is_ssl)
-    syslog (LOG_INFO, "(SSL) %s?%s", ri->uri, ri->query_string);
-  else
-    syslog (LOG_INFO, "%s?%s", ri->uri, ri->query_string);
+  syslog (LOG_INFO, "%s", ri->uri);
 
 // CLIENT API
   if (!strcmp (ri->uri, "/new_session"))
