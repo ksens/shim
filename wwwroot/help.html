@@ -178,7 +178,7 @@ B. W. Lewis <a href="mailto:blewis@paradigm4.com">blewis@paradigm4.com</a>
 </div>
 <div id="scidb-native-authentication" class="section level2">
 <h2>SciDB native authentication</h2>
-<p>But only for the <code>/execute_query</code> services (the only services that really talk directly to SciDB). If you need to protect the other shim services, consider using digest authentication.</p>
+<p>But only for the <code>/execute_query</code> and <code>/cancel</code> services (the only services that really talk directly to SciDB). If you need to protect the other shim services, consider using digest authentication.</p>
 </div>
 <div id="streaming-and-compression-options-no-longer-supported" class="section level2">
 <h2>Streaming and compression options no longer supported</h2>
@@ -337,7 +337,7 @@ EXAMPLE (R)
 <td>
 <pre class="r"><code>httr::GET(&quot;http://localhost:8080/version&quot;)</code></pre>
 <pre><code>Response [http://localhost:8080/version]
-  Date: 2016-05-05 09:23
+  Date: 2016-05-05 09:36
   Status: 200
   Content-Type: text/plain
   Size: 20 B</code></pre>
@@ -375,14 +375,14 @@ EXAMPLE (curl)
 <td></li>
 </ul>
 <pre class="bash"><code>curl -s http://localhost:8080/new_session </code></pre>
-<pre><code>19</code></pre>
+<pre><code>31</code></pre>
 <tr>
 <td>
 EXAMPLE (R)
 <td>
 <pre class="r"><code>id = httr::GET(&quot;http://localhost:8080/new_session&quot;)
 (id = rawToChar(id$content))</code></pre>
-<pre><code>[1] &quot;20&quot;</code></pre>
+<pre><code>[1] &quot;32&quot;</code></pre>
 </table>
 </div>
 <div id="release_session" class="section level3">
@@ -418,10 +418,10 @@ EXAMPLE (R)
 </ul>
 <pre class="r"><code>id = httr::GET(&quot;http://localhost:8080/new_session&quot;)
 (id = rawToChar(id$content))</code></pre>
-<pre><code>[1] &quot;21&quot;</code></pre>
+<pre><code>[1] &quot;33&quot;</code></pre>
 <pre class="r"><code>httr::GET(sprintf(&quot;http://localhost:8080/release_session?id=%s&quot;,id))</code></pre>
-<pre><code>Response [http://localhost:8080/release_session?id=21]
-  Date: 2016-05-05 09:23
+<pre><code>Response [http://localhost:8080/release_session?id=33]
+  Date: 2016-05-05 09:36
   Status: 200
   Content-Type: text/plain
 &lt;EMPTY BODY&gt;</code></pre>
@@ -499,14 +499,14 @@ ans = httr::GET(query)
 
 # The response in this example is just the SciDB query ID:
 (rawToChar(ans$content))</code></pre>
-<pre><code>[1] &quot;1462454627856847578&quot;</code></pre>
+<pre><code>[1] &quot;1462455412676688501&quot;</code></pre>
 <tr>
 <td>
 EXAMPLE (curl)
 <td>
 <pre class="bash"><code>s=`curl -s &quot;http://localhost:8080/new_session&quot;`
 curl -s &quot;http://localhost:8080/execute_query?id=${s}&amp;query=consume(list())&amp;release=1&quot;</code></pre>
-<pre><code>1462454627964001469</code></pre>
+<pre><code>1462455412784226760</code></pre>
 <tr>
 <td>
 EXAMPLE w/ERROR (R)
@@ -516,8 +516,8 @@ session = rawToChar(id$content)
 query = sprintf(&quot;http://localhost:8080/execute_query?id=%s&amp;query=consume(42)&amp;release=1&quot;,
                 session)
 httr::GET(query)</code></pre>
-<pre><code>Response [http://localhost:8080/execute_query?id=25&amp;query=consume(42)&amp;release=1]
-  Date: 2016-05-05 09:23
+<pre><code>Response [http://localhost:8080/execute_query?id=37&amp;query=consume(42)&amp;release=1]
+  Date: 2016-05-05 09:36
   Status: 500
   Content-Type: text/html
   Size: 279 B</code></pre>
@@ -550,7 +550,15 @@ GET
 PARAMETERS
 <td>
 <ul>
-<li><strong>id</strong> an HTTP session ID obtained from <code>/new_session</code>
+<li><strong>id</strong> an HTTP session ID obtained from <code>/new_session</code></li>
+<li><strong>user</strong> <em>optional</em> SciDB authentication user name (TLS connections only)</li>
+<li><strong>password</strong> <em>optional</em> encoded SciDB authentication password (TLS connections only)
+<tr>
+<td>
+NOTES
+<td>
+<p>
+Specify optional user and password information for SciDB authentication. The password must be encoded as <code>base64( sha512(&quot;plain text password&quot;) )</code> – authentication requires a TLS encrypted connection.
 <tr>
 <td>
 RESPONSE
@@ -558,6 +566,7 @@ RESPONSE
 <li>Success: HTTP 200</li>
 <li>Failure (session not found): HTTP 404</li>
 <li>Failure (invalid http query): HTTP 400</li>
+<li>Not authorized (encrypted only): HTTP 401</li>
 <li>Failure (could not connect to SciDB): HTTP 503
 <tr>
 <td>
@@ -620,7 +629,7 @@ EXAMPLE (curl)
 curl -s &quot;http://localhost:8080/execute_query?id=${s}&amp;query=list('functions')&amp;save=dcsv&quot;
 curl -s &quot;http://localhost:8080/read_lines?id=${s}&amp;n=10&quot;
 curl -s &quot;http://localhost:8080/release_session?id=${s}&quot;</code></pre>
-<pre><code>1462454628112758336{No} name,profile,deterministic,library
+<pre><code>1462455412936613490{No} name,profile,deterministic,library
 {0} '%','double %(double,double)',true,'scidb'
 {1} '%','int16 %(int16,int16)',true,'scidb'
 {2} '%','int32 %(int32,int32)',true,'scidb'
@@ -692,7 +701,7 @@ curl -s &quot;http://localhost:8080/read_bytes?id=${s}&quot; | od -t f8
 
 # Release the session
 curl -s &quot;http://localhost:8080/release_session?id=${s}&quot;</code></pre>
-<pre><code>14624546282231195540000000                        1                        2
+<pre><code>14624554130491278940000000                        1                        2
 0000020                        3                        4
 0000040                        5                        6
 0000060                        7                        8
@@ -745,8 +754,8 @@ dd if=/dev/urandom bs=1M count=5  | \
 curl -s &quot;http://localhost:8080/release_session?id=${id}&quot;</code></pre>
 <pre><code>## 5+0 records in
 ## 5+0 records out
-## 5242880 bytes (5.2 MB) copied, 0.941856 s, 5.6 MB/s
-## /dev/shm/0/0/shim_input_buf_yizqxN</code></pre>
+## 5242880 bytes (5.2 MB) copied, 0.933192 s, 5.6 MB/s
+## /dev/shm/0/0/shim_input_buf_amMI5x</code></pre>
 </table>
 </div>
 <div id="upload" class="section level3">
@@ -798,8 +807,8 @@ dd if=/dev/urandom bs=1M count=5  | \
 curl -s &quot;http://localhost:8080/release_session?id=${id}&quot;</code></pre>
 <pre><code>## 5+0 records in
 ## 5+0 records out
-## 5242880 bytes (5.2 MB) copied, 0.927605 s, 5.7 MB/s
-## /dev/shm/0/0/shim_input_buf_Jr4Jdu</code></pre>
+## 5242880 bytes (5.2 MB) copied, 0.928488 s, 5.6 MB/s
+## /dev/shm/0/0/shim_input_buf_TJq1G0</code></pre>
 <tr>
 <td>
 EXAMPLE (R)
@@ -810,16 +819,16 @@ session = rawToChar(id$content)
 
 # Upload a character string:
 httr::POST(sprintf(&quot;http://localhost:8080/upload?id=%s&quot;, session), body=&quot;Hello shim&quot;)</code></pre>
-<pre><code>## Response [http://localhost:8080/upload?id=30]
-##   Date: 2016-05-05 09:23
+<pre><code>## Response [http://localhost:8080/upload?id=42]
+##   Date: 2016-05-05 09:36
 ##   Status: 200
 ##   Content-Type: text/plain
 ##   Size: 34 B</code></pre>
 <pre><code>## No encoding supplied: defaulting to UTF-8.</code></pre>
 <pre class="r"><code># Release our session ID
 httr::GET(sprintf(&quot;http://localhost:8080/release_session?id=%s&quot;, session))</code></pre>
-<pre><code>## Response [http://localhost:8080/release_session?id=30]
-##   Date: 2016-05-05 09:23
+<pre><code>## Response [http://localhost:8080/release_session?id=42]
+##   Date: 2016-05-05 09:36
 ##   Status: 200
 ##   Content-Type: text/plain
 ## &lt;EMPTY BODY&gt;</code></pre>

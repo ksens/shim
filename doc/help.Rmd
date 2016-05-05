@@ -24,7 +24,7 @@ to the `/var/lib/shim.conf` file to save data using the SciDB aio_tools plugin (
 
 ## SciDB native authentication
 
-But only for the  `/execute_query` services (the only services that really
+But only for the  `/execute_query` and `/cancel` services (the only services that really
 talk directly to SciDB). If you need to protect the other shim services, consider using
 digest authentication.
 
@@ -391,10 +391,17 @@ httr::GET(query)
 <tr><td>METHOD <td>GET
 <tr><td>PARAMETERS <td>
 - **id** an HTTP session ID obtained from `/new_session`
+- **user** _optional_ SciDB authentication user name (TLS connections only)
+- **password** _optional_ encoded SciDB authentication password (TLS connections only)
+<tr><td>NOTES <td>
+<p>
+Specify optional user and password information for SciDB authentication. The password must be encoded as
+`base64( sha512("plain text password") )` -- authentication requires a TLS encrypted connection.
 <tr><td>RESPONSE <td>
 - Success: HTTP 200 
 - Failure (session not found): HTTP 404 
 - Failure (invalid http query): HTTP 400 
+- Not authorized (encrypted only): HTTP 401 
 - Failure (could not connect to SciDB): HTTP 503 
 <tr><td>EXAMPLE (R)
 <td>
