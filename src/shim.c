@@ -1107,7 +1107,6 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
     }
   if (s->auth == SCIDB_AUTHENTICATED && strlen (USER) > 0)
     {
-syslog(LOG_INFO, "USER %s PASSWD %s", USER, PASS);
       s->con  = scidbauth(s->con, USER, PASS);
       if(!s->con)
       {
