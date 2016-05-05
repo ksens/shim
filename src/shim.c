@@ -56,10 +56,9 @@ struct prep
   QueryID queryid;
   void *queryresult;
 };
-QueryID execute_prepared_query (void *, char *, struct prep *, int,
-                                           char *);
+QueryID execute_prepared_query (void *, char *, struct prep *, int, char *);
 void completeQuery (QueryID id, void *con, char *err);
-void *scidbauth(void *con, const char *name, const char *password);
+void *scidbauth (void *con, const char *name, const char *password);
 // End of mimimalist SciDB client API -----------------------------------------
 
 /* A session consists of client I/O buffers, and an optional SciDB query ID. */
@@ -327,7 +326,8 @@ cancel_query (struct mg_connection *conn, const struct mg_request_info *ri)
   session *s = find_session (id);
   if (s && s->qid.queryid > 0)
     {
-      syslog (LOG_INFO, "cancel_query session %d queryid %llu.%llu", id, s->qid.coordinatorid, s->qid.queryid);
+      syslog (LOG_INFO, "cancel_query session %d queryid %llu.%llu", id,
+              s->qid.coordinatorid, s->qid.queryid);
       if (s->con)
         {
 // Establish a new SciDB context used to issue the cancel query.
@@ -342,14 +342,13 @@ cancel_query (struct mg_connection *conn, const struct mg_request_info *ri)
                        "Could not connect to SciDB");
               return;
             }
-          if ( strlen (USER) > 0)
-          {
-             can_con  = scidbauth(can_con, USER, PASS);
-          }
+          if (strlen (USER) > 0)
+            {
+              can_con = scidbauth (can_con, USER, PASS);
+            }
           if (!can_con)
             {
-              syslog (LOG_ERR,
-                      "cancel_query authentication error");
+              syslog (LOG_ERR, "cancel_query authentication error");
               respond (conn, plain, 401,
                        strlen ("authentication error"),
                        "authentication error");
@@ -357,7 +356,8 @@ cancel_query (struct mg_connection *conn, const struct mg_request_info *ri)
             }
 
           memset (var1, 0, MAX_VARLEN);
-          snprintf (var1, MAX_VARLEN, "cancel(\'%llu.%llu\')", s->qid.coordinatorid, s->qid.queryid);
+          snprintf (var1, MAX_VARLEN, "cancel(\'%llu.%llu\')",
+                    s->qid.coordinatorid, s->qid.queryid);
           memset (SERR, 0, MAX_VARLEN);
           executeQuery (can_con, var1, 1, SERR);
           syslog (LOG_INFO, "cancel_query %s", SERR);
@@ -1091,7 +1091,9 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
   if (strlen (save) > 0)
     {
       s->save = 1;
-      if (USE_AIO == 1 && (save[0] == '(' || strcmp(save, "csv+") == 0 || strcmp(save, "lcsv+") == 0))
+      if (USE_AIO == 1
+          && (save[0] == '(' || strcmp (save, "csv+") == 0
+              || strcmp (save, "lcsv+") == 0))
         {
           snprintf (qry, k + MAX_VARLEN,
                     "aio_save(%s,'path=%s','instance=%d','format=%s')",
@@ -1126,18 +1128,18 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
     }
   if (s->auth == SCIDB_AUTHENTICATED && strlen (USER) > 0)
     {
-      s->con  = scidbauth(s->con, USER, PASS);
-      if(!s->con)
-      {
-        free (qry);
-        free (qrybuf);
-        syslog (LOG_ERR, "SciDB authentication failed");
-        respond (conn, plain, 401, strlen ("SciDB authentication failed"),
-               "SciDB authentication failed");
-        cleanup_session (s);
-        omp_unset_lock (&s->lock);
-        return;
-      }
+      s->con = scidbauth (s->con, USER, PASS);
+      if (!s->con)
+        {
+          free (qry);
+          free (qrybuf);
+          syslog (LOG_ERR, "SciDB authentication failed");
+          respond (conn, plain, 401, strlen ("SciDB authentication failed"),
+                   "SciDB authentication failed");
+          cleanup_session (s);
+          omp_unset_lock (&s->lock);
+          return;
+        }
     }
 
   syslog (LOG_INFO, "execute_query %d connected", id);
@@ -1156,7 +1158,8 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
       omp_unset_lock (&s->lock);
       return;
     }
-  syslog (LOG_INFO, "execute_query id=%d scidb queryid = %llu.%llu", id, q.coordinatorid, q.queryid);
+  syslog (LOG_INFO, "execute_query id=%d scidb queryid = %llu.%llu", id,
+          q.coordinatorid, q.queryid);
 /* Set the queryID for potential future cancel event.
  * The time flag is set to a future value to prevent get_session from
  * declaring this session orphaned while a query is running. This
@@ -1171,7 +1174,7 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
     {
       q = execute_prepared_query (s->con, qry, &pq, 1, SERR);
     }
-  if (q.queryid < 1)               // something went wrong
+  if (q.queryid < 1)            // something went wrong
     {
       free (qry);
       free (qrybuf);
@@ -1203,7 +1206,7 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
   time (&s->time);
   omp_unset_lock (&s->lock);
   // Respond to the client (the query ID)
-  snprintf (buf, MAX_VARLEN, "%llu", q.queryid);  // Return the query ID
+  snprintf (buf, MAX_VARLEN, "%llu", q.queryid);        // Return the query ID
   respond (conn, plain, 200, strlen (buf), buf);
 }
 
