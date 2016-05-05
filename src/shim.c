@@ -309,6 +309,8 @@ cancel_query (struct mg_connection *conn, const struct mg_request_info *ri)
   void *can_con;
   char var1[MAX_VARLEN];
   char SERR[MAX_VARLEN];
+  char USER[MAX_VARLEN];
+  char PASS[MAX_VARLEN];
   if (!ri->query_string)
     {
       respond (conn, plain, 400, 0, NULL);
@@ -318,6 +320,10 @@ cancel_query (struct mg_connection *conn, const struct mg_request_info *ri)
   k = strlen (ri->query_string);
   mg_get_var (ri->query_string, k, "id", var1, MAX_VARLEN);
   id = atoi (var1);
+  memset (USER, 0, MAX_VARLEN);
+  memset (PASS, 0, MAX_VARLEN);
+  mg_get_var (ri->query_string, k, "user", USER, MAX_VARLEN);
+  mg_get_var (ri->query_string, k, "password", PASS, MAX_VARLEN);
   session *s = find_session (id);
   if (s && s->qid.queryid > 0)
     {
@@ -334,6 +340,19 @@ cancel_query (struct mg_connection *conn, const struct mg_request_info *ri)
               respond (conn, plain, 503,
                        strlen ("Could not connect to SciDB"),
                        "Could not connect to SciDB");
+              return;
+            }
+          if ( strlen (USER) > 0)
+          {
+             can_con  = scidbauth(can_con, USER, PASS);
+          }
+          if (!can_con)
+            {
+              syslog (LOG_ERR,
+                      "cancel_query authentication error");
+              respond (conn, plain, 401,
+                       strlen ("authentication error"),
+                       "authentication error");
               return;
             }
 
