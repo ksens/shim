@@ -59,6 +59,7 @@ struct prep
 QueryID execute_prepared_query (void *, char *, struct prep *, int,
                                            char *);
 void completeQuery (QueryID id, void *con, char *err);
+void *scidbauth(void *con, const char *name, const char *password);
 // End of mimimalist SciDB client API -----------------------------------------
 
 /* A session consists of client I/O buffers, and an optional SciDB query ID. */
