@@ -17,7 +17,7 @@ if test -n "$s"; then
   INS=$(( $INS ))
   TMP=`echo "$s" | sed -e "s/.*-s //;s/ .*//"`
   TMP=`dirname $TMP`
-  SCIDBUSER=`ps -ef  | grep scidb | grep dbname | head -n 1 | cut -d ' ' -f 1`
+  SCIDBUSER=`ps axfo user:64,cmd | grep scidb | grep dbname | head -n 1 | cut -d ' ' -f 1`
 fi
 # Write out an example config file to /var/lib/shim/conf
 cat >/var/lib/shim/conf << EOF
