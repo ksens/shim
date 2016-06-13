@@ -85,6 +85,7 @@ apt-get remove shim
 
 SciDB on RHEL/Centos 6 here:
 
+* [http://paradigm4.github.io/shim/shim-15.12-1.x86_64.rpm](http://paradigm4.github.io/shim/shim-15.12-1.x86_64.rpm)
 * [http://paradigm4.github.io/shim/shim-15.7-1.x86_64.rpm](http://paradigm4.github.io/shim/shim-15.7-1.x86_64.rpm)
 * [http://paradigm4.github.io/shim/shim-14.12-1.x86_64.rpm](http://paradigm4.github.io/shim/shim-14.12-1.x86_64.rpm)
 
