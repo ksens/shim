@@ -68,7 +68,7 @@ service.
 
 This is the fastest/easiest way to install shim as a system service. We provide some pre-built binary packages.
 On Ubuntu 14.04:
-* [http://paradigm4.github.io/shim/ubuntu_14.04_shim_15.12_amd64.deb](http://paradigm4.github.io/shim/shim_15.12_amd64.deb)
+* [http://paradigm4.github.io/shim/shim_15.12_amd64.deb](http://paradigm4.github.io/shim/shim_15.12_amd64.deb)
 * [http://paradigm4.github.io/shim/ubuntu_14.04_shim_15.7_amd64.deb](http://paradigm4.github.io/shim/ubuntu_14.04_shim_15.7_amd64.deb)
 
 ```
