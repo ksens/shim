@@ -3,36 +3,12 @@ through a simple HTTP API. It's based on the mongoose web server.  It's a shim
 between the low-level SciDB C API and a higher-level and lightweight web
 service API.
 
-The API documentation is here: http://htmlpreview.github.io/?https://raw.github.com/Paradigm4/shim/master/wwwroot/help.html
+See the API documentation for release notes, encryption, authentication, other settings and limitations: http://htmlpreview.github.io/?https://raw.github.com/Paradigm4/shim/master/wwwroot/help.html
 
 The shim program tracks SciDB releases because it uses the SciDB client API.
-You need to use a version of shim that matches your SciDB release. You can
-check your shim version from a web browser with:
-```
-http://localhost:8080/version
-```
-You can checkout any previously released versions by git tag.
+You need to use a version of shim that matches your SciDB release. You can checkout any previously released versions by git tag.
 
-## Notes
-
-Shim supports TLS/SSL encryption and implements SciDB password authentication.
-The encrypted, authenticated API adds one new argument to the unencrypted,
-non-authentication API, but is otherwise identical. See
-[Paradigm4/shim/master/wwwroot/help.html](http://htmlpreview.github.io/?https://raw.github.com/Paradigm4/shim/master/wwwroot/help.html)
-for complete details.
-
-The `shim` program must run on the system that a SciDB coordinator runs on. Shim queries are limited to at most 1,000,000 characters.
-
-## HTTP API documentation
-See the wwwroot/help.html document for the API documentation, and latest release notes. You can also compile and
-start shim running and point a browser to http://localhost:8080/help.html.
-You can also preview the help.html page directly from github at:
-
-[Paradigm4/shim/master/wwwroot/help.html](http://htmlpreview.github.io/?https://raw.github.com/Paradigm4/shim/master/wwwroot/help.html)
-
-The wwwroot directory also includes an example simple javascript client.
-
-##Installation from binary packages
+#Installation from binary packages
 
 This is the fastest/easiest way to install shim as a system service. We provide some pre-built binary packages.
 Versions 15.12 and 15.7 on Ubuntu 14.04:
