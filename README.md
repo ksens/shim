@@ -3,7 +3,8 @@ through a simple HTTP API. It's based on the mongoose web server.  It's a shim
 between the low-level SciDB C API and a higher-level and lightweight web
 service API.
 
-See the API documentation for release notes, encryption, authentication, other settings and limitations: http://htmlpreview.github.io/?https://raw.github.com/Paradigm4/shim/master/wwwroot/help.html
+#API Documentation 
+See the [Documentation Pages](http://htmlpreview.github.io/?https://raw.github.com/Paradigm4/shim/master/wwwroot/help.html) for detailed nodes on release differences, configuration, authentication, encryption, limits and so on.
 
 The shim program tracks SciDB releases because it uses the SciDB client API.
 You need to use a version of shim that matches your SciDB release. You can checkout any previously released versions by git tag.
@@ -108,10 +109,31 @@ of options. When you run shim from a non-standard location, the program
 expects to find the ssl_cert.pem file one directory above the wwwroot
 directory.
 
-##Packages Required for Building
+# Usage
+```
+shim [-h] [-f] [-p <http port>] [-r <document root>] [-s <scidb port>]
+```
+where, -f means run in the foreground (defaults to background), -h means help.
+
+If you installed the service version, then you can control when shim is running with the usual mechanism, for example:
+```
+/etc/init.d/shimsvc stop
+/etc/init.d/shimsvc start
+```
+
+## Uninstall
+We explicitly define our SCIDB home directory for Make in the example below:
+```
+sudo make SCIDB=/opt/scidb/15.12 uninstall
+```
+
+## Log files
+Shim prints messages to the system log. The syslog file location varies, but can usually be found in /var/log/syslog or /var/log/messages.
+
+# Manual Building
 Note that because shim is a SciDB client it needs the boost, zlib, log4cpp and log4cxx development libraries installed to compile. And because shim now uses PAM authentication, you'll now need the PAM development libraries for your system installed too. You also optionally need an SSL development library if you want to support TLS. Moreover, 15.12 and 15.7 use a newer compiler and the paradigm4-*-dev package is not available if you are building SciDB from source.
 
-### Ubuntu
+## Ubuntu
 For SciDB 15.12 or 15.7 on Ubuntu 14.04 use the below. Note if you are building SciDB from source, make sure to install SciDB at /opt/scidb and do NOT use the paradigm4-15.12-dev package:
 ```
 sudo apt-get install paradigm4-15.12-dev make git scidb-15.12-libboost1.54-dev g++-4.9 gcc-4.9 libpqxx-dev liblog4cxx10-dev liblog4cpp5-dev libpam0g-dev zlib1g-dev ruby-dev build-essential libboost-system-dev gcc gdebi
@@ -126,7 +148,7 @@ sudo apt-get install liblog4cpp5-dev liblog4cxx10-dev libboost-dev libboost-syst
 sudo gem install fpm
 ```
 
-### CentOS and RHEL
+## CentOS and RHEL
 For SciDB 15.12 and 15.7 some extra steps are needed to get the new compiler. If you are building SciDB from source, make sure to install SciDB at /opt/scidb and do NOT use the paradigm4-15.12-dev package:
 ```
 sudo yum install scl-utils
@@ -154,7 +176,7 @@ make SCIDB=/opt/scidb/15.12
 sudo make SCIDB=/opt/scidb/15.12 install
 
 ```
-### Optionally install as a service
+## Optionally install as a service
 You can install shim as a system service so that it just runs all the time with:
 ```
 sudo make SCIDB=/opt/scidb/15.12 service
@@ -169,24 +191,3 @@ make rpm-pkg
 respectively. Building packages requires that certain extra packaging programs are available,
 including rpmbuild for RHEL/CentOS and the Ruby-based fpm packaging utility on all systems.
 
-## Usage
-```
-shim [-h] [-f] [-p <http port>] [-r <document root>] [-s <scidb port>]
-```
-where, -f means run in the foreground (defaults to background), -h means help.
-
-If you installed the service version, then you can control when shim is running with the usual mechanism, for example:
-```
-/etc/init.d/shimsvc stop
-/etc/init.d/shimsvc start
-```
-
-## Uninstall
-We explicitly define our SCIDB home directory for Make in the example below:
-```
-sudo make SCIDB=/opt/scidb/15.12 uninstall
-```
-
-
-## Log files
-Shim prints messages to the system log. The syslog file location varies, but can usually be found in /var/log/syslog or /var/log/messages.
