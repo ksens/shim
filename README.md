@@ -67,13 +67,9 @@ service.
 ## Non-dev-tools package installation.
 
 This is the fastest/easiest way to install shim as a system service. We provide some pre-built binary packages.
-SciDB 15.7 on Ubuntu 14.04:
+On Ubuntu 14.04:
+* [http://paradigm4.github.io/shim/ubuntu_14.04_shim_15.12_amd64.deb](http://paradigm4.github.io/shim/shim_15.12_amd64.deb)
 * [http://paradigm4.github.io/shim/ubuntu_14.04_shim_15.7_amd64.deb](http://paradigm4.github.io/shim/ubuntu_14.04_shim_15.7_amd64.deb)
-
-For SciDB 14.12 on Ubuntu 14.04 as well as 12.04:
-* [http://paradigm4.github.io/shim/ubuntu_12.04_shim_14.12_amd64.deb](http://paradigm4.github.io/shim/ubuntu_12.04_shim_14.12_amd64.deb)
-* [http://paradigm4.github.io/shim/ubuntu_14.04_shim_14.12_amd64.deb](http://paradigm4.github.io/shim/ubuntu_14.04_shim_14.12_amd64.deb)
-
 
 ```
 # Install with:
@@ -87,7 +83,6 @@ SciDB on RHEL/Centos 6 here:
 
 * [http://paradigm4.github.io/shim/shim-15.12-1.x86_64.rpm](http://paradigm4.github.io/shim/shim-15.12-1.x86_64.rpm)
 * [http://paradigm4.github.io/shim/shim-15.7-1.x86_64.rpm](http://paradigm4.github.io/shim/shim-15.7-1.x86_64.rpm)
-* [http://paradigm4.github.io/shim/shim-14.12-1.x86_64.rpm](http://paradigm4.github.io/shim/shim-14.12-1.x86_64.rpm)
 
 Packages for some older versions can be found at https://github.com/paradigm4/shim/tree/gh-pages
 
