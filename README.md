@@ -11,19 +11,7 @@ check your shim version from a web browser with:
 ```
 http://localhost:8080/version
 ```
-The upcombing release will have the tag v15.7 and will be configured for
-SciDB version 15.7. You can checkout any previously released version
-by git tag.
-
-
-## New changes for SciDB version 15.7
-
-PAM authentication has been replaced with SciDB authentication (available
-in SciDB version 15.7). In order to maintain compatibility with previous
-shim clients, the HTTPS authentication API for SciDB logins
-remains the same as PAM.
-
-Many other changes -- see http://htmlpreview.github.io/?https://raw.github.com/Paradigm4/shim/master/wwwroot/help.html
+You can checkout any previously released versions by git tag.
 
 ## Notes
 
@@ -33,47 +21,27 @@ non-authentication API, but is otherwise identical. See
 [Paradigm4/shim/master/wwwroot/help.html](http://htmlpreview.github.io/?https://raw.github.com/Paradigm4/shim/master/wwwroot/help.html)
 for complete details.
 
-The `shim` program must run on the system that a SciDB coordinator runs on.
-
-Note: libscidbclient.so and SciDB's boost libraries must be in shim's library
-path. This may entail setting
-LD_LIBRARY_PATH=/opt/scidb/<whatever>/lib:/opt/scidb/<whatever>/3rdparty/boost/lib
-before
-running shim.  You don't have to worry about that if you install and run shim
-as a service.
-
-Note: Shim queries are limited to at most 1,000,000 characters.
+The `shim` program must run on the system that a SciDB coordinator runs on. Shim queries are limited to at most 1,000,000 characters.
 
 ## HTTP API documentation
-See the wwwroot/help.html document for the API documentation, or compile and
+See the wwwroot/help.html document for the API documentation, and latest release notes. You can also compile and
 start shim running and point a browser to http://localhost:8080/help.html.
 You can also preview the help.html page directly from github at:
 
 [Paradigm4/shim/master/wwwroot/help.html](http://htmlpreview.github.io/?https://raw.github.com/Paradigm4/shim/master/wwwroot/help.html)
 
-
 The wwwroot directory also includes an example simple javascript client.
 
 ##Installation from binary packages
 
-### NOTE!
-
-The SciDB developers package a version of shim in SciDB pacakges with the
-phrase  "dev-tools" in them. *Do not install that package and also follow the
-instructions below--they are unfortunately not compatible with each other.* You
-can run shim from the SciDB packages but you need to manually configure the
-service.
-
-## Non-dev-tools package installation.
-
 This is the fastest/easiest way to install shim as a system service. We provide some pre-built binary packages.
-On Ubuntu 14.04:
+Versions 15.12 and 15.7 on Ubuntu 14.04:
 * [http://paradigm4.github.io/shim/shim_15.12_amd64.deb](http://paradigm4.github.io/shim/shim_15.12_amd64.deb)
 * [http://paradigm4.github.io/shim/ubuntu_14.04_shim_15.7_amd64.deb](http://paradigm4.github.io/shim/ubuntu_14.04_shim_15.7_amd64.deb)
 
 ```
 # Install with:
-sudo gdebi ubuntu_14.04_shim_15.7_amd64.deb
+sudo gdebi shim_15.12_amd64.deb
 
 # Uninstall with (be sure to uninstall any existing copy before re-installing shim):
 apt-get remove shim
@@ -88,13 +56,29 @@ Packages for some older versions can be found at https://github.com/paradigm4/sh
 
 ```
 # Install with:
-rpm -i shim-15.7-1.x86_64.rpm
+rpm -i shim-15.12-1.x86_64.rpm
 # shim depends on libgomp. If installation fails, install libgomp and try again:
 yum install libgomp
 
 # Uninstall with:
 yum remove shim
 ```
+
+## LD_LIBRARY_PATH issues
+
+By default shim installs into /opt/scidb/15.12/bin and expects the sibling directory "lib" to contain the "libscidbclient.so" library. This may present a problem if SciDB is installed in a different location. One way to go around the issue is by creating a symlink. For example:
+```bash
+## Problem:
+$ sudo service shimsvc start
+Starting shim
+/opt/scidb/15.12/bin/shim: error while loading shared libraries: libscidbclient.so: cannot open shared object file: No such file or directory
+
+## Solution: supposing SciDB was installed at ~/scidb
+$ sudo ln -s ~/scidb/lib /opt/scidb/15.12/lib 
+$ sudo service shimsvc start
+Starting shim
+```
+You could also edit /etc/init.d/shimsvc or use other environment/path tricks.
 
 # Configuring  shim
 The `shim` service script consults the `/var/lib/shim/conf` file for
@@ -149,12 +133,12 @@ expects to find the ssl_cert.pem file one directory above the wwwroot
 directory.
 
 ##Packages Required for Building
-Note that because shim is a SciDB client it needs the boost, zlib, log4cpp and log4cxx development libraries installed to compile. And because shim now uses PAM authentication, you'll now need the PAM development libraries for your system installed too. You also optionally need an SSL development library if you want to support TLS. Moreover, 15.7 uses a newer compiler and the paradigm4-15.7-dev package is not available if you are building SciDB from source.
+Note that because shim is a SciDB client it needs the boost, zlib, log4cpp and log4cxx development libraries installed to compile. And because shim now uses PAM authentication, you'll now need the PAM development libraries for your system installed too. You also optionally need an SSL development library if you want to support TLS. Moreover, 15.12 and 15.7 use a newer compiler and the paradigm4-*-dev package is not available if you are building SciDB from source.
 
 ### Ubuntu
-For SciDB 15.7 on Ubuntu 14.04 use the below. Note if you are building SciDB from source, make sure to install SciDB at /opt/scidb and do NOT use the paradigm4-15.7-dev package:
+For SciDB 15.12 or 15.7 on Ubuntu 14.04 use the below. Note if you are building SciDB from source, make sure to install SciDB at /opt/scidb and do NOT use the paradigm4-15.12-dev package:
 ```
-sudo apt-get install paradigm4-15.7-dev make git scidb-15.7-libboost1.54-dev g++-4.9 gcc-4.9 libpqxx-dev liblog4cxx10-dev liblog4cpp5-dev libpam0g-dev zlib1g-dev ruby-dev build-essential libboost-system-dev gcc gdebi
+sudo apt-get install paradigm4-15.12-dev make git scidb-15.12-libboost1.54-dev g++-4.9 gcc-4.9 libpqxx-dev liblog4cxx10-dev liblog4cpp5-dev libpam0g-dev zlib1g-dev ruby-dev build-essential libboost-system-dev gcc gdebi
 sudo gem install fpm
 ```
 
@@ -166,14 +150,13 @@ sudo apt-get install liblog4cpp5-dev liblog4cxx10-dev libboost-dev libboost-syst
 sudo gem install fpm
 ```
 
-
 ### CentOS and RHEL
-For SciDB 15.7 some extra steps are needed to get the new compiler. If you are building SciDB from source, make sure to install SciDB at /opt/scidb and do NOT use the paradigm4-15.7-dev package:
+For SciDB 15.12 and 15.7 some extra steps are needed to get the new compiler. If you are building SciDB from source, make sure to install SciDB at /opt/scidb and do NOT use the paradigm4-15.12-dev package:
 ```
 sudo yum install scl-utils
 wget https://www.softwarecollections.org/en/scls/rhscl/devtoolset-3/epel-6-x86_64/download/rhscl-devtoolset-3-epel-6-x86_64.noarch.rpm
 sudo rpm -i rhscl-devtoolset-3-epel-6-x86_64.noarch.rpm 
-sudo yum install paradigm4-15.7-dev git devtoolset-3-gcc-c++.x86_64 scidb-15.7-libboost-devel libpqxx-devel log4cxx-devel openssl-devel build-essential zlib-devel pam-devel ruby-devel rubygems rpm-build gcc
+sudo yum install paradigm4-15.12-dev git devtoolset-3-gcc-c++.x86_64 scidb-15.12-libboost-devel libpqxx-devel log4cxx-devel openssl-devel build-essential zlib-devel pam-devel ruby-devel rubygems rpm-build gcc
 sudo gem install fpm
 ```
 
@@ -191,14 +174,14 @@ sudo make install
 # Or, if SCIDB is not in the PATH, can set a Make variable SCIDB that points
 # to the SCIDB home directory, for example for version 14.12:
 
-make SCIDB=/opt/scidb/15.7
-sudo make SCIDB=/opt/scidb/15.7 install
+make SCIDB=/opt/scidb/15.12
+sudo make SCIDB=/opt/scidb/15.12 install
 
 ```
 ### Optionally install as a service
 You can install shim as a system service so that it just runs all the time with:
 ```
-sudo make SCIDB=/opt/scidb/15.7 service
+sudo make SCIDB=/opt/scidb/15.12 service
 ```
 If you install shim as a service and want to change its default options, for example the default HTTP port or port to talk to SciDB on, you'll need to edit the shim configuration file. See the discussion of command line parameters below.
 ### Optionally build deb or rpm packages
@@ -225,7 +208,7 @@ If you installed the service version, then you can control when shim is running 
 ## Uninstall
 We explicitly define our SCIDB home directory for Make in the example below:
 ```
-sudo make SCIDB=/opt/scidb/15.7 uninstall
+sudo make SCIDB=/opt/scidb/15.12 uninstall
 ```
 
 
