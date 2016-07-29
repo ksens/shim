@@ -12,9 +12,10 @@ You need to use a version of shim that matches your SciDB release. You can check
 #Installation from binary packages
 
 This is the fastest/easiest way to install shim as a system service. We provide some pre-built binary packages.
-Versions 15.12 and 15.7 on Ubuntu 14.04:
-* [http://paradigm4.github.io/shim/shim_15.12_amd64.deb](http://paradigm4.github.io/shim/shim_15.12_amd64.deb)
-* [http://paradigm4.github.io/shim/ubuntu_14.04_shim_15.7_amd64.deb](http://paradigm4.github.io/shim/ubuntu_14.04_shim_15.7_amd64.deb)
+
+*SciDB on Ubuntu 14.04*:
+*  [Shim for SciDB 15.12](https://github.com/Paradigm4/shim/raw/gh-pages/ubuntu_14.04_shim_15.7_amd64.deb)
+*  [Shim for SciDB 15.7](http://paradigm4.github.io/shim/ubuntu_14.04_shim_15.7_amd64.deb)
 
 ```
 # Install with:
@@ -24,10 +25,10 @@ sudo gdebi shim_15.12_amd64.deb
 apt-get remove shim
 ```
 
-SciDB on RHEL/Centos 6 here:
+*SciDB on RHEL/Centos 6*
 
-* [http://paradigm4.github.io/shim/shim-15.12-1.x86_64.rpm](http://paradigm4.github.io/shim/shim-15.12-1.x86_64.rpm)
-* [http://paradigm4.github.io/shim/shim-15.7-1.x86_64.rpm](http://paradigm4.github.io/shim/shim-15.7-1.x86_64.rpm)
+* [Shim for SciDB 15.12](http://paradigm4.github.io/shim/shim-15.12-1.x86_64.rpm)
+* [Shim for SciDB 15.7](http://paradigm4.github.io/shim/shim-15.7-1.x86_64.rpm)
 
 Packages for some older versions can be found at https://github.com/paradigm4/shim/tree/gh-pages
 
