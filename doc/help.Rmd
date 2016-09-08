@@ -41,7 +41,7 @@ services (described in detail below), including: `/new_session`,
 
 ```{r, echo=FALSE}
 if(! require(jpeg, quietly=TRUE)) install.packages('jpeg',,'http://www.rforge.net/') 
-x = readJPEG("shim.jpg")
+x = jpeg::readJPEG("shim.jpg")
 p = par(mar=c(0,0,0,0))
 plot(1:2,type="n",xaxt="n",yaxt="n",bty="n",xlab="",ylab="",asp=1)
 rasterImage(x, 1,1,2,2)
