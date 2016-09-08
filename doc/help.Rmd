@@ -11,9 +11,6 @@ output:
 
 # What's new (for SciDB 15.12)
 
-This is likely to be the last version of the shim. Bryan will be switching the
-R client to use JDBC, and all other clients are encouraged to migrate too.
-
 ## Support for the SciDB advanced I/O toolbox (_aio_tools_)
 
 Use the `-a` command line flag, or add the line
@@ -41,15 +38,6 @@ with SciDB over HTTP connections. The API consists of a small number of
 services (described in detail below), including: `/new_session`,
 `/release_session`, `/execute_query`, `/cancel`, `/read_lines`, `/read_bytes`,
 `/upload_file`, `/upload`, `/version`.
-
-There are more direct ways to talk to SciDB over a network. See
-https://github.com/artyom-smirnov/scidb4py for a great example of direct
-network communication with SciDB using Python and Google protocol buffers
-(written by Artyom Smirnov, one of the core SciDB developers). Artyom's
-approach is comparatively low-level, but possibly more efficient than shim.
-Shim is designed to be a convenient and easy way to talk to SciDB. Note that
-both shim and Artyom's Python interface are community open source projects;
-they are not official components of SciDB.
 
 ```{r, echo=FALSE}
 if(! require(jpeg, quietly=TRUE)) install.packages('jpeg',,'http://www.rforge.net/') 
@@ -575,4 +563,4 @@ The above scheme is called lazy as sessions are only harvested when a new sessio
 Shim does not protect against uploading gigantic files nor from running many long-running SciDB queries. The service may become unavailable if too many query and/or upload operations are in flight; an HTTP 503 (Service Unavailable) error code is returned in that case.
 
 
-Copyright (C) 2015, Paradigm4.
+Copyright (C) 2016, Paradigm4.
