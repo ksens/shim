@@ -360,8 +360,13 @@ void mg_close_connection(struct mg_connection *conn);
 // Return number of uploaded files.
 int mg_upload(struct mg_connection *conn, const char *destination_dir);
 
-// Append upload to an existing file
+// Append upload to an existing file, required by pipe operations.
+// Return number of uploaded files.
 int mg_append(struct mg_connection *conn, char *file);
+
+// Write or append bytes to an existing file, required by pipe operations.
+// Return number of uploaded bytes.
+int mg_post_upload(struct mg_connection *conn, char *file, int append, int lock);
 
 // Convenience function -- create detached thread.
 // Return: 0 on success, non-0 on error.

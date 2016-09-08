@@ -5,7 +5,7 @@ ifeq ($(SCIDB),)
     SCIDB := $(shell dirname ${X})
   endif
 endif
-GIT_VERSION := $(shell git describe --abbrev=4 --dirty --always)
+GIT_VERSION := $(shell git describe --tags --abbrev=4 --dirty --always)
 
 CFLAGS=-std=gnu99 -fopenmp -g -pedantic -DVERSION=\"$(GIT_VERSION)\"
 INC=-I. -DPROJECT_ROOT="\"$(SCIDB)\"" -I"$(SCIDB)/3rdparty/boost/include/" -I"$(SCIDB)/include" -I"$(SCIDB)/3rdparty/boost/include/boost/container" -DSCIDB_CLIENT
@@ -30,6 +30,9 @@ DESTDIR=
 shim:
 	$(MAKE) -C src
 	@cp src/shim .
+
+client:
+	$(MAKE) -C src client
 
 shim0:
 	$(MAKE) -C src shim0
@@ -135,37 +138,23 @@ test4: shim
 	@LD_LIBRARY_PATH="$(SCIDB)/lib:$(SCIDB)/3rdparty/boost/lib" ./tests/tls_digest.sh
 
 test5: shim
-	@echo "Streaming"
-	@LD_LIBRARY_PATH="$(SCIDB)/lib:$(SCIDB)/3rdparty/boost/lib" ./tests/stream.sh
-
-test6: shim
-	@echo "Streaming with compression"
-	@LD_LIBRARY_PATH="$(SCIDB)/lib:$(SCIDB)/3rdparty/boost/lib" ./tests/compressed_stream.sh
-
-test7: shim
-	@echo "multiuser streaming test"
-	@LD_LIBRARY_PATH="$(SCIDB)/lib:$(SCIDB)/3rdparty/boost/lib" ./tests/multiple_users_stream.sh
-
-test8: shim
-	@echo "repeated multiuser streaming test"
-	@LD_LIBRARY_PATH="$(SCIDB)/lib:$(SCIDB)/3rdparty/boost/lib" ./tests/more_multiple_users_stream.sh
+	@echo "TLS with SciDB authentication"
+	@LD_LIBRARY_PATH="$(SCIDB)/lib:$(SCIDB)/3rdparty/boost/lib" ./tests/tls_scidbauth.sh
 
 test9: shim
 	@echo "readbytes test"
 	@LD_LIBRARY_PATH="$(SCIDB)/lib:$(SCIDB)/3rdparty/boost/lib" ./tests/readbytes.sh
 
 test10: shim
-	@echo "upload test"
+	@echo "file upload test"
 	@LD_LIBRARY_PATH="$(SCIDB)/lib:$(SCIDB)/3rdparty/boost/lib" ./tests/upload.sh
 
-test11: shim0
-	@echo "valgrind test"
-	@LD_LIBRARY_PATH="$(SCIDB)/lib:$(SCIDB)/3rdparty/boost/lib" ./tests/valgrind.sh
-	@echo "Now carefully inspect the report in /tmp/valgrind.out"
+test12: shim
+	@echo "post upload test"
+	@LD_LIBRARY_PATH="$(SCIDB)/lib:$(SCIDB)/3rdparty/boost/lib" ./tests/post_upload.sh
 
-grinder: shim0
-	@echo "multiuser valgrind test"
-	@LD_LIBRARY_PATH="$(SCIDB)/lib:$(SCIDB)/3rdparty/boost/lib" ./tests/grinder.sh
-	@echo "Now carefully inspect the report in /tmp/grinder.out"
+test13: shim
+	@echo "cache test"
+	@LD_LIBRARY_PATH="$(SCIDB)/lib:$(SCIDB)/3rdparty/boost/lib" ./tests/cache.sh"
 
-test: test0 test1 test2 test3 test4 test5 test6 test9 test10
+test: test0 test1 test2 test3 test4 test9 test10 test12

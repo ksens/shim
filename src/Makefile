@@ -27,14 +27,20 @@ endif
 # default: empty DESTDIR implicitly installs to /
 DESTDIR=
 
-shim: client sha512 base64
-	$(CC) -Wall $(CFLAGS) -DUSE_WEBSOCKET $(INC) $(LDFLAGS) -fpic -g -o shim shim.c mongoose.c client.o sha512.o base64.o $(LIBS)
+shim: client sha512 base64 proto
+	$(CC) -Wall $(CFLAGS) -DUSE_WEBSOCKET $(INC) $(LDFLAGS) -fpic -g -o shim shim.c mongoose.c client.o sha512.o base64.o $(LIBS) -llog4cxx -lprotobuf
 
 shim0: client sha512 base64
 	$(CC) -Wall $(CFLAGS) -O0 -DUSE_WEBSOCKET $(INC) $(LDFLAGS) -fpic -g -o shim shim.c mongoose.c client.o sha512.o base64.o $(LIBS)
 
 client:
 	$(CXX) $(CXXFLAGS) $(INC) -fpic -g -c client.cpp -o client.o
+
+proto:
+	protoc network/proto/scidb_msg.proto --cpp_out=.   
+
+authtest: proto
+	$(CXX) $(CXXFLAGS) $(INC) -fpic -g test.cpp -o test $(LIBS) -llog4cxx -lprotobuf
 
 sha512:
 	$(CC) -Wall $(CFLAGS) -fpic -g -c sha512.c -o sha512.o
@@ -119,7 +125,7 @@ rpm-pkg: shim
 	fpm -s dir -t rpm -n shim -d "openssl-devel" --vendor Paradigm4 --license AGPLv3 -m "<blewis@paradigm4.com>" --url "https://github.com/Paradigm4/shim" --description "Unofficial SciDB HTTP service" --provides "shim" -v $$(basename $(SCIDB)) --after-install init.d/after-install.sh --before-remove init.d/before-remove.sh -C pkgroot opt usr var etc/init.d
 
 clean:
-	rm -fr *.o *.so shim pkgroot *.rpm *.deb
+	rm -fr *.o *.so shim pkgroot *.rpm *.deb test
 
 
 test1: shim

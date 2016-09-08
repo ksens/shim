@@ -15,8 +15,9 @@ if test -n "$s"; then
   PORT=`echo "$s" | sed -e "s/.*-p //;s/ .*//"`
   INS=`echo "$s" | sed -e "s/.*-s //;s/ .*//" | sed -e "s@.*/[0-9]*/\([0-9]*\)/.*@\1@"`
   INS=$(( $INS ))
-  TMP=`echo "$s" | sed -e "s/.*-s //;s/ .*//" | sed -e "s@\(/[0-9][0-9][0-9]\)/[0-9]*.*@\1/@"`
-  TMP="${TMP}/${INS}"
+  TMP=`echo "$s" | sed -e "s/.*-s //;s/ .*//"`
+  TMP=`dirname $TMP`
+  SCIDBUSER=`ps axfo user:64,cmd | grep scidb | grep dbname | head -n 1 | cut -d ' ' -f 1`
 fi
 # Write out an example config file to /var/lib/shim/conf
 cat >/var/lib/shim/conf << EOF
@@ -28,11 +29,12 @@ cat >/var/lib/shim/conf << EOF
 
 #ports=8080,8083s
 scidbport=$PORT
+instance=$INS
 tmp=$TMP
-#user=root
+user=$SCIDBUSER
 #max_sessions=50
 #timeout=60
-instance=$INS
+#aio=1
 EOF
 
 # Generate a certificate
@@ -41,7 +43,7 @@ if test $? -ne 0; then
   echo "SSL certificate generation failed openssl not found: TLS disabled."
   rm -f /var/lib/shim/ssl_cert.pem
 fi
-if test -n "$(which update-rc.d)"; then
+if test -n "$(which update-rc.d 2>/dev/null)"; then
 # Ubuntu
   update-rc.d shimsvc defaults
 elif test -n "$(which chkconfig)"; then

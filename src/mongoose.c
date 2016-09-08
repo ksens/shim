@@ -1530,7 +1530,9 @@ static int64_t push(FILE *fp, SOCKET sock, SSL *ssl, const char *buf,
 
 // Read from IO channel - opened file descriptor, socket, or SSL descriptor.
 // Return negative value on error, or number of bytes read on success.
-static int pull(FILE *fp, struct mg_connection *conn, char *buf, int len) {
+static int
+pull(FILE *fp, struct mg_connection *conn, char *buf, int len)
+{
   int nread;
 
   if (fp != NULL) {
@@ -1549,7 +1551,9 @@ static int pull(FILE *fp, struct mg_connection *conn, char *buf, int len) {
   return conn->ctx->stop_flag ? -1 : nread;
 }
 
-static int pull_all(FILE *fp, struct mg_connection *conn, char *buf, int len) {
+static int
+pull_all(FILE *fp, struct mg_connection *conn, char *buf, int len)
+{
   int n, nread = 0;
 
   while (len > 0 && conn->ctx->stop_flag == 0) {
@@ -1569,7 +1573,9 @@ static int pull_all(FILE *fp, struct mg_connection *conn, char *buf, int len) {
   return nread;
 }
 
-int mg_read(struct mg_connection *conn, void *buf, size_t len) {
+int
+mg_read(struct mg_connection *conn, void *buf, size_t len)
+{
   int n, buffered_len, nread;
   const char *body;
 
@@ -4501,6 +4507,68 @@ static uint32_t get_remote_ip(const struct mg_connection *conn) {
 #include "build/mod_lua.c"
 #endif // USE_LUA
 
+
+int
+mg_post_upload(struct mg_connection *conn, char *filename, int append, int lock)
+{
+  const char *content_length;
+  FILE *fp;
+  char buf[MG_BUF_LEN];
+  int n;
+  size_t clen, len = 0;
+
+  const char *expect;
+  expect = mg_get_header(conn, "Expect");
+  if (expect != NULL) {
+      (void) mg_printf(conn, "%s", "HTTP/1.1 100 Continue\r\n\r\n");
+  }
+
+  // Request looks like this:
+  //
+  // POST / HTTP/1.1
+  // User-Agent: libcurl/7.22.0 r-curl/0.9 httr/1.0.0
+  // Host: localhost:9090
+  // Accept-Encoding: gzip, deflate
+  // Accept: application/json, text/xml, application/xml, */*
+  // Content-Length: 18
+  // (\r\n)
+  // Raw bytes go here.
+
+  if ((content_length = mg_get_header(conn, "Content-Length")) == NULL)
+  {
+    return -1;
+  }
+  clen = (size_t) atoll(content_length);
+  syslog(LOG_INFO, "post_upload expecting %s bytes\n", content_length);
+  if(clen < 1) return -2;
+  fp = NULL;
+  // Open file in binary mode for append or write
+  umask(0022);
+  if(append) fp = fopen(filename, "a+b");
+  else fp = fopen(filename, "w+b");
+  if (fp == NULL) return -3;
+  if(lock) flockfile(fp);
+  while ((n = mg_read(conn, buf, MG_BUF_LEN)) > 0 && len < clen)
+  {
+    len += n;
+    if(n != (int) fwrite(buf, 1, n, fp))
+    {
+      syslog(LOG_ERR, "post_upload short fwrite %d\n", ferror(fp));
+      len = -1;
+      break;
+    }
+  }
+  if(n < 0)
+  {
+    syslog(LOG_ERR, "post_upload connection read error\n");
+    len = -1;
+  }
+  funlockfile(fp);
+  fclose(fp);
+  return len;
+}
+
+
 int
 mg_append(struct mg_connection *conn, char *filename)
 {
@@ -4568,10 +4636,7 @@ mg_append(struct mg_connection *conn, char *filename)
     memmove(buf, &buf[headers_len], len - headers_len);
     len -= headers_len;
 
-    // We open the file with exclusive lock held. This guarantee us
-    // there is no other thread can save into the same file simultaneously.
     fp = NULL;
-
     // Open file in binary mode for appending.
     umask(S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
     if ((fp = fopen(filename, "a+b")) == NULL) {
