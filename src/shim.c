@@ -1014,7 +1014,8 @@ readlines (struct mg_connection *conn, const struct mg_request_info *ri)
  * save=<format string> (optional, default 0-length string)
  *   set the save format to something to wrap the query in a save
  * user=<user name> (optional)
- * password=<passowrd> (optional)
+ * password=<password> (optional)
+ * prefix=<query string> (optional) a statement to execute first, if supplied
  *
  * Any error that occurs during execute_query that is associated
  * with a valid session ID results in the release of the session.
@@ -1031,7 +1032,7 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
   char SERR[MAX_VARLEN];
   char USER[MAX_VARLEN];
   char PASS[MAX_VARLEN];
-  char *qrybuf, *qry;
+  char *qrybuf, *qry, *prefix;
   struct prep pq;               // prepared query storage
 
   if (!ri->query_string)
@@ -1083,6 +1084,23 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
       omp_unset_lock (&s->lock);
       return;
     }
+  prefix = (char*) malloc (k);
+  if (!prefix)
+    {
+      free (qrybuf);
+      free (qry);
+      syslog (LOG_ERR, "execute_query error out of memory");
+      respond (conn, plain, 500, strlen ("Out of memory"), "Out of memory");
+      omp_set_lock (&s->lock);
+      cleanup_session (s);
+      omp_unset_lock (&s->lock);
+    }
+  mg_get_var (ri->query_string, k, "prefix", prefix, k);
+  if (strlen(prefix) == 0)
+    { 
+      free(prefix);
+      prefix = 0;
+    }
   omp_set_lock (&s->lock);
   memset (var, 0, MAX_VARLEN);
   mg_get_var (ri->query_string, k, "save", save, MAX_VARLEN);
@@ -1119,6 +1137,7 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
     {
       free (qry);
       free (qrybuf);
+      free (prefix);
       syslog (LOG_ERR, "execute_query error could not connect to SciDB");
       respond (conn, plain, 503, strlen ("Could not connect to SciDB"),
                "Could not connect to SciDB");
@@ -1133,6 +1152,7 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
         {
           free (qry);
           free (qrybuf);
+          free (prefix);
           syslog (LOG_ERR, "SciDB authentication failed");
           respond (conn, plain, 401, strlen ("SciDB authentication failed"),
                    "SciDB authentication failed");
@@ -1143,12 +1163,71 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
     }
 
   syslog (LOG_INFO, "execute_query %d connected", id);
+
+  if (prefix) // 1 or more statements to run first
+    {  
+       char *qstart = prefix, *qend = qstart, last =0; //split on ';' (yes I think the internal AFL parser should do this too)
+       while (last!=1) 
+         {
+           qend = qstart;
+           while (*qend != ';' && *qend != 0)
+             ++qend;
+           if (*qend == 0)
+             last = 1;
+           else
+             *qend = 0;      //simulate null-termination
+           syslog (LOG_INFO, "execute_query %d running prefix", id);
+           prepare_query (&pq, s->con, qstart, 1, SERR);
+           q = pq.queryid;
+           if (q.queryid < 1 || !pq.queryresult)
+             {
+               free (qry);
+               free (qrybuf);
+               free (prefix);
+               syslog (LOG_ERR, "execute_query error on prefix %s", SERR);
+               respond (conn, plain, 500, strlen (SERR), SERR);
+               if (s->con)
+                 scidbdisconnect (s->con);
+               s->con = NULL;
+               cleanup_session (s);
+               omp_unset_lock (&s->lock);
+               return;
+             }
+           s->qid = q;                    //not sure if I need these
+           s->time = time (NULL) + WEEK;
+           s->stream = stream;
+           s->compression = compression;
+           if (s->con)
+             {
+               q = execute_prepared_query (s->con, qstart, &pq, 1, SERR);
+             }
+           if (q.queryid < 1)            // something went wrong
+             {
+               free (qry);
+               free (qrybuf);
+               free (prefix);
+               syslog (LOG_ERR, "execute_prepared_query error on prefix %s", SERR);
+               respond (conn, plain, 500, strlen (SERR), SERR);
+               if (s->con)
+                 scidbdisconnect (s->con);
+               s->con = NULL;
+               cleanup_session (s);
+               omp_unset_lock (&s->lock);
+               return;
+            }
+           if (s->con)
+             completeQuery (q, s->con, SERR);
+           qstart = qend + 1;
+         }
+    }
+
   prepare_query (&pq, s->con, qry, 1, SERR);
   q = pq.queryid;
   if (q.queryid < 1 || !pq.queryresult)
     {
       free (qry);
       free (qrybuf);
+      free (prefix);
       syslog (LOG_ERR, "execute_query error %s", SERR);
       respond (conn, plain, 500, strlen (SERR), SERR);
       if (s->con)
@@ -1177,7 +1256,8 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
   if (q.queryid < 1)            // something went wrong
     {
       free (qry);
-      free (qrybuf);
+      free (qrybuf); 
+      free (prefix);
       syslog (LOG_ERR, "execute_prepared_query error %s", SERR);
       if (!stream)
         respond (conn, plain, 500, strlen (SERR), SERR);
@@ -1193,6 +1273,7 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
 
   free (qry);
   free (qrybuf);
+  free (prefix);
   syslog (LOG_INFO, "execute_query %d done, disconnecting", s->sessionid);
   if (s->con)
     scidbdisconnect (s->con);
