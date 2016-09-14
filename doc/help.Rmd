@@ -319,6 +319,7 @@ curl -s "http://localhost:8080/release_session?id=${s}"
 - **query** AFL query string, encoded for use in URL as required, limited to a maximum of 262,144 characters
 - **save** optional SciDB save format string, limited to a maximum of 4096 characters; Save the query output in the specified format for subsequent download by `read_lines` or `read_bytes`. If the save parameter is not specified, don't save the query output. 
 - **release** optional 0 or 1: if 1 then release_session as soon as query completes. The default value is 0 if not specified (see additional notes below).
+- **prefix** _optional_ semi-colon separated URL encoded AFL statements to precede **query** in the same SciDB connection context. Mainly used for SciDB namespace and role setting.
 <tr><td>RESPONSE <td>
 - Success: HTTP 200 text/plain (SciDB Query ID)
 - Failure (SciDB not available error): HTTP 503 text/plain (ERROR TEXT) 
@@ -369,6 +370,15 @@ session = rawToChar(id$content)
 query = sprintf("http://localhost:8080/execute_query?id=%s&query=consume(42)&release=1",
                 session)
 httr::GET(query)
+```
+<tr><td>EXAMPLE using prefix to set namespace (curl)
+<td>
+See the `tests/scidb_auth_example.sh` file for a full example.
+```{r, comment=NA, engine='bash', eval=FALSE}
+id=$(curl -s -k "https://${host}:${port}/new_session")
+curl -f -s -k "https://${host}:${port}/execute_query?id=${id}&prefix=set_namespace('cazart')&query=list()&user=${USER}&password=${PASSWORD}&save=dcsv"
+curl -f -s -k "https://${host}:${port}/read_lines?id=${id}&n=0"
+curl -f -s -k "https://${host}:${port}/release_session?id=${id}"
 ```
 <tr><td><td>See `/read_lines` and `/read_bytes` below for running queries that return results and downloading them.
 </table>
