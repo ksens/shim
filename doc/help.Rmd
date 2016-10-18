@@ -11,9 +11,6 @@ output:
 
 # What's new (for SciDB 15.12)
 
-This is likely to be the last version of the shim. Bryan will be switching the
-R client to use JDBC, and all other clients are encouraged to migrate too.
-
 ## Support for the SciDB advanced I/O toolbox (_aio_tools_)
 
 Use the `-a` command line flag, or add the line
@@ -42,18 +39,9 @@ services (described in detail below), including: `/new_session`,
 `/release_session`, `/execute_query`, `/cancel`, `/read_lines`, `/read_bytes`,
 `/upload_file`, `/upload`, `/version`.
 
-There are more direct ways to talk to SciDB over a network. See
-https://github.com/artyom-smirnov/scidb4py for a great example of direct
-network communication with SciDB using Python and Google protocol buffers
-(written by Artyom Smirnov, one of the core SciDB developers). Artyom's
-approach is comparatively low-level, but possibly more efficient than shim.
-Shim is designed to be a convenient and easy way to talk to SciDB. Note that
-both shim and Artyom's Python interface are community open source projects;
-they are not official components of SciDB.
-
 ```{r, echo=FALSE}
 if(! require(jpeg, quietly=TRUE)) install.packages('jpeg',,'http://www.rforge.net/') 
-x = readJPEG("shim.jpg")
+x = jpeg::readJPEG("shim.jpg")
 p = par(mar=c(0,0,0,0))
 plot(1:2,type="n",xaxt="n",yaxt="n",bty="n",xlab="",ylab="",asp=1)
 rasterImage(x, 1,1,2,2)
@@ -331,6 +319,7 @@ curl -s "http://localhost:8080/release_session?id=${s}"
 - **query** AFL query string, encoded for use in URL as required, limited to a maximum of 262,144 characters
 - **save** optional SciDB save format string, limited to a maximum of 4096 characters; Save the query output in the specified format for subsequent download by `read_lines` or `read_bytes`. If the save parameter is not specified, don't save the query output. 
 - **release** optional 0 or 1: if 1 then release_session as soon as query completes. The default value is 0 if not specified (see additional notes below).
+- **prefix** _optional_ semi-colon separated URL encoded AFL statements to precede **query** in the same SciDB connection context. Mainly used for SciDB namespace and role setting.
 <tr><td>RESPONSE <td>
 - Success: HTTP 200 text/plain (SciDB Query ID)
 - Failure (SciDB not available error): HTTP 503 text/plain (ERROR TEXT) 
@@ -381,6 +370,15 @@ session = rawToChar(id$content)
 query = sprintf("http://localhost:8080/execute_query?id=%s&query=consume(42)&release=1",
                 session)
 httr::GET(query)
+```
+<tr><td>EXAMPLE using prefix to set namespace (curl)
+<td>
+See the `tests/scidb_auth_example.sh` file for a full example.
+```{r, comment=NA, engine='bash', eval=FALSE}
+id=$(curl -s -k "https://${host}:${port}/new_session")
+curl -f -s -k "https://${host}:${port}/execute_query?id=${id}&prefix=set_namespace('cazart')&query=list()&user=${USER}&password=${PASSWORD}&save=dcsv"
+curl -f -s -k "https://${host}:${port}/read_lines?id=${id}&n=0"
+curl -f -s -k "https://${host}:${port}/release_session?id=${id}"
 ```
 <tr><td><td>See `/read_lines` and `/read_bytes` below for running queries that return results and downloading them.
 </table>
@@ -575,4 +573,4 @@ The above scheme is called lazy as sessions are only harvested when a new sessio
 Shim does not protect against uploading gigantic files nor from running many long-running SciDB queries. The service may become unavailable if too many query and/or upload operations are in flight; an HTTP 503 (Service Unavailable) error code is returned in that case.
 
 
-Copyright (C) 2015, Paradigm4.
+Copyright (C) 2016, Paradigm4.
