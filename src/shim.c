@@ -1,3 +1,24 @@
+/*
+**
+* BEGIN_COPYRIGHT
+*
+* Copyright (C) 2008-2016 Paradigm4, Inc.
+*
+* shim is free software: you can redistribute it and/or modify it under the
+* terms of the GNU General Public License as published by the Free Software
+* Foundation version 3 of the License.
+*
+* This software is distributed "AS-IS" AND WITHOUT ANY WARRANTY OF ANY KIND,
+* INCLUDING ANY IMPLIED WARRANTY OF MERCHANTABILITY, NON-INFRINGEMENT, OR
+* FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for the
+* complete license terms.
+*
+* You should have received a copy of the GNU General Public License
+* along with shim.  If not, see <http://www.gnu.org/licenses/>.
+*
+* END_COPYRIGHT
+*/
+
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <limits.h>
@@ -19,6 +40,7 @@
 #include "mongoose.h"
 #include "mbedtls/sha512.h"
 #include "base64.h"
+#include "client.h"
 
 #define DEFAULT_MAX_SESSIONS 50 // Maximum number of concurrent http sessions
 #define MAX_VARLEN 4096         // Static buffer length for http query params
@@ -41,26 +63,6 @@
                                 // orphaned and available to reap (seconds)
 #define SCIDB_AUTHENTICATED 2
 
-// Minimalist SciDB client API from client.cpp -------------------------------
-void *scidbconnect (const char *host, int port);
-void scidbdisconnect (void *con);
-unsigned long long executeQuery (void *con, char *query, int afl, char *err);
-void prepare_query (void *, void *, char *, int, char *);
-typedef struct queryid
-{
-  unsigned long long coordinatorid;
-  unsigned long long queryid;
-} QueryID;
-struct prep
-{
-  QueryID queryid;
-  void *queryresult;
-};
-QueryID execute_prepared_query (void *, char *, struct prep *, int, char *);
-void completeQuery (QueryID id, void *con, char *err);
-void *scidbauth (void *con, const char *name, const char *password);
-// End of mimimalist SciDB client API -----------------------------------------
-
 /* A session consists of client I/O buffers, and an optional SciDB query ID. */
 typedef enum
 {
@@ -71,14 +73,14 @@ typedef struct
 {
   omp_lock_t lock;
   int sessionid;                // session identifier
-  QueryID qid;                  // SciDB query identifier
+  ShimQueryID qid;              // SciDB query identifier
   int pd;                       // output buffer file descrptor
   FILE *pf;                     //   and FILE pointer
   int stream;                   // non-zero if output streaming enabled (DISABLED)
   int save;                     // non-zero if output is to be saved/streamed
   int compression;              // gzip compression level for stream
   char *ibuf;                   // input buffer name
-  char *obuf;                   // output (file) buffer name
+  char *obuf;                   // output (file) buffer name ////
   char *opipe;                  // output pipe name
   void *con;                    // SciDB context
   time_t time;                  // Time value to help decide on orphan sessions
@@ -297,6 +299,24 @@ release_session (struct mg_connection *conn, const struct mg_request_info *ri,
     respond (conn, plain, 404, 0, NULL);        // not found
 }
 
+void respond_to_connection_error(struct mg_connection *conn, int connection_status)
+{
+    if(connection_status == SHIM_ERROR_AUTHENTICATION)
+      {
+        syslog (LOG_ERR, "SciDB authentication error");
+        respond (conn, plain, 401,
+                 strlen ("authentication error"),
+                 "authentication error");
+      }
+    else
+      {
+        syslog (LOG_ERR, "could not connect to SciDB");
+        respond (conn, plain, 503,
+             strlen ("Could not connect to SciDB"),
+             "Could not connect to SciDB");
+      }
+}
+
 /* Note: cancel_query does not trigger a cleanup_session for the session
  * corresponding to the query. The client that initiated the original query is
  * still responsible for session cleanup.
@@ -331,30 +351,21 @@ cancel_query (struct mg_connection *conn, const struct mg_request_info *ri)
       if (s->con)
         {
 // Establish a new SciDB context used to issue the cancel query.
-          can_con = scidbconnect (SCIDB_HOST, SCIDB_PORT);
+          int status;
+          if (strlen(USER) > 0)
+            {
+              can_con = scidbconnect (SCIDB_HOST, SCIDB_PORT, USER, PASS, &status);
+            }
+          else
+            {
+              can_con = scidbconnect (SCIDB_HOST, SCIDB_PORT, NULL, NULL, &status);
+            }
 // check for valid context from scidb
           if (!can_con)
             {
-              syslog (LOG_ERR,
-                      "cancel_query error could not connect to SciDB");
-              respond (conn, plain, 503,
-                       strlen ("Could not connect to SciDB"),
-                       "Could not connect to SciDB");
+              respond_to_connection_error(conn, status);
               return;
             }
-          if (strlen (USER) > 0)
-            {
-              can_con = scidbauth (can_con, USER, PASS);
-            }
-          if (!can_con)
-            {
-              syslog (LOG_ERR, "cancel_query authentication error");
-              respond (conn, plain, 401,
-                       strlen ("authentication error"),
-                       "authentication error");
-              return;
-            }
-
           memset (var1, 0, MAX_VARLEN);
           snprintf (var1, MAX_VARLEN, "cancel(\'%llu.%llu\')",
                     s->qid.coordinatorid, s->qid.queryid);
@@ -1024,7 +1035,7 @@ void
 execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
 {
   int id, k, rel = 0, stream = 0, compression = -1;
-  QueryID q;
+  ShimQueryID q;
   session *s;
   char var[MAX_VARLEN];
   char buf[MAX_VARLEN];
@@ -1130,37 +1141,45 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
       snprintf (qry, k + MAX_VARLEN, "%s", qrybuf);
     }
 
+  int status;
   if (!s->con)
-    s->con = scidbconnect (SCIDB_HOST, SCIDB_PORT);
+    {
+      if(s->auth == SCIDB_AUTHENTICATED && strlen (USER) > 0)
+        {
+          s->con = scidbconnect (SCIDB_HOST, SCIDB_PORT, USER, PASS, &status);
+        }
+      else
+        {
+          s->con = scidbconnect (SCIDB_HOST, SCIDB_PORT, NULL, NULL, &status);
+        }
+    }
   syslog (LOG_INFO, "execute_query %d s->con = %p %s", id, s->con, qry);
   if (!s->con)
     {
       free (qry);
       free (qrybuf);
       free (prefix);
-      syslog (LOG_ERR, "execute_query error could not connect to SciDB");
-      respond (conn, plain, 503, strlen ("Could not connect to SciDB"),
-               "Could not connect to SciDB");
+      respond_to_connection_error(conn, status);
       cleanup_session (s);
       omp_unset_lock (&s->lock);
       return;
     }
-  if (s->auth == SCIDB_AUTHENTICATED && strlen (USER) > 0)
-    {
-      s->con = scidbauth (s->con, USER, PASS);
-      if (!s->con)
-        {
-          free (qry);
-          free (qrybuf);
-          free (prefix);
-          syslog (LOG_ERR, "SciDB authentication failed");
-          respond (conn, plain, 401, strlen ("SciDB authentication failed"),
-                   "SciDB authentication failed");
-          cleanup_session (s);
-          omp_unset_lock (&s->lock);
-          return;
-        }
-    }
+//  if (s->auth == SCIDB_AUTHENTICATED && strlen (USER) > 0)
+//    {
+//      s->con = scidbauth (s->con, USER, PASS);
+//      if (!s->con)
+//        {
+//          free (qry);
+//          free (qrybuf);
+//          free (prefix);
+//          syslog (LOG_ERR, "SciDB authentication failed");
+//          respond (conn, plain, 401, strlen ("SciDB authentication failed"),
+//                   "SciDB authentication failed");
+//          cleanup_session (s);
+//          omp_unset_lock (&s->lock);
+//          return;
+//        }
+//    }
 
   syslog (LOG_INFO, "execute_query %d connected", id);
 
