@@ -28,7 +28,7 @@ endif
 DESTDIR=
 
 shim:
-	$(MAKE) -C src
+	$(MAKE) -C src shim
 	@cp src/shim .
 
 client:

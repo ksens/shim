@@ -27,20 +27,14 @@ endif
 # default: empty DESTDIR implicitly installs to /
 DESTDIR=
 
-shim: proto client sha512 base64
+shim: client sha512 base64 client.h
 	$(CC) -Wall $(CFLAGS) -DUSE_WEBSOCKET $(INC) $(LDFLAGS) -fpic -g -o shim shim.c mongoose.c client.o sha512.o base64.o $(LIBS) -llog4cxx -lprotobuf
 
 shim0: client sha512 base64
 	$(CC) -Wall $(CFLAGS) -O0 -DUSE_WEBSOCKET $(INC) $(LDFLAGS) -fpic -g -o shim shim.c mongoose.c client.o sha512.o base64.o $(LIBS)
 
-client:
+client: client.h
 	$(CXX) $(CXXFLAGS) $(INC) -fpic -g -c client.cpp -o client.o
-
-proto:
-	protoc network/proto/scidb_msg.proto --cpp_out=.   
-
-authtest: proto
-	$(CXX) $(CXXFLAGS) $(INC) -fpic -g test.cpp -o test $(LIBS) -llog4cxx -lprotobuf
 
 sha512:
 	$(CC) -Wall $(CFLAGS) -fpic -g -c sha512.c -o sha512.o
