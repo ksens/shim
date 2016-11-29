@@ -1164,23 +1164,6 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
       omp_unset_lock (&s->lock);
       return;
     }
-//  if (s->auth == SCIDB_AUTHENTICATED && strlen (USER) > 0)
-//    {
-//      s->con = scidbauth (s->con, USER, PASS);
-//      if (!s->con)
-//        {
-//          free (qry);
-//          free (qrybuf);
-//          free (prefix);
-//          syslog (LOG_ERR, "SciDB authentication failed");
-//          respond (conn, plain, 401, strlen ("SciDB authentication failed"),
-//                   "SciDB authentication failed");
-//          cleanup_session (s);
-//          omp_unset_lock (&s->lock);
-//          return;
-//        }
-//    }
-
   syslog (LOG_INFO, "execute_query %d connected", id);
 
   if (prefix) // 1 or more statements to run first
