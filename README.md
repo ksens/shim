@@ -14,6 +14,7 @@ You need to use a version of shim that matches your SciDB release. You can check
 This is the fastest/easiest way to install shim as a system service. We provide some pre-built binary packages.
 
 *SciDB on Ubuntu 14.04*:
+*  [Shim for SciDB 16.9](https://github.com/Paradigm4/shim/blob/gh-pages/shim_16.9_amd64.deb)
 *  [Shim for SciDB 15.12](https://github.com/Paradigm4/shim/raw/gh-pages/shim_15.12_amd64.deb)
 *  [Shim for SciDB 15.7](http://paradigm4.github.io/shim/ubuntu_14.04_shim_15.7_amd64.deb)
 
