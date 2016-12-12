@@ -5,9 +5,9 @@ ifeq ($(SCIDB),)
     SCIDB := $(shell dirname ${X})
   endif
 endif
-GIT_VERSION := $(shell git describe --tags --abbrev=4 --dirty --always)
+VERSION := $(shell scidb --version | head -n 1 | cut -d ':' -f 2 |tr -d ' ')
 
-CFLAGS=-std=gnu99 -fopenmp -g -pedantic -DVERSION=\"$(GIT_VERSION)\"
+CFLAGS=-std=gnu99 -fopenmp -g -pedantic -DVERSION=\"$(VERSION)\"
 INC=-I. -DPROJECT_ROOT="\"$(SCIDB)\"" -I"$(SCIDB)/3rdparty/boost/include/" -I"$(SCIDB)/include" -I"$(SCIDB)/3rdparty/boost/include/boost/container" -DSCIDB_CLIENT
 LIBS=-lstdc++ -ldl -lz -lpthread -L"$(SCIDB)/3rdparty/boost/lib" -L"$(SCIDB)/lib" -lscidbclient -lboost_system -lpam -Wl,--enable-new-dtags -Wl,-rpath,'$$ORIGIN:$$ORIGIN/../lib:$$ORIGIN/../../:$(SCIDB)/3rdparty/boost/lib:'
 
