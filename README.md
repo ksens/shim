@@ -34,10 +34,10 @@ apt-get remove shim
 Packages for some older versions can be found at https://github.com/paradigm4/shim/tree/gh-pages
 
 ```
-# Install with:
-rpm -i shim-16.9-1.x86_64.rpm
 # shim depends on a few libraries. If installation fails you may need to:
 yum install libgomp openssl-devel
+# Install with:
+rpm -i shim-16.9-1.x86_64.rpm
 
 # Uninstall with:
 yum remove shim
