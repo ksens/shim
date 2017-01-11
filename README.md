@@ -20,14 +20,14 @@ This is the fastest/easiest way to install shim as a system service. We provide 
 
 ```
 # Install with:
-sudo gdebi shim_15.12_amd64.deb
+gdebi shim_16.9_amd64.deb
 
 # Uninstall with (be sure to uninstall any existing copy before re-installing shim):
 apt-get remove shim
 ```
 
 *SciDB on RHEL/Centos 6*
-
+* [Shim for SciDB 16.9](http://paradigm4.github.io/shim/shim-16.9-1.x86_64.rpm)
 * [Shim for SciDB 15.12](http://paradigm4.github.io/shim/shim-15.12-1.x86_64.rpm)
 * [Shim for SciDB 15.7](http://paradigm4.github.io/shim/shim-15.7-1.x86_64.rpm)
 
@@ -35,9 +35,9 @@ Packages for some older versions can be found at https://github.com/paradigm4/sh
 
 ```
 # Install with:
-rpm -i shim-15.12-1.x86_64.rpm
-# shim depends on libgomp. If installation fails, install libgomp and try again:
-yum install libgomp
+rpm -i shim-16.9-1.x86_64.rpm
+# shim depends on a few libraries. If installation fails you may need to:
+yum install libgomp openssl-devel
 
 # Uninstall with:
 yum remove shim
@@ -45,15 +45,15 @@ yum remove shim
 
 ## LD_LIBRARY_PATH issues
 
-By default shim installs into /opt/scidb/15.12/bin and expects the sibling directory "lib" to contain the "libscidbclient.so" library. This may present a problem if SciDB is installed in a different location. One way to go around the issue is by creating a symlink. For example:
+By default shim installs into /opt/scidb/16.9/bin and expects the sibling directory "lib" to contain the "libscidbclient.so" library. This may present a problem if SciDB is installed in a different location. One way to go around the issue is by creating a symlink. For example:
 ```bash
 ## Problem:
 $ sudo service shimsvc start
 Starting shim
-/opt/scidb/15.12/bin/shim: error while loading shared libraries: libscidbclient.so: cannot open shared object file: No such file or directory
+/opt/scidb/16.9/bin/shim: error while loading shared libraries: libscidbclient.so: cannot open shared object file: No such file or directory
 
 ## Solution: supposing SciDB was installed at ~/scidb
-$ sudo ln -s ~/scidb/lib /opt/scidb/15.12/lib 
+$ sudo ln -s ~/scidb/lib /opt/scidb/16.9/lib 
 $ sudo service shimsvc start
 Starting shim
 ```
@@ -126,45 +126,16 @@ If you installed the service version, then you can control when shim is running 
 ## Uninstall
 We explicitly define our SCIDB home directory for Make in the example below:
 ```
-sudo make SCIDB=/opt/scidb/15.12 uninstall
+sudo make SCIDB=/opt/scidb/16.9 uninstall
 ```
 
 ## Log files
 Shim prints messages to the system log. The syslog file location varies, but can usually be found in /var/log/syslog or /var/log/messages.
 
 # Manual Building
-Note that because shim is a SciDB client it needs the boost, zlib, log4cpp and log4cxx development libraries installed to compile. And because shim now uses PAM authentication, you'll now need the PAM development libraries for your system installed too. You also optionally need an SSL development library if you want to support TLS. Moreover, 15.12 and 15.7 use a newer compiler and the paradigm4-*-dev package is not available if you are building SciDB from source.
+Note that because shim is a SciDB client it needs the boost, zlib, log4cpp and log4cxx development libraries installed to compile. And because shim now uses PAM authentication, you'll now need the PAM development libraries for your system installed too. You also optionally need an SSL development library if you want to support TLS. 
 
-## Ubuntu
-For SciDB 15.12 or 15.7 on Ubuntu 14.04 use the below. Note if you are building SciDB from source, make sure to install SciDB at /opt/scidb and do NOT use the paradigm4-15.12-dev package:
-```
-sudo apt-get install paradigm4-15.12-dev make git scidb-15.12-libboost1.54-dev g++-4.9 gcc-4.9 libpqxx-dev liblog4cxx10-dev liblog4cpp5-dev libpam0g-dev zlib1g-dev ruby-dev build-essential libboost-system-dev gcc gdebi
-sudo gem install fpm
-```
-
-For older SciDB versions, note `scidb-14.12-libboost1.54-all-dev` and `scidb-14.12-dev` correspond to your
-installed version of SciDB, replace those package names as required for your
-version. Use `apt-cache search scidb` to find the exact package names:
-```
-sudo apt-get install liblog4cpp5-dev liblog4cxx10-dev libboost-dev libboost-system-dev libpam0g-dev zlib1g-dev lib64z1-dev ruby-dev build-essential scidb-14.12-dev scidb-14.12-libboost1.54-all-dev
-sudo gem install fpm
-```
-
-## CentOS and RHEL
-For SciDB 15.12 and 15.7 some extra steps are needed to get the new compiler. If you are building SciDB from source, make sure to install SciDB at /opt/scidb and do NOT use the paradigm4-15.12-dev package:
-```
-sudo yum install scl-utils
-wget https://www.softwarecollections.org/en/scls/rhscl/devtoolset-3/epel-6-x86_64/download/rhscl-devtoolset-3-epel-6-x86_64.noarch.rpm
-sudo rpm -i rhscl-devtoolset-3-epel-6-x86_64.noarch.rpm 
-sudo yum install paradigm4-15.12-dev git devtoolset-3-gcc-c++.x86_64 scidb-15.12-libboost-devel libpqxx-devel log4cxx-devel openssl-devel build-essential zlib-devel pam-devel ruby-devel rubygems rpm-build gcc
-sudo gem install fpm
-```
-
-For older SciDB versions:
-```
-sudo yum install pam-devel ruby-devel rubygems rpm-build
-sudo yum install --enablerepo=scidb3rdparty scidb-14.12-dev scidb-14.12-libboost-devel-1.54.0
-```
+A good way to satisfy most of the dependencies is to install the SciDB Development Packages as described in the [dev_tools documentation](https://github.com/paradigm4/dev_tools#required-packages-scidb-169).
 
 ## Build and install
 ```
@@ -181,9 +152,10 @@ sudo make SCIDB=/opt/scidb/15.12 install
 ## Optionally install as a service
 You can install shim as a system service so that it just runs all the time with:
 ```
-sudo make SCIDB=/opt/scidb/15.12 service
+sudo make SCIDB=/opt/scidb/16.9 service
 ```
 If you install shim as a service and want to change its default options, for example the default HTTP port or port to talk to SciDB on, you'll need to edit the shim configuration file. See the discussion of command line parameters below.
+
 ### Optionally build deb or rpm packages
 You can build the service version of shim into packages for Ubuntu 12.04 or RHEL/CentOS 6 with
 ```
