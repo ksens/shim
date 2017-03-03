@@ -17,7 +17,7 @@ Use the `-a` command line flag, or add the line
 ```
 aio=1
 ```
-to the `/var/lib/shim.conf` file to save data using the SciDB aio_tools plugin (required).
+to the `/var/lib/shim/conf` file to save data using the SciDB aio_tools plugin (required).
 
 ## SciDB native authentication
 
