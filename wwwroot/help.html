@@ -173,7 +173,7 @@ B. W. Lewis <a href="mailto:blewis@paradigm4.com">blewis@paradigm4.com</a>
 <h2>Support for the SciDB advanced I/O toolbox (<em>aio_tools</em>)</h2>
 <p>Use the <code>-a</code> command line flag, or add the line</p>
 <pre><code>aio=1</code></pre>
-<p>to the <code>/var/lib/shim.conf</code> file to save data using the SciDB aio_tools plugin (required).</p>
+<p>to the <code>/var/lib/shim/conf</code> file to save data using the SciDB aio_tools plugin (required).</p>
 </div>
 <div id="scidb-native-authentication" class="section level2">
 <h2>SciDB native authentication</h2>
@@ -328,17 +328,17 @@ RESPONSE
 EXAMPLE (curl)
 <td>
 <pre class="bash"><code>curl -f -s http://localhost:8080/version </code></pre>
-<pre><code>v15.12-28-g4b86</code></pre>
+<pre><code>16.9.0</code></pre>
 <tr>
 <td>
 EXAMPLE (R)
 <td>
 <pre class="r"><code>httr::GET(&quot;http://localhost:8080/version&quot;)</code></pre>
 <pre><code>Response [http://localhost:8080/version]
-  Date: 2016-09-13 20:18
+  Date: 2017-03-04 23:10
   Status: 200
   Content-Type: text/plain
-  Size: 15 B</code></pre>
+  Size: 6 B</code></pre>
 </table>
 </div>
 <div id="new_session" class="section level3">
@@ -372,14 +372,14 @@ EXAMPLE (curl)
 <td></li>
 </ul>
 <pre class="bash"><code>curl -s http://localhost:8080/new_session </code></pre>
-<pre><code>35</code></pre>
+<pre><code>21</code></pre>
 <tr>
 <td>
 EXAMPLE (R)
 <td>
 <pre class="r"><code>id = httr::GET(&quot;http://localhost:8080/new_session&quot;)
 (id = rawToChar(id$content))</code></pre>
-<pre><code>[1] &quot;36&quot;</code></pre>
+<pre><code>[1] &quot;22&quot;</code></pre>
 </table>
 </div>
 <div id="release_session" class="section level3">
@@ -415,10 +415,10 @@ EXAMPLE (R)
 </ul>
 <pre class="r"><code>id = httr::GET(&quot;http://localhost:8080/new_session&quot;)
 (id = rawToChar(id$content))</code></pre>
-<pre><code>[1] &quot;37&quot;</code></pre>
+<pre><code>[1] &quot;23&quot;</code></pre>
 <pre class="r"><code>httr::GET(sprintf(&quot;http://localhost:8080/release_session?id=%s&quot;,id))</code></pre>
-<pre><code>Response [http://localhost:8080/release_session?id=37]
-  Date: 2016-09-13 20:18
+<pre><code>Response [http://localhost:8080/release_session?id=23]
+  Date: 2017-03-04 23:10
   Status: 200
   Content-Type: text/plain
 &lt;EMPTY BODY&gt;</code></pre>
@@ -497,16 +497,14 @@ ans = httr::GET(query)
 
 # The response in this example is just the SciDB query ID:
 (rawToChar(ans$content))</code></pre>
-<pre><code>[1] &quot;SystemException in file: src/network/ClientMessageHandleJob.cpp function: dispatch line: 1018\nError id: scidb::SCIDB_SE_NETWORK::SCIDB_LE_AUTHENTICATION_ERROR\nError description: Network error. Authentication error reason='not authenticated'.&quot;</code></pre>
+<pre><code>[1] &quot;1488687009794278075&quot;</code></pre>
 <tr>
 <td>
 EXAMPLE (curl)
 <td>
 <pre class="bash"><code>s=`curl -s &quot;http://localhost:8080/new_session&quot;`
 curl -s &quot;http://localhost:8080/execute_query?id=${s}&amp;query=consume(list())&amp;release=1&quot;</code></pre>
-<pre><code>SystemException in file: src/network/ClientMessageHandleJob.cpp function: dispatch line: 1018
-Error id: scidb::SCIDB_SE_NETWORK::SCIDB_LE_AUTHENTICATION_ERROR
-Error description: Network error. Authentication error reason='not authenticated'.</code></pre>
+<pre><code>1488687009842888041</code></pre>
 <tr>
 <td>
 EXAMPLE w/ERROR (R)
@@ -516,13 +514,15 @@ session = rawToChar(id$content)
 query = sprintf(&quot;http://localhost:8080/execute_query?id=%s&amp;query=consume(42)&amp;release=1&quot;,
                 session)
 httr::GET(query)</code></pre>
-<pre><code>Response [http://localhost:8080/execute_query?id=41&amp;query=consume(42)&amp;release=1]
-  Date: 2016-09-13 20:18
+<pre><code>Response [http://localhost:8080/execute_query?id=27&amp;query=consume(42)&amp;release=1]
+  Date: 2017-03-04 23:10
   Status: 500
   Content-Type: text/html
-  Size: 241 B
-SystemException in file: src/network/ClientMessageHandleJob.cpp function...
-Error id: scidb::SCIDB_SE_NETWORK::SCIDB_LE_AUTHENTICATION_ERROR</code></pre>
+  Size: 279 B
+UserQueryException in file: src/query/parser/Translator.cpp function: ma...
+Error id: scidb::SCIDB_SE_QPROC::SCIDB_LE_WRONG_OPERATOR_ARGUMENT2
+Error description: Query processor error. Parameter must be array name o...
+consume(42)</code></pre>
 <tr>
 <td>
 EXAMPLE using prefix to set namespace (curl)
@@ -635,9 +635,16 @@ EXAMPLE (curl)
 curl -s &quot;http://localhost:8080/execute_query?id=${s}&amp;query=list('functions')&amp;save=dcsv&quot;
 curl -s &quot;http://localhost:8080/read_lines?id=${s}&amp;n=10&quot;
 curl -s &quot;http://localhost:8080/release_session?id=${s}&quot;</code></pre>
-<pre><code>SystemException in file: src/network/ClientMessageHandleJob.cpp function: dispatch line: 1018
-Error id: scidb::SCIDB_SE_NETWORK::SCIDB_LE_AUTHENTICATION_ERROR
-Error description: Network error. Authentication error reason='not authenticated'.</code></pre>
+<pre><code>1488687009925881436{No} name,profile,deterministic,library
+{0} '%','double %(double,double)',true,'scidb'
+{1} '%','int16 %(int16,int16)',true,'scidb'
+{2} '%','int32 %(int32,int32)',true,'scidb'
+{3} '%','int64 %(int64,int64)',true,'scidb'
+{4} '%','int8 %(int8,int8)',true,'scidb'
+{5} '%','uint16 %(uint16,uint16)',true,'scidb'
+{6} '%','uint32 %(uint32,uint32)',true,'scidb'
+{7} '%','uint64 %(uint64,uint64)',true,'scidb'
+{8} '%','uint8 %(uint8,uint8)',true,'scidb'</code></pre>
 </table>
 </div>
 <div id="read_bytes" class="section level3">
@@ -700,9 +707,12 @@ curl -s &quot;http://localhost:8080/read_bytes?id=${s}&quot; | od -t f8
 
 # Release the session
 curl -s &quot;http://localhost:8080/release_session?id=${s}&quot;</code></pre>
-<pre><code>SystemException in file: src/network/ClientMessageHandleJob.cpp function: dispatch line: 1018
-Error id: scidb::SCIDB_SE_NETWORK::SCIDB_LE_AUTHENTICATION_ERROR
-Error description: Network error. Authentication error reason='not authenticated'.0000000</code></pre>
+<pre><code>14886870099811577310000000                        1                        2
+0000020                        3                        4
+0000040                        5                        6
+0000060                        7                        8
+0000100                        9                       10
+0000120</code></pre>
 </table>
 </div>
 <div id="upload_file" class="section level3">
@@ -750,8 +760,8 @@ dd if=/dev/urandom bs=1M count=5  | \
 curl -s &quot;http://localhost:8080/release_session?id=${id}&quot;</code></pre>
 <pre><code>## 5+0 records in
 ## 5+0 records out
-## 5242880 bytes (5.2 MB) copied, 0.941604 s, 5.6 MB/s
-## /dev/shm/0/0/shim_input_buf_2MNCkv</code></pre>
+## 5242880 bytes (5.2 MB) copied, 0.933821 s, 5.6 MB/s
+## /tmp//shim_input_buf_zOCY7V</code></pre>
 </table>
 </div>
 <div id="upload" class="section level3">
@@ -803,8 +813,8 @@ dd if=/dev/urandom bs=1M count=5  | \
 curl -s &quot;http://localhost:8080/release_session?id=${id}&quot;</code></pre>
 <pre><code>## 5+0 records in
 ## 5+0 records out
-## 5242880 bytes (5.2 MB) copied, 0.92842 s, 5.6 MB/s
-## /dev/shm/0/0/shim_input_buf_90Lnh4</code></pre>
+## 5242880 bytes (5.2 MB) copied, 0.928092 s, 5.6 MB/s
+## /tmp//shim_input_buf_GcdtXf</code></pre>
 <tr>
 <td>
 EXAMPLE (R)
@@ -815,15 +825,15 @@ session = rawToChar(id$content)
 
 # Upload a character string:
 httr::POST(sprintf(&quot;http://localhost:8080/upload?id=%s&quot;, session), body=&quot;Hello shim&quot;)</code></pre>
-<pre><code>## Response [http://localhost:8080/upload?id=46]
-##   Date: 2016-09-13 20:18
+<pre><code>## Response [http://localhost:8080/upload?id=32]
+##   Date: 2017-03-04 23:10
 ##   Status: 200
 ##   Content-Type: text/plain
-##   Size: 34 B</code></pre>
+##   Size: 27 B</code></pre>
 <pre class="r"><code># Release our session ID
 httr::GET(sprintf(&quot;http://localhost:8080/release_session?id=%s&quot;, session))</code></pre>
-<pre><code>## Response [http://localhost:8080/release_session?id=46]
-##   Date: 2016-09-13 20:18
+<pre><code>## Response [http://localhost:8080/release_session?id=32]
+##   Date: 2017-03-04 23:10
 ##   Status: 200
 ##   Content-Type: text/plain
 ## &lt;EMPTY BODY&gt;</code></pre>
