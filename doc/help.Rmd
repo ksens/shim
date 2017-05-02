@@ -315,7 +315,7 @@ curl -s "http://localhost:8080/release_session?id=${s}"
 <tr><td>PARAMETERS <td>
 - **id** an HTTP session ID obtained from `/new_session`
 - **user** _optional_ SciDB authentication user name (TLS connections only)
-- **password** _optional_ encoded SciDB authentication password (TLS connections only)
+- **password** _optional_ SciDB authentication password (TLS connections only)
 - **query** AFL query string, encoded for use in URL as required, limited to a maximum of 262,144 characters
 - **save** optional SciDB save format string, limited to a maximum of 4096 characters; Save the query output in the specified format for subsequent download by `read_lines` or `read_bytes`. If the save parameter is not specified, don't save the query output. 
 - **release** optional 0 or 1: if 1 then release_session as soon as query completes. The default value is 0 if not specified (see additional notes below).
@@ -333,8 +333,7 @@ Shim only supports AFL queries.
 <p>
 Remember to URL-encode the SciDB query string.
 <p>
-Specify optional user and password information for SciDB authentication. The password must be encoded as
-`base64( sha512("plain text password") )` -- authentication requires a TLS encrypted connection.
+Specify optional user and password information for SciDB authentication. Authentication requires a TLS encrypted connection.
 <p>
 500 and 503 errors result in removal of the web session ID and related resources (thus, `release_session` does not have to be called after such an error). 
 <p>
@@ -390,11 +389,10 @@ curl -f -s -k "https://${host}:${port}/release_session?id=${id}"
 <tr><td>PARAMETERS <td>
 - **id** an HTTP session ID obtained from `/new_session`
 - **user** _optional_ SciDB authentication user name (TLS connections only)
-- **password** _optional_ encoded SciDB authentication password (TLS connections only)
+- **password** _optional_ SciDB authentication password (TLS connections only)
 <tr><td>NOTES <td>
 <p>
-Specify optional user and password information for SciDB authentication. The password must be encoded as
-`base64( sha512("plain text password") )` -- authentication requires a TLS encrypted connection.
+Specify optional user and password information for SciDB authentication. Authentication requires a TLS encrypted connection.
 <tr><td>RESPONSE <td>
 - Success: HTTP 200 
 - Failure (session not found): HTTP 404 
