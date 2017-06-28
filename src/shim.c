@@ -766,7 +766,7 @@ readbytes (struct mg_connection *conn, const struct mg_request_info *ri)
       syslog (LOG_ERR, "readbytes error invalid http query");
       return;
     }
-  syslog (LOG_INFO, "readbytes querystring %s", ri->query_string);
+  syslog (LOG_INFO, "readbytes");
   k = strlen (ri->query_string);
   mg_get_var (ri->query_string, k, "id", var, MAX_VARLEN);
   id = atoi (var);
@@ -1153,7 +1153,7 @@ execute_query (struct mg_connection *conn, const struct mg_request_info *ri)
           s->con = scidbconnect (SCIDB_HOST, SCIDB_PORT, NULL, NULL, &status);
         }
     }
-  syslog (LOG_INFO, "execute_query %d s->con = %p %s", id, s->con, qry);
+  syslog (LOG_INFO, "execute_query %d user %s s->con = %p %s", id, USER, s->con, qry);
   if (!s->con)
     {
       free (qry);
