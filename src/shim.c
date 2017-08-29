@@ -675,7 +675,8 @@ new_session (struct mg_connection *conn, const struct mg_request_info *ri)
   else if (!ri->is_ssl)
     {
       syslog (LOG_INFO, "new_session no auth");
-      auth = 1;                 /* no authentication (non-TLS) */
+      auth = SCIDB_AUTHENTICATED;       /* Use SciDB authentication */
+      //auth = 1;                 /* no authentication (non-TLS) */
     }
   else
     {
